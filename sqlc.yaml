@@ -1,0 +1,17 @@
+version: "2"
+
+sql:
+  - engine: "postgresql"
+    schema: "./app/db/migrations/"
+    queries: "./app/db/queries/"
+    gen:
+      go:
+        package: "repo"
+        out: "./app/repo/"
+        # emit_prepared_queries: true
+        emit_empty_slices: true
+        # overrides:
+        #   - db_type: "uuid"
+        #     go_type:
+        #         import: "github.com/google/uuid"
+        #         type: "UUID"

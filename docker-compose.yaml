@@ -1,0 +1,59 @@
+services:
+  server:
+    build: .
+    restart: "no"
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+    ports:
+      - ${PORT}:${PORT}
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      valkey_cache:
+        condition: service_started
+      papercut_smtp:
+        condition: service_started
+
+  workers:
+    build: .
+    restart: "no"
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+    command: ["/app/workers"]
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+
+  postgres_db:
+    image: postgres:17
+    restart: "no"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
+      interval: 5s
+      retries: 5
+    ports:
+      - ${DB_PORT}:5432
+    volumes:
+      - ${DB_DATA_PATH}:/var/lib/postgresql/data
+
+  valkey_cache:
+    image: valkey/valkey:8
+    restart: "no"
+    ports:
+      - ${VALKEY_PORT}:6379
+    command: valkey-server --save 60 1 --loglevel warning
+    volumes:
+      - ${VALKEY_DATA_PATH}:/data
+
+  papercut_smtp:
+    image: changemakerstudiosus/papercut-smtp:latest
+    restart: "no"
+    ports:
+      - 4000:80
+      - 25:25

@@ -1,0 +1,319 @@
+@baseUrl = http://localhost:8000
+
+################################################################################
+# AUTH ROUTES - Client Management
+################################################################################
+
+### Create Client - Success
+POST {{baseUrl}}/auth/clients
+
+{
+  "platform": "ios",
+  "os": "17.0",
+  "app": "1.0.0"
+}
+
+### clientID: 01KFAMQ29DJFDQVNA754Y31A99
+
+### Create Client - Missing Fields (Validation Error)
+POST {{baseUrl}}/auth/clients
+
+{
+  "platform": "ios"
+}
+
+### Create Client - Invalid JSON
+POST {{baseUrl}}/auth/clients
+
+"invalid json"
+
+### Update Client - Success
+PUT {{baseUrl}}/auth/clients/01KFAMQ29DJFDQVNA754Y31A99
+
+{
+  "app": "2.0.0"
+}
+
+### Update Client - Client Not Found
+PUT {{baseUrl}}/auth/clients/nonexistent_client_id
+
+{
+  "app": "2.0.0"
+}
+
+################################################################################
+# AUTH ROUTES - Registration Flow
+################################################################################
+
+### Register - Success
+POST {{baseUrl}}/auth/register
+
+{
+  "name": "John Doe 2",
+  "username": "johndoe2",
+  "email": "john2@example.com",
+  "bio": "Hello, I am John 2!"
+}
+
+### Register - Username Conflict
+POST {{baseUrl}}/auth/register
+
+{
+  "name": "John Doe",
+  "username": "johndoe",
+  "email": "john2@example.com"
+}
+
+### Register - Email Conflict
+POST {{baseUrl}}janedoe/auth/register
+
+{
+  "name": "Jane Doe",
+  "username": "janedoe",
+  "email": "john@example.com"
+}
+
+### Register - Invalid Username
+POST {{baseUrl}}/auth/register
+
+{
+  "name": "John Doe",
+  "username": "john@doe",
+  "email": "john@example.com"
+}
+
+### Register - Invalid Email
+POST {{baseUrl}}/auth/register
+
+{
+  "name": "John Doe",
+  "username": "johndoe2",
+  "email": "not-an-email"
+}
+
+### Register - Missing Fields
+POST {{baseUrl}}/auth/register
+
+{
+  "name": "John Doe"
+}
+
+################################################################################
+# OTP Routes
+################################################################################
+
+### Request OTP - Success
+POST {{baseUrl}}/auth/otp/request
+
+{
+  "channel": "email",
+  "identifier": "john@example.com",
+  "purpose": "login",
+  "clientID": "01KFAMQ29DJFDQVNA754Y31A99"
+}
+
+### otpID: 01KFAQS2S7TTCNXP8K2MN3KXVZ
+
+### Request OTP - Email Not Found
+POST {{baseUrl}}/auth/otp/request
+
+{
+  "channel": "email",
+  "identifier": "nonexistent@example.com",
+  "purpose": "login",
+  "clientID": "01KFAMQ29DJFDQVNA754Y31A99"
+}
+
+### Request OTP - Client Not Found
+POST {{baseUrl}}/auth/otp/request
+
+{
+  "channel": "email",
+  "identifier": "john@example.com",
+  "purpose": "login",
+  "clientID": "nonexistent_client"
+}
+
+### Request OTP - Invalid Purpose
+POST {{baseUrl}}/auth/otp/request
+
+{
+  "channel": "email",
+  "identifier": "john@example.com",
+  "purpose": "invalid",
+  "clientID": "01KFAMQ29DJFDQVNA754Y31A99"
+}
+
+### Verify OTP - Success
+POST {{baseUrl}}/auth/otp/verify
+
+{
+  "otpID": "01KFAQS2S7TTCNXP8K2MN3KXVZ",
+  "otp": "392618"
+}
+
+### csrf_token=01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Verify OTP - Invalid OTP
+POST {{baseUrl}}/auth/otp/verify
+
+{
+  "otpID": "01HABC123XYZ",
+  "otp": "000000"
+}
+
+################################################################################
+# AUTH ROUTES - Session Management (Require Authentication)
+################################################################################
+
+### Get Active Sessions - No Session (Unauthorized)
+GET {{baseUrl}}/auth/sessions
+
+### Get Active Sessions - With Session
+GET {{baseUrl}}/auth/sessions
+X-CSRF-Token: 01KFANEG6S0A1X45XK8614CP7T_ec76a3c40d35290199665f821a13409907576851364546cbeea2e31ccced5193
+
+### Logout - Success
+POST {{baseUrl}}/auth/logout
+X-CSRF-Token: 01KFANEG6S0A1X45XK8614CP7T_ec76a3c40d35290199665f821a13409907576851364546cbeea2e31ccced5193
+
+### Logout - No Session (Unauthorized)
+POST {{baseUrl}}/auth/logout
+
+################################################################################
+# PROFILE ROUTES (Require Authentication)
+################################################################################
+
+### Search Profiles - No Query (Empty Result)
+GET {{baseUrl}}/profiles
+X-CSRF-Token: 01KFANVKS09E46GDSEZMGXGVD5_5bdd0f547fba03071827b016b62f31f71ad7e1fe47bb3b908f49f4602ff6c712
+
+### Search Profiles - With Query
+GET {{baseUrl}}/profiles?query=john
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Search Profiles - No Session (Unauthorized)
+GET {{baseUrl}}/profiles?query=john
+
+### Get Profile - Success
+GET {{baseUrl}}/profiles/others/01KFAMYBWFAT6KN04CF9M9NRG2
+X-CSRF-Token: 01KFANVKS09E46GDSEZMGXGVD5_5bdd0f547fba03071827b016b62f31f71ad7e1fe47bb3b908f49f4602ff6c712
+
+### Get Profile - Not Found
+GET {{baseUrl}}/profiles/others/nonexistent_user_id
+X-CSRF-Token: 01KFANVKS09E46GDSEZMGXGVD5_5bdd0f547fba03071827b016b62f31f71ad7e1fe47bb3b908f49f4602ff6c712
+
+### Get My Profile - Success
+GET {{baseUrl}}/profiles/me
+X-CSRF-Token: 01KFANVKS09E46GDSEZMGXGVD5_5bdd0f547fba03071827b016b62f31f71ad7e1fe47bb3b908f49f4602ff6c712
+
+### Get My Profile - No Session (Unauthorized)
+GET {{baseUrl}}/profiles/me
+
+### Update Profile - Success
+PUT {{baseUrl}}/profiles
+X-CSRF-Token: 01KFANVKS09E46GDSEZMGXGVD5_5bdd0f547fba03071827b016b62f31f71ad7e1fe47bb3b908f49f4602ff6c712
+
+{
+  "name": "John Updated",
+  "username": "johnupdated",
+  "email": "johnupdated@example.com",
+  "bio": "Updated bio"
+}
+
+### Update Profile - Username Conflict
+PUT {{baseUrl}}/profiles
+X-CSRF-Token: 01KFANVKS09E46GDSEZMGXGVD5_5bdd0f547fba03071827b016b62f31f71ad7e1fe47bb3b908f49f4602ff6c712
+
+{
+  "name": "John Updated",
+  "username": "janedoe",
+  "email": "johnupdated@example.com"
+}
+
+### Update Profile - Invalid Data
+PUT {{baseUrl}}/profiles
+X-CSRF-Token: 01KFANVKS09E46GDSEZMGXGVD5_5bdd0f547fba03071827b016b62f31f71ad7e1fe47bb3b908f49f4602ff6c712
+
+{
+  "name": "J",
+  "username": "ab"
+}
+
+### Update Profile - No Session (Unauthorized)
+PUT {{baseUrl}}/profiles
+
+{
+  "name": "Hacker"
+}
+
+### Delete Profile - Success
+DELETE {{baseUrl}}/profiles
+X-CSRF-Token: 01KFANVKS09E46GDSEZMGXGVD5_5bdd0f547fba03071827b016b62f31f71ad7e1fe47bb3b908f49f4602ff6c712
+
+### Delete Profile - No Session (Unauthorized)
+DELETE {{baseUrl}}/profiles
+
+################################################################################
+# CHAT ROUTES (Require Authentication)
+################################################################################
+
+### Get Chat Partners - Success
+GET {{baseUrl}}/chats
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Get Chat Partners - With Cursor
+GET {{baseUrl}}/chats?cursor=eyJMYXN0TWVzc2FnZUlELldpdGhMYXN0UGFydG5lciI6IjAxSEdERTEyM1pZWCJ9
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Get Chat Partners - No Session (Unauthorized)
+GET {{baseUrl}}/chats
+
+### Get Chat Messages - Success
+GET {{baseUrl}}/chats/partner_123
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Get Chat Messages - With Cursor
+GET {{baseUrl}}/chats/partner_123?cursor=eyJMYXN0TWVzc2FnZUlEIjoiMDFIR0RFMjM0NTYifQ==
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Get Chat Messages - No Session (Unauthorized)
+GET {{baseUrl}}/chats/01KFAR4JF5KS3F7SGPWK2047EJ
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Mark Messages As Read - Success
+POST {{baseUrl}}/chats/partner_123/mark_as_read?upto_message_id=msg_456
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Mark Messages As Read - No Session (Unauthorized)
+POST {{baseUrl}}/chats/partner_123/mark_as_read
+
+### Delete Chat - Success
+DELETE {{baseUrl}}/chats/partner_123
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+### Delete Chat - No Session (Unauthorized)
+DELETE {{baseUrl}}/chats/partner_123
+
+################################################################################
+# WEBSOCKET ROUTE
+################################################################################
+
+### WebSocket Upgrade Required (Should return 426)
+GET {{baseUrl}}/ws
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
+
+################################################################################
+# ERROR HANDLING - Edge Cases
+################################################################################
+
+### Invalid Endpoint (404)
+GET {{baseUrl}}/nonexistent/path
+
+### Invalid Method (405)
+POST {{baseUrl}}/profiles
+X-CSRF-Token: csrf_xyz789
+
+### Invalid Cursor
+GET {{baseUrl}}/chats?cursor=invalid_base64
+X-CSRF-Token: 01KFAQTAKJKJR6RM92E0ZKYR5J_fd7643c99bb1920ec925d8e5d5fb0d86e3251889e183013da9516741277102a8
