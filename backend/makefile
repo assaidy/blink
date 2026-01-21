@@ -20,11 +20,11 @@ watch:
 clean:
 	@rm -rf ./bin/
 
-comp-up-prod:
-	 @docker compose up --build
-
 comp-up-dev:
 	 @docker compose up postgres_db valkey_cache papercut_smtp
+
+comp-up-prod:
+	 @docker compose up --build
 
 comp-down:
 	 @docker compose down
