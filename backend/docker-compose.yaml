@@ -1,12 +1,12 @@
 services:
-  server:
+  api:
     build: .
     restart: "no"
     env_file: .env
     environment:
       ENVIRONMENT: production
     ports:
-      - ${PORT}:${PORT}
+      - ${PORT}
     depends_on:
       postgres_db:
         condition: service_healthy

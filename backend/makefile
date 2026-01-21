@@ -8,14 +8,14 @@ sqlc:
 	@go tool sqlc generate
 
 build: sqlc
-	@go build -o ./bin/app ./cmd/app/
+	@go build -o ./bin/app ./cmd/api/
 
 run: sqlc
-	@go run ./cmd/app/
+	@go run ./cmd/api/
 
 watch:
 	@watchexec -w ./app/db/ -e sql -- make sqlc &
-	@watchexec --restart -w ./app/ -e go -w ./cmd/app/ -e go -- go run ./cmd/app/
+	@watchexec --restart -w ./app/ -e go -w ./cmd/api/ -e go -- go run ./cmd/api/
 
 clean:
 	@rm -rf ./bin/
@@ -24,7 +24,7 @@ comp-up-dev:
 	 @docker compose up postgres_db valkey_cache papercut_smtp
 
 comp-up-prod:
-	 @docker compose up --build
+	 @docker compose up --build --scale api=4
 
 comp-down:
 	 @docker compose down
