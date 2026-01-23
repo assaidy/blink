@@ -3,8 +3,10 @@ package app
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -20,6 +22,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	recovermw "github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/valkey-io/valkey-go"
 )
@@ -83,47 +86,71 @@ func (me *App) Run() {
 }
 
 func (me *App) registerRoutes() {
-	authHandler := handlers.NewAuthHandler(me.authService)
-	profileHandler := handlers.NewProfileHandler(me.profileService)
-	chatHandler := handlers.NewChatHandler(me.chatService)
-	wsHandler := handlers.NewWebsocketHandler(me.logger, me.presenceService)
-
 	me.router.Use(recovermw.New(recovermw.Config{EnableStackTrace: true}))
 	me.router.Use(handlers.WithLogging(me.logger))
 	me.router.Use(handlers.WithErrorResolver(me.logger))
 	// TODO: use rate limiting for different purposes
 
-	// when the client app opens, it checks if the client id is stored locally
-	// if not exists, it will send the client info, and will recieve the created client id
-	me.router.Post("auth/clients", authHandler.HandleCreateClient)
-	// will be sent after updating the client app to new version
-	me.router.Put("auth/clients/:client_id", authHandler.HandleUpdateClient)
-	me.router.Post("auth/register", authHandler.HandleRegister)
-	me.router.Post("auth/otp/request", authHandler.HandleRequestOtp)
-	me.router.Post("auth/otp/verify", authHandler.HandleVerifyOtp)
-	me.router.Post("auth/logout", authHandler.WithSession, authHandler.HandleLogout)
-	me.router.Get("auth/sessions", authHandler.WithSession, authHandler.HandleGetActiveSessions)
+	me.registerApiRoutes()
+	me.registerTemplatesRoutes()
+}
 
-	me.router.Get("/profiles", authHandler.WithSession, profileHandler.HandleSearchProfiles)
-	me.router.Get("/profiles/others/:user_id", authHandler.WithSession, profileHandler.HandleGetProfile)
-	me.router.Get("/profiles/me", authHandler.WithSession, profileHandler.HandleGetMyProfile)
-	me.router.Put("/profiles", authHandler.WithSession, profileHandler.HandleUpdateProfile)
-	me.router.Delete("/profiles", authHandler.WithSession, profileHandler.HandleDeleteProfile)
+func (me *App) registerApiRoutes() {
+	authHandler := handlers.NewAuthHandler(me.authService)
+	profileHandler := handlers.NewProfileHandler(me.profileService)
+	chatHandler := handlers.NewChatHandler(me.chatService)
+	wsHandler := handlers.NewWebsocketHandler(me.logger, me.presenceService)
 
-	me.router.Get("/chats", authHandler.WithSession, chatHandler.HandleGetChatPartners)
-	me.router.Delete("/chats/:partner_id", authHandler.WithSession, chatHandler.HandleDeleteChat)
-	me.router.Get("/chats/:partner_id", authHandler.WithSession, chatHandler.HandleGetChatMessages)
-	me.router.Post("/chats/:partner_id/mark_as_read", authHandler.WithSession, chatHandler.HandleMarkMessagesAsRead)
+	v1 := me.router.Group("/api/v1")
+	{
+		// when the client app opens, it checks if the client id is stored locally
+		// if not exists, it will send the client info, and will recieve the created client id
+		v1.Post("auth/clients", authHandler.HandleCreateClient)
+		// will be sent after updating the client app to new version
+		v1.Put("auth/clients/:client_id", authHandler.HandleUpdateClient)
+		v1.Post("auth/register", authHandler.HandleRegister)
+		v1.Post("auth/otp/request", authHandler.HandleRequestOtp)
+		v1.Post("auth/otp/verify", authHandler.HandleVerifyOtp)
+		v1.Post("auth/logout", authHandler.WithSessionAndCSRFTokens, authHandler.HandleLogout)
+		v1.Get("auth/sessions", authHandler.WithSessionAndCSRFTokens, authHandler.HandleGetActiveSessions)
 
-	me.router.Get("/ws", authHandler.WithSession, wsHandler.WithWebsocket, websocket.New(
-		wsHandler.HandleWebsocket,
-		websocket.Config{
-			// https://docs.gofiber.io/contrib/websocket/#note-with-recover-middleware
-			RecoverHandler: func(c *websocket.Conn) {
-				if err := recover(); err != nil {
-					fmt.Fprintf(os.Stderr, "panic: %v\n\n%s\n", err, debug.Stack())
-				}
+		v1.Get("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleSearchProfiles)
+		v1.Get("/profiles/others/:user_id", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleGetProfile)
+		v1.Get("/profiles/me", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleGetMyProfile)
+		v1.Put("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleUpdateProfile)
+		v1.Delete("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleDeleteProfile)
+
+		v1.Get("/chats", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleGetChatPartners)
+		v1.Delete("/chats/:partner_id", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleDeleteChat)
+		v1.Get("/chats/:partner_id", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleGetChatMessages)
+		v1.Post("/chats/:partner_id/mark_as_read", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleMarkMessagesAsRead)
+
+		v1.Get("/ws", authHandler.WithSessionAndCSRFTokens, wsHandler.WithWebsocket, websocket.New(
+			wsHandler.HandleWebsocket,
+			websocket.Config{
+				// https://docs.gofiber.io/contrib/websocket/#note-with-recover-middleware
+				RecoverHandler: func(c *websocket.Conn) {
+					if err := recover(); err != nil {
+						fmt.Fprintf(os.Stderr, "panic: %v\n\n%s\n", err, debug.Stack())
+					}
+				},
 			},
-		},
-	))
+		))
+	}
+}
+
+//go:embed web/public/*
+var embeddedPublicFS embed.FS
+
+func (me *App) registerTemplatesRoutes() {
+	authHandler := handlers.NewAuthHandler(me.authService)
+
+	me.router.Use("/public", filesystem.New(filesystem.Config{
+		Root:       http.FS(embeddedPublicFS),
+		PathPrefix: "/web/public",
+	}))
+
+	me.router.Get("/register", authHandler.HandleGetRegisterPage)
+	me.router.Get("/login", authHandler.HandleGetLoginPage)
+	me.router.Get("/verify_otp", authHandler.HandleGetVerifyOtpPage)
 }

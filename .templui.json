@@ -1,0 +1,8 @@
+{
+  "componentsDir": "app/web/templates/templui/components",
+  "utilsDir": "app/web/templates/templui/utils",
+  "moduleName": "github.com/assaidy/blink",
+  "jsDir": "app/web/public/js",
+  "jsPublicPath": "/public/js"
+}
+

@@ -1,0 +1,129 @@
+package templates
+
+import (
+  "github.com/assaidy/blink/app/web/templates/templui/components/input"
+  "github.com/assaidy/blink/app/web/templates/templui/components/label"
+  "github.com/assaidy/blink/app/web/templates/templui/components/textarea"
+  "github.com/assaidy/blink/app/web/templates/templui/components/button"
+  "github.com/assaidy/blink/app/web/templates/templui/components/inputotp"
+)
+
+templ baseLayout(title string) {
+	<!DOCTYPE html>
+	<html class="dark">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="/public/css/style.css"/>
+			<script src="/public/js/lib/htmx@2.0.7.js"></script>
+      <script src="/public/js/script.js"></script>
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}
+
+templ RegisterPage() {
+	@baseLayout("Register") {
+		@input.Script()
+		@label.Script()
+		@textarea.Script()
+		<div class="min-h-screen flex items-center justify-center bg-background">
+			<form
+        class="w-full max-w-md bg-card p-6 rounded-lg shadow-lg border border-border"
+        hx-post="/templates/register"
+        hx-swap="outerHTML"
+      >
+				<h2 class="text-2xl font-bold text-center mb-6 text-foreground">Register</h2>
+				<div class="mb-4">
+					@label.Label(label.Props{For: "registerName", Class: "block text-sm font-medium text-foreground mb-2"}) {
+						Name
+					}
+					@input.Input(input.Props{Type: input.TypeText, ID: "registerName", Name: "name", Class: "w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"})
+				</div>
+				<div class="mb-4">
+					@label.Label(label.Props{For: "registerUsername", Class: "block text-sm font-medium text-foreground mb-2"}) {
+						Username
+					}
+					@input.Input(input.Props{Type: input.TypeText, ID: "registerUsername", Name: "username", Class: "w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"})
+				</div>
+				<div class="mb-4">
+					@label.Label(label.Props{For: "registerEmail", Class: "block text-sm font-medium text-foreground mb-2"}) {
+						Email
+					}
+					@input.Input(input.Props{Type: input.TypeEmail, ID: "registerEmail", Name: "email", Class: "w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"})
+				</div>
+				<div class="mb-6">
+					@label.Label(label.Props{For: "registerBio", Class: "block text-sm font-medium text-foreground mb-2"}) {
+						Bio
+					}
+					@textarea.Textarea(textarea.Props{ID: "registerBio", Class: "w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground resize-none", Name: "bio"})
+				</div>
+				@button.Button(button.Props{Type: button.TypeSubmit, Class: "w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring"}) {
+					Register
+				}
+			</form>
+		</div>
+	}
+}
+
+templ LoginPage() {
+  @baseLayout("Login") {
+    @input.Script()
+    @label.Script()
+    <div class="min-h-screen flex items-center justify-center bg-background">
+       <form
+         class="w-full max-w-md bg-card p-6 rounded-lg shadow-lg border border-border"
+         hx-post="/templates/login"
+         hx-swap="outerHTML"
+         hx-on:htmx:config-request="registerClient()"
+        >
+        <h2 class="text-2xl font-bold text-center mb-6 text-foreground">Login</h2>
+         <div class="mb-6">
+           @label.Label(label.Props{For: "loginEmail", Class: "block text-sm font-medium text-foreground mb-2"}) {
+             Email
+           }
+           @input.Input(input.Props{Type: input.TypeEmail, ID: "loginEmail", Name: "email", Class: "w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"})
+         </div>
+         @button.Button(button.Props{Type: button.TypeSubmit, Class: "w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring"}) {
+           Login
+         }
+      </form>
+    </div>
+  }
+}
+
+templ VerifyOtpPage() {
+  @baseLayout("Verify OTP") {
+    @inputotp.Script()
+    @label.Script()
+    <div class="min-h-screen flex items-center justify-center bg-background">
+      <div class="w-full max-w-md bg-card p-6 rounded-lg shadow-lg border border-border">
+        <form
+          hx-post="/templates/verify_otp"
+          hx-swap="outerHTML"
+        >
+          <div class="mb-6">
+            @label.Label(label.Props{For: "otpInput", Class: "block text-base font-medium text-foreground mb-4 text-center"}) {
+              Enter the 6-digit password sent to you
+            }
+            <div class="flex justify-center">
+              @inputotp.InputOTP(inputotp.Props{ID: "otpInput", Name: "otp"}) {
+                @inputotp.Group() {
+                  @inputotp.Slot(inputotp.SlotProps{Index: 0})
+                  @inputotp.Slot(inputotp.SlotProps{Index: 1})
+                  @inputotp.Slot(inputotp.SlotProps{Index: 2})
+                  @inputotp.Slot(inputotp.SlotProps{Index: 3})
+                  @inputotp.Slot(inputotp.SlotProps{Index: 4})
+                  @inputotp.Slot(inputotp.SlotProps{Index: 5})
+                }
+              }
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+}

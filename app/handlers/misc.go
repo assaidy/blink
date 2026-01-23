@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/assaidy/blink/app/utils"
 	"github.com/gofiber/fiber/v2"
 )
@@ -124,4 +125,21 @@ func decodeCursor(decoded string, v any) error {
 type CursoredResponse[T any] struct {
 	Items  []T    `json:"items"`
 	Cursor string `json:"cursor,omitempty"`
+}
+
+func renderTempl(c *fiber.Ctx, component templ.Component) error {
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+	return component.Render(c.Context(), c)
+}
+
+func redirect(c *fiber.Ctx, endpoint string) error {
+	if c.Get("HX-Request") == "true" {
+		c.Set("HX-Redirect", endpoint)
+	} else if c.Get("HX-Boosted") == "true" {
+		c.Set("HX-Location", endpoint)
+	} else {
+		c.Redirect(endpoint)
+	}
+	c.Status(fiber.StatusFound)
+	return nil
 }

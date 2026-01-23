@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/utils"
+	"github.com/assaidy/blink/app/web/templates"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -164,7 +165,7 @@ const (
 	currentUserID    = "Auth.UserID"
 )
 
-func (me *AuthHandler) WithSession(c *fiber.Ctx) error {
+func (me *AuthHandler) WithSessionAndCSRFTokens(c *fiber.Ctx) error {
 	sessionID, userID, err := me.authService.ValidateSession(c.Cookies("session_token"), c.Get("X-CSRF-Token"))
 	if err != nil {
 		return err
@@ -215,4 +216,16 @@ func (me *AuthHandler) HandleGetActiveSessions(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+func (me *AuthHandler) HandleGetLoginPage(c *fiber.Ctx) error {
+	return renderTempl(c, templates.LoginPage())
+}
+
+func (me *AuthHandler) HandleGetRegisterPage(c *fiber.Ctx) error {
+	return renderTempl(c, templates.RegisterPage())
+}
+
+func (me *AuthHandler) HandleGetVerifyOtpPage(c *fiber.Ctx) error {
+	return renderTempl(c, templates.VerifyOtpPage())
 }

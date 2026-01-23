@@ -7,15 +7,17 @@ all: build
 sqlc:
 	@go tool sqlc generate
 
-build: sqlc
-	@go build -o ./bin/app ./cmd/api/
+templ:
+	@go tool templ generate
 
-run: sqlc
-	@go run ./cmd/api/
+tailwind:
+	@npx tailwindcss -i ./app/web/input.css -o ./app/web/public/css/style.css --minify
 
-watch:
-	@watchexec -w ./app/db/ -e sql -- make sqlc &
-	@watchexec --restart -w ./app/ -e go -w ./cmd/api/ -e go -- go run ./cmd/api/
+build: sqlc templ tailwind
+	@go build -o ./bin/api ./cmd/api/
+
+run: build
+	@./bin/api
 
 clean:
 	@rm -rf ./bin/
