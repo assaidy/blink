@@ -106,8 +106,6 @@ func (me *App) registerApiRoutes() {
 		// when the client app opens, it checks if the client id is stored locally
 		// if not exists, it will send the client info, and will recieve the created client id
 		v1.Post("auth/clients", authHandler.HandleCreateClient)
-		// will be sent after updating the client app to new version
-		v1.Put("auth/clients/:client_id", authHandler.HandleUpdateClient)
 		v1.Post("auth/register", authHandler.HandleRegister)
 		v1.Post("auth/otp/request", authHandler.HandleRequestOtp)
 		v1.Post("auth/otp/verify", authHandler.HandleVerifyOtp)
@@ -152,5 +150,4 @@ func (me *App) registerTemplatesRoutes() {
 
 	me.router.Get("/register", authHandler.HandleGetRegisterPage)
 	me.router.Get("/login", authHandler.HandleGetLoginPage)
-	me.router.Get("/verify_otp", authHandler.HandleGetVerifyOtpPage)
 }

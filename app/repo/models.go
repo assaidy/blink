@@ -22,7 +22,6 @@ type Client struct {
 	ID       string
 	Platform string
 	Os       string
-	App      string
 }
 
 type Otp struct {

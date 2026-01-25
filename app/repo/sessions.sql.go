@@ -38,8 +38,7 @@ const getActiveSessionsForUser = `-- name: GetActiveSessionsForUser :many
 select 
   s.id,
   c.platform, 
-  c.os,
-  c.app
+  c.os
 from sessions s
 join clients c on c.id = s.client_id
 where user_id = $1
@@ -49,7 +48,6 @@ type GetActiveSessionsForUserRow struct {
 	ID       string
 	Platform string
 	Os       string
-	App      string
 }
 
 func (q *Queries) GetActiveSessionsForUser(ctx context.Context, userID string) ([]GetActiveSessionsForUserRow, error) {
@@ -61,12 +59,7 @@ func (q *Queries) GetActiveSessionsForUser(ctx context.Context, userID string) (
 	items := []GetActiveSessionsForUserRow{}
 	for rows.Next() {
 		var i GetActiveSessionsForUserRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Platform,
-			&i.Os,
-			&i.App,
-		); err != nil {
+		if err := rows.Scan(&i.ID, &i.Platform, &i.Os); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

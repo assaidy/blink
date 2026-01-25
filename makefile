@@ -11,7 +11,7 @@ templ:
 	@go tool templ generate
 
 tailwind:
-	@npx tailwindcss -i ./app/web/input.css -o ./app/web/public/css/style.css --minify
+	@tailwindcss -i ./app/web/input.css -o ./app/web/public/css/style.css --minify
 
 build: sqlc templ tailwind
 	@go build -o ./bin/api ./cmd/api/

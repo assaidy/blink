@@ -17,7 +17,6 @@ create table clients (
   id varchar not null,
   platform varchar not null, -- e.g. IPhone 15 Pro, ThinkPad Z13, Firefox
   os varchar not null, -- e.g. Linux, Android
-  app varchar not null, -- e.g. Blink Desktop 1.25.10, Blink Web x.x.x
 
   primary key (id)
 );

@@ -1,65 +1,55 @@
-let cookies = {};
+async function verifyClientID() {
+  // TODO: what if clientID was invalid for some reason?
+  if (localStorage.getItem("clientID")) return;
 
-function loadCookies() {
-  document.cookie.split(";").forEach((pair) => {
-    const trimmed = pair.trim();
-    const eqIndex = trimmed.indexOf("=");
-    if (eqIndex === -1) return;
-    const key = decodeURIComponent(trimmed.slice(0, eqIndex));
-    const value = decodeURIComponent(trimmed.slice(eqIndex + 1));
-    cookies[key] = value;
-  });
-  return cookies;
-}
+  const ua = navigator.userAgent;
 
-function registerClient() {
-  if (!localStorage.getItem("clientID")) {
-    const userAgent = navigator.userAgent;
+  let platform = "Unknown";
+  if (ua.includes("Edg")) {
+    platform = "Edge";
+  } else if (ua.includes("OPR")) {
+    platform = "Opera";
+  } else if (ua.includes("Firefox")) {
+    platform = "Firefox";
+  } else if (ua.includes("Chrome") && !ua.includes("Edg")) {
+    platform = "Chrome";
+  } else if (ua.includes("Safari") && !ua.includes("Chrome")) {
+    platform = "Safari";
+  }
 
-    let platform = "Unknown";
-    if (userAgent.includes("Chrome") && !userAgent.includes("Edg")) {
-      platform = "Chrome";
-    } else if (userAgent.includes("Firefox")) {
-      platform = "Firefox";
-    } else if (userAgent.includes("Safari") && !userAgent.includes("Chrome")) {
-      platform = "Safari";
-    } else if (userAgent.includes("Edg")) {
-      platform = "Edge";
-    }
+  let os = "Unknown";
+  if (ua.includes("Windows NT")) {
+    os = "Windows";
+  } else if (ua.includes("Mac OS X")) {
+    os = "macOS";
+  } else if (ua.includes("Linux")) {
+    os = "Linux";
+  } else if (ua.includes("Android")) {
+    os = "Android";
+  } else if (ua.includes("iPhone") || ua.includes("iPad")) {
+    os = "iOS";
+  }
 
-    let os = "Unknown";
-    if (userAgent.includes("Linux")) {
-      os = "Linux";
-    } else if (userAgent.includes("Windows")) {
-      os = "Windows";
-    } else if (userAgent.includes("Mac") || userAgent.includes("macOS")) {
-      os = "macOS";
-    } else if (userAgent.includes("Android")) {
-      os = "Android";
-    } else if (userAgent.includes("iPhone") || userAgent.includes("iPad") || userAgent.includes("iPod")) {
-      os = "iOS";
-    }
-
-    fetch("/api/v1/auth/clients", {
+  try {
+    const response = await fetch("/api/v1/auth/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform, os, app: "Blink Web v1.0.0" }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        localStorage.setItem("clientID", data.clientID);
-      })
-      .catch((err) => console.error("Error registering client:", err));
+      body: JSON.stringify({ platform, os }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    localStorage.setItem("clientID", data.clientID);
+  } catch (err) {
+    console.error(`fetch error:`, err);
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  loadCookies();
+$listen("DOMContentLoaded", async () => {
+  await verifyClientID();
 
-  document.addEventListener("htmx:config-request", (event) => {
-    const csrfToken = cookies["csrf_token"];
-    if (csrfToken) {
-      event.detail.headers["X-CSRF-Token"] = csrfToken;
-    }
+  $listen("htmx:configRequest", (event) => {
+    event.detail.headers["X-CSRF-Token"] = $cookies["csrf_token"];
   });
 });

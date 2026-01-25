@@ -21,37 +21,17 @@ func (q *Queries) CheckClientID(ctx context.Context, id string) (bool, error) {
 }
 
 const insertClient = `-- name: InsertClient :exec
-insert into clients (id, platform, os, app)
-values ($1, $2, $3, $4)
+insert into clients (id, platform, os)
+values ($1, $2, $3)
 `
 
 type InsertClientParams struct {
 	ID       string
 	Platform string
 	Os       string
-	App      string
 }
 
 func (q *Queries) InsertClient(ctx context.Context, arg InsertClientParams) error {
-	_, err := q.db.ExecContext(ctx, insertClient,
-		arg.ID,
-		arg.Platform,
-		arg.Os,
-		arg.App,
-	)
-	return err
-}
-
-const updateClient = `-- name: UpdateClient :exec
-update clients set app = $1 where id = $2
-`
-
-type UpdateClientParams struct {
-	App string
-	ID  string
-}
-
-func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) error {
-	_, err := q.db.ExecContext(ctx, updateClient, arg.App, arg.ID)
+	_, err := q.db.ExecContext(ctx, insertClient, arg.ID, arg.Platform, arg.Os)
 	return err
 }

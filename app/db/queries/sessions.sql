@@ -30,8 +30,7 @@ end $$;
 select 
   s.id,
   c.platform, 
-  c.os,
-  c.app
+  c.os
 from sessions s
 join clients c on c.id = s.client_id
 where user_id = $1;

@@ -20,7 +20,6 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 type CreateClientRequest struct {
 	Platform string `json:"platform"`
 	Os       string `json:"os"`
-	App      string `json:"app"`
 }
 
 type CreateClientResponse struct {
@@ -36,7 +35,6 @@ func (me *AuthHandler) HandleCreateClient(c *fiber.Ctx) error {
 	clientID, err := me.authService.CreateClient(services.CreateClientParams{
 		Platform: request.Platform,
 		Os:       request.Os,
-		App:      request.App,
 	})
 	if err != nil {
 		return err
@@ -45,26 +43,6 @@ func (me *AuthHandler) HandleCreateClient(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(CreateClientResponse{
 		ClientID: clientID,
 	})
-}
-
-type UpdateClientRequest struct {
-	App string `json:"app"`
-}
-
-func (me *AuthHandler) HandleUpdateClient(c *fiber.Ctx) error {
-	var request UpdateClientRequest
-	if err := c.BodyParser(&request); err != nil {
-		return utils.NewError(utils.InvalidJson, err)
-	}
-
-	if err := me.authService.UpdateClient(services.UpdateClientParams{
-		ClientID: c.Params("client_id"),
-		App:      request.App,
-	}); err != nil {
-		return err
-	}
-
-	return c.SendStatus(fiber.StatusOK)
 }
 
 type RegisterRequest struct {
@@ -93,10 +71,10 @@ func (me *AuthHandler) HandleRegister(c *fiber.Ctx) error {
 }
 
 type RequestOtpRequest struct {
-	Channel   string `json:"channel"`
-	Identifer string `json:"identifier"`
-	Purpose   string `json:"purpose"`
-	ClientID  string `json:"clientID"` // the client app id
+	Channel    string `json:"channel"`
+	Identifier string `json:"identifier"`
+	Purpose    string `json:"purpose"`
+	ClientID   string `json:"clientID"` // the client app id
 }
 
 type RequestOtpResponse struct {
@@ -111,7 +89,7 @@ func (me *AuthHandler) HandleRequestOtp(c *fiber.Ctx) error {
 
 	otpID, err := me.authService.SendOtp(services.SendOtpParams{
 		Channel:   request.Channel,
-		Identifer: request.Identifer,
+		Identifer: request.Identifier,
 		Purpose:   request.Purpose,
 		ClientID:  request.ClientID,
 	})
@@ -211,21 +189,17 @@ func (me *AuthHandler) HandleGetActiveSessions(c *fiber.Ctx) error {
 			ID:       s.ID,
 			Platform: s.Platform,
 			Os:       s.Os,
-			App:      s.App,
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
-func (me *AuthHandler) HandleGetLoginPage(c *fiber.Ctx) error {
-	return renderTempl(c, templates.LoginPage())
-}
-
 func (me *AuthHandler) HandleGetRegisterPage(c *fiber.Ctx) error {
 	return renderTempl(c, templates.RegisterPage())
 }
 
-func (me *AuthHandler) HandleGetVerifyOtpPage(c *fiber.Ctx) error {
-	return renderTempl(c, templates.VerifyOtpPage())
+func (me *AuthHandler) HandleGetLoginPage(c *fiber.Ctx) error {
+	return renderTempl(c, templates.LoginPage())
 }
+

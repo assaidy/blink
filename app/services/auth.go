@@ -43,12 +43,10 @@ type CreateClientParams struct {
 func (me *CreateClientParams) cleanAndValidate() error {
 	me.Platform = strings.TrimSpace(me.Platform)
 	me.Os = strings.TrimSpace(me.Os)
-	me.App = strings.TrimSpace(me.App)
 
 	return validation.ValidateStruct(me,
 		validation.Field(&me.Platform, validation.Required),
 		validation.Field(&me.Os, validation.Required),
-		validation.Field(&me.App, validation.Required),
 	)
 }
 
@@ -65,58 +63,11 @@ func (me *AuthService) CreateClient(params CreateClientParams) (string, error) {
 		ID:       clientID,
 		Platform: params.Platform,
 		Os:       params.Os,
-		App:      params.App,
 	}); err != nil {
 		return "", fmt.Errorf("failed to insert client: %w", err)
 	}
 
 	return clientID, nil
-}
-
-type UpdateClientParams struct {
-	ClientID string
-	App      string
-}
-
-func (me *UpdateClientParams) cleanAndValidate() error {
-	me.App = strings.TrimSpace(me.App)
-
-	return validation.ValidateStruct(me,
-		validation.Field(&me.App, validation.Required),
-	)
-}
-
-func (me *AuthService) UpdateClient(params UpdateClientParams) error {
-	if err := params.cleanAndValidate(); err != nil {
-		return utils.NewError(utils.InvalidData, err)
-	}
-
-	ctx := context.Background()
-	tx, err := me.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin tx: %w", err)
-	}
-	defer tx.Rollback()
-	qtx := me.queries.WithTx(tx)
-
-	if ok, err := qtx.CheckClientID(ctx, params.ClientID); err != nil {
-		return fmt.Errorf("failed to check client id: %w", err)
-	} else if !ok {
-		return utils.NewError(utils.ClientNotFound, nil)
-	}
-
-	if err := qtx.UpdateClient(ctx, repo.UpdateClientParams{
-		ID:  params.ClientID,
-		App: params.App,
-	}); err != nil {
-		return fmt.Errorf("failed to update client: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit tx: %w", err)
-	}
-
-	return nil
 }
 
 type RegisterParams struct {
