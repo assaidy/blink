@@ -1,3 +1,3 @@
 module.exports = {
-  content: ["./app/web/**/*.{html,templ,js}", "./app/web/input.css"],
+  content: ["./app/web/**/*.{go,js}"],
 };

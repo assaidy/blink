@@ -3,7 +3,7 @@ package handlers
 import (
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/utils"
-	"github.com/assaidy/blink/app/web/templates"
+	"github.com/assaidy/blink/app/web/components"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -195,11 +195,12 @@ func (me *AuthHandler) HandleGetActiveSessions(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
-func (me *AuthHandler) HandleGetRegisterPage(c *fiber.Ctx) error {
-	return renderTempl(c, templates.RegisterPage())
+func (me *AuthHandler) HandleRegisterPage(c *fiber.Ctx) error {
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+	return components.RegisterPage().Render(c)
 }
 
-func (me *AuthHandler) HandleGetLoginPage(c *fiber.Ctx) error {
-	return renderTempl(c, templates.LoginPage())
+func (me *AuthHandler) HandleLoginPage(c *fiber.Ctx) error {
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+	return components.LoginPage().Render(c)
 }
-

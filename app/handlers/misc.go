@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/assaidy/blink/app/utils"
 	"github.com/gofiber/fiber/v2"
 )
@@ -18,14 +17,10 @@ import (
 func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		if c.Response().StatusCode() == fiber.StatusInternalServerError {
-			ue, ok := err.(utils.Error)
-			if !ok {
+			if _, ok := err.(utils.Error); !ok {
 				logger.Warn("expected a utils error", "error", err)
-				return utils.NewError(utils.InternalFailure, nil)
 			}
-
-			ue.Details = nil // hide internal error's detailes from client
-			return c.JSON(ue)
+			return c.JSON(utils.NewError(utils.InternalFailure, nil))
 		}
 
 		return c.JSON(err)
@@ -37,20 +32,21 @@ func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if err := c.Next(); err != nil {
-			code := fiber.StatusInternalServerError
-
+			var code int
 			var fe *fiber.Error
 			var ue utils.Error
 
 			if errors.As(err, &fe) {
 				code = fe.Code
 				switch fe.Code {
-				case fiber.StatusNotFound:
+				// forbidden is returned from the filesystem middleware when triying to access an invalid resource
+				case fiber.StatusForbidden, fiber.StatusNotFound:
 					err = utils.NewError(utils.InvalidEndpoint, nil)
 				case fiber.StatusMethodNotAllowed:
 					err = utils.NewError(utils.MethodNotAllowed, nil)
 				default:
 					logger.Warn("unhandled fiber error", "error", err)
+					code = fiber.StatusInternalServerError
 					err = utils.NewError(utils.InternalFailure, err)
 				}
 			} else if errors.As(err, &ue) {
@@ -70,9 +66,11 @@ func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 				case utils.InternalFailure:
 					code = fiber.StatusInternalServerError
 				default:
+					code = fiber.StatusInternalServerError
 					logger.Warn("unhandled utils error", "error", err)
 				}
 			} else {
+				code = fiber.StatusInternalServerError
 				err = utils.NewError(utils.InternalFailure, err)
 			}
 
@@ -125,21 +123,4 @@ func decodeCursor(decoded string, v any) error {
 type CursoredResponse[T any] struct {
 	Items  []T    `json:"items"`
 	Cursor string `json:"cursor,omitempty"`
-}
-
-func renderTempl(c *fiber.Ctx, component templ.Component) error {
-	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
-	return component.Render(c.Context(), c)
-}
-
-func redirect(c *fiber.Ctx, endpoint string) error {
-	if c.Get("HX-Request") == "true" {
-		c.Set("HX-Redirect", endpoint)
-	} else if c.Get("HX-Boosted") == "true" {
-		c.Set("HX-Location", endpoint)
-	} else {
-		c.Redirect(endpoint)
-	}
-	c.Status(fiber.StatusFound)
-	return nil
 }

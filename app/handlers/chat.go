@@ -6,6 +6,7 @@ import (
 
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/utils"
+	"github.com/assaidy/blink/app/web/components"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -136,4 +137,9 @@ func (me *ChatHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
 		return err
 	}
 	return c.SendStatus(fiber.StatusOK)
+}
+
+func (me *ChatHandler) HandleChatPage(c *fiber.Ctx) error {
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+	return components.ChatPage().Render(c)
 }

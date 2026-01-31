@@ -92,7 +92,7 @@ func (me *App) registerRoutes() {
 	// TODO: use rate limiting for different purposes
 
 	me.registerApiRoutes()
-	me.registerTemplatesRoutes()
+	me.registerHtmlRoutes()
 }
 
 func (me *App) registerApiRoutes() {
@@ -138,16 +138,18 @@ func (me *App) registerApiRoutes() {
 }
 
 //go:embed web/public/*
-var embeddedPublicFS embed.FS
+var staticFS embed.FS
 
-func (me *App) registerTemplatesRoutes() {
+func (me *App) registerHtmlRoutes() {
 	authHandler := handlers.NewAuthHandler(me.authService)
+	chatHandler := handlers.NewChatHandler(me.chatService)
 
 	me.router.Use("/public", filesystem.New(filesystem.Config{
-		Root:       http.FS(embeddedPublicFS),
-		PathPrefix: "/web/public",
+		Root:       http.FS(staticFS),
+		PathPrefix: "web/public",
 	}))
 
-	me.router.Get("/register", authHandler.HandleGetRegisterPage)
-	me.router.Get("/login", authHandler.HandleGetLoginPage)
+	me.router.Get("/register", authHandler.HandleRegisterPage)
+	me.router.Get("/login", authHandler.HandleLoginPage)
+	me.router.Get("/", chatHandler.HandleChatPage)
 }

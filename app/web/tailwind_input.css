@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  /* Gruvbox Light Mode (default) */
+  --color-bg-primary: #fbf1c7;
+  --color-bg-secondary: #ebdbb2;
+  --color-bg-tertiary: #d5c4a1;
+  --color-fg-primary: #3c3836;
+  --color-fg-secondary: #665c54;
+  --color-fg-tertiary: #7c6f64;
+  
+  /* Accent colors */
+  --color-red: #cc241d;
+  --color-green: #98971a;
+  --color-yellow: #d79921;
+  --color-blue: #458588;
+  --color-purple: #b16286;
+  --color-aqua: #689d6a;
+  --color-orange: #d65d0e;
+}
+
+/* Dark mode override */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg-primary: #1d2021;
+    --color-bg-secondary: #282828;
+    --color-bg-tertiary: #32302f;
+    --color-fg-primary: #ebdbb2;
+    --color-fg-secondary: #d5c4a1;
+    --color-fg-tertiary: #bdae93;
+  }
+}
