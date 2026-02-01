@@ -36,11 +36,10 @@ func (q *Queries) BatchDeleteExpriredSessions(ctx context.Context) error {
 
 const getActiveSessionsForUser = `-- name: GetActiveSessionsForUser :many
 select 
-  s.id,
-  c.platform, 
-  c.os
+  id,
+  platform, 
+  os
 from sessions s
-join clients c on c.id = s.client_id
 where user_id = $1
 `
 
@@ -74,7 +73,7 @@ func (q *Queries) GetActiveSessionsForUser(ctx context.Context, userID string) (
 }
 
 const getSessionById = `-- name: GetSessionById :one
-select id, token, csrf_token, user_id, client_id, created_at, expires_at from sessions where id = $1
+select id, token, csrf_token, user_id, platform, os, created_at, expires_at from sessions where id = $1
 `
 
 func (q *Queries) GetSessionById(ctx context.Context, id string) (Session, error) {
@@ -85,7 +84,8 @@ func (q *Queries) GetSessionById(ctx context.Context, id string) (Session, error
 		&i.Token,
 		&i.CsrfToken,
 		&i.UserID,
-		&i.ClientID,
+		&i.Platform,
+		&i.Os,
 		&i.CreatedAt,
 		&i.ExpiresAt,
 	)
@@ -93,8 +93,8 @@ func (q *Queries) GetSessionById(ctx context.Context, id string) (Session, error
 }
 
 const insertSession = `-- name: InsertSession :exec
-insert into sessions (id, token, csrf_token, user_id, client_id, expires_at)
-values ($1, $2, $3, $4, $5, $6)
+insert into sessions (id, token, csrf_token, user_id, os, platform, expires_at)
+values ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type InsertSessionParams struct {
@@ -102,7 +102,8 @@ type InsertSessionParams struct {
 	Token     string
 	CsrfToken string
 	UserID    string
-	ClientID  string
+	Os        string
+	Platform  string
 	ExpiresAt time.Time
 }
 
@@ -112,7 +113,8 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.Token,
 		arg.CsrfToken,
 		arg.UserID,
-		arg.ClientID,
+		arg.Os,
+		arg.Platform,
 		arg.ExpiresAt,
 	)
 	return err

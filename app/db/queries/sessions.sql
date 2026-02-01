@@ -1,6 +1,6 @@
 -- name: InsertSession :exec
-insert into sessions (id, token, csrf_token, user_id, client_id, expires_at)
-values ($1, $2, $3, $4, $5, $6);
+insert into sessions (id, token, csrf_token, user_id, os, platform, expires_at)
+values ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: GetSessionById :one
 select * from sessions where id = $1;
@@ -28,9 +28,8 @@ end $$;
 
 -- name: GetActiveSessionsForUser :many
 select 
-  s.id,
-  c.platform, 
-  c.os
+  id,
+  platform, 
+  os
 from sessions s
-join clients c on c.id = s.client_id
 where user_id = $1;

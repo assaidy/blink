@@ -32,7 +32,7 @@ type GetChatPartnersResponseItem struct {
 type GetChatPartnersResponse CursoredResponse[GetChatPartnersResponseItem]
 
 // TODO: add filter/search option
-func (me *ChatHandler) HandleGetChatPartners(c *fiber.Ctx) error {
+func (me *ChatHandler) HandleApiGetChatPartners(c *fiber.Ctx) error {
 	var requestCursor GetChatsCursor
 	if qc := c.Query("cursor"); qc != "" {
 		if err := decodeCursor(qc, &requestCursor); err != nil {
@@ -71,7 +71,7 @@ func (me *ChatHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 	})
 }
 
-func (me *ChatHandler) HandleDeleteChat(c *fiber.Ctx) error {
+func (me *ChatHandler) HandleApiDeleteChat(c *fiber.Ctx) error {
 	if err := me.chatService.DeleteChat(getCurrentUserID(c), c.Params("partner_id")); err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ type GetChatMessagesResponseItem struct {
 
 type GetChatMessagesResponse CursoredResponse[GetChatMessagesResponseItem]
 
-func (me *ChatHandler) HandleGetChatMessages(c *fiber.Ctx) error {
+func (me *ChatHandler) HandleApiGetChatMessages(c *fiber.Ctx) error {
 	var requestCursor GetChatMessagesCursor
 	if qc := c.Query("cursor"); qc != "" {
 		if err := decodeCursor(qc, &requestCursor); err != nil {
@@ -132,7 +132,7 @@ func (me *ChatHandler) HandleGetChatMessages(c *fiber.Ctx) error {
 	})
 }
 
-func (me *ChatHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
+func (me *ChatHandler) HandleApiMarkMessagesAsRead(c *fiber.Ctx) error {
 	if err := me.chatService.MarkMessagesAsRead(getCurrentUserID(c), c.Params("partner_id"), c.Query("upto_message_id")); err != nil {
 		return err
 	}
@@ -140,6 +140,8 @@ func (me *ChatHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
 }
 
 func (me *ChatHandler) HandleChatPage(c *fiber.Ctx) error {
-	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
-	return components.ChatPage().Render(c)
+	return render(c, components.ChatPage(components.ChatPageParams{
+		UserID:    getCurrentUserID(c),
+		SessionID: getCurrentSessionID(c),
+	}))
 }

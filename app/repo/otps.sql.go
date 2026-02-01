@@ -44,7 +44,7 @@ func (q *Queries) DeleteOtp(ctx context.Context, id string) error {
 }
 
 const getOtpByID = `-- name: GetOtpByID :one
-select id, user_id, client_id, otp_hash, channel, purpose, created_at, expires_at from otps where id = $1 for update
+select id, user_id, otp_hash, channel, purpose, created_at, expires_at from otps where id = $1 for update
 `
 
 func (q *Queries) GetOtpByID(ctx context.Context, id string) (Otp, error) {
@@ -53,7 +53,6 @@ func (q *Queries) GetOtpByID(ctx context.Context, id string) (Otp, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.ClientID,
 		&i.OtpHash,
 		&i.Channel,
 		&i.Purpose,
@@ -64,14 +63,13 @@ func (q *Queries) GetOtpByID(ctx context.Context, id string) (Otp, error) {
 }
 
 const insertOtp = `-- name: InsertOtp :exec
-insert into otps (id, user_id, client_id, otp_hash, channel, purpose, expires_at)
-values ($1, $2, $3, $4, $5, $6, $7)
+insert into otps (id, user_id, otp_hash, channel, purpose, expires_at)
+values ($1, $2, $3, $4, $5, $6)
 `
 
 type InsertOtpParams struct {
 	ID        string
 	UserID    string
-	ClientID  string
 	OtpHash   string
 	Channel   string
 	Purpose   string
@@ -82,7 +80,6 @@ func (q *Queries) InsertOtp(ctx context.Context, arg InsertOtpParams) error {
 	_, err := q.db.ExecContext(ctx, insertOtp,
 		arg.ID,
 		arg.UserID,
-		arg.ClientID,
 		arg.OtpHash,
 		arg.Channel,
 		arg.Purpose,

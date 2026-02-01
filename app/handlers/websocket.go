@@ -54,7 +54,7 @@ type WebsocketMessage struct {
 	Timestamp       time.Time `json:"timestamp"`
 }
 
-func (me *WebsocketHandler) HandleWebsocket(c *websocket.Conn) {
+func (me *WebsocketHandler) HandleApiWebsocket(c *websocket.Conn) {
 	defer c.Close()
 	userID := c.Locals(currentUserID).(string)
 	sessionID := c.Locals(currentSessionID).(string)

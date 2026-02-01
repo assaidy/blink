@@ -16,7 +16,16 @@ func rootLayout(children ...any) gg.Node {
 				gg.Script(gg.KV{"src": "/public/js/script.js", "defer": true}),
 				gg.Link(gg.KV{"rel": "stylesheet", "href": "/public/css/style.css"}),
 			),
-			gg.Body(gg.KV{"class": "bg-bg-primary"},
+			gg.Body(gg.KV{
+				"hx-on::config-request": `
+					event.detail.headers['X-CSRF-Token'] = document.cookie
+						.split('; ')
+						.find(row => row.startsWith('csrf_token='))?
+						.split('=')[1]?
+						.trim() || '';
+				`,
+				"class": "bg-bg-primary",
+			},
 				gg.Div(children...),
 			),
 		),

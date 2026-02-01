@@ -96,35 +96,32 @@ func (me *App) registerRoutes() {
 }
 
 func (me *App) registerApiRoutes() {
-	authHandler := handlers.NewAuthHandler(me.authService)
+	authHandler := handlers.NewAuthHandler(me.logger, me.authService)
 	profileHandler := handlers.NewProfileHandler(me.profileService)
 	chatHandler := handlers.NewChatHandler(me.chatService)
 	wsHandler := handlers.NewWebsocketHandler(me.logger, me.presenceService)
 
 	v1 := me.router.Group("/api/v1")
 	{
-		// when the client app opens, it checks if the client id is stored locally
-		// if not exists, it will send the client info, and will recieve the created client id
-		v1.Post("auth/clients", authHandler.HandleCreateClient)
-		v1.Post("auth/register", authHandler.HandleRegister)
-		v1.Post("auth/otp/request", authHandler.HandleRequestOtp)
-		v1.Post("auth/otp/verify", authHandler.HandleVerifyOtp)
-		v1.Post("auth/logout", authHandler.WithSessionAndCSRFTokens, authHandler.HandleLogout)
-		v1.Get("auth/sessions", authHandler.WithSessionAndCSRFTokens, authHandler.HandleGetActiveSessions)
+		v1.Post("auth/register", authHandler.HandleApiRegister)
+		v1.Post("auth/otp/request", authHandler.HandleApiRequestOtp)
+		v1.Post("auth/otp/verify", authHandler.HandleApiVerifyOtp)
+		v1.Post("auth/logout", authHandler.WithSessionAndCSRFTokens, authHandler.HandleApiLogout)
+		v1.Get("auth/sessions", authHandler.WithSessionAndCSRFTokens, authHandler.HandleApiGetActiveSessions)
 
-		v1.Get("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleSearchProfiles)
-		v1.Get("/profiles/others/:user_id", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleGetProfile)
-		v1.Get("/profiles/me", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleGetMyProfile)
-		v1.Put("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleUpdateProfile)
-		v1.Delete("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleDeleteProfile)
+		v1.Get("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiSearchProfiles)
+		v1.Get("/profiles/others/:user_id", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiGetProfile)
+		v1.Get("/profiles/me", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiGetMyProfile)
+		v1.Put("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiUpdateProfile)
+		v1.Delete("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiDeleteProfile)
 
-		v1.Get("/chats", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleGetChatPartners)
-		v1.Delete("/chats/:partner_id", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleDeleteChat)
-		v1.Get("/chats/:partner_id", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleGetChatMessages)
-		v1.Post("/chats/:partner_id/mark_as_read", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleMarkMessagesAsRead)
+		v1.Get("/chats", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleApiGetChatPartners)
+		v1.Delete("/chats/:partner_id", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleApiDeleteChat)
+		v1.Get("/chats/:partner_id", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleApiGetChatMessages)
+		v1.Post("/chats/:partner_id/mark_as_read", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleApiMarkMessagesAsRead)
 
 		v1.Get("/ws", authHandler.WithSessionAndCSRFTokens, wsHandler.WithWebsocket, websocket.New(
-			wsHandler.HandleWebsocket,
+			wsHandler.HandleApiWebsocket,
 			websocket.Config{
 				// https://docs.gofiber.io/contrib/websocket/#note-with-recover-middleware
 				RecoverHandler: func(c *websocket.Conn) {
@@ -141,15 +138,19 @@ func (me *App) registerApiRoutes() {
 var staticFS embed.FS
 
 func (me *App) registerHtmlRoutes() {
-	authHandler := handlers.NewAuthHandler(me.authService)
+	authHandler := handlers.NewAuthHandler(me.logger, me.authService)
 	chatHandler := handlers.NewChatHandler(me.chatService)
 
 	me.router.Use("/public", filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
 		PathPrefix: "web/public",
 	}))
+	me.router.Use(handlers.WithRedirectToLogin)
 
 	me.router.Get("/register", authHandler.HandleRegisterPage)
+	me.router.Post("/register", authHandler.HandleRegister)
 	me.router.Get("/login", authHandler.HandleLoginPage)
-	me.router.Get("/", chatHandler.HandleChatPage)
+	me.router.Post("/login", authHandler.HandleLogin)
+	me.router.Post("/verify_otp", authHandler.HandleVerifyOtp)
+	me.router.Get("/", authHandler.WithSessionToken, chatHandler.HandleChatPage)
 }

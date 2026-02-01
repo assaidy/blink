@@ -23,7 +23,6 @@ var (
 	UsernameConflict         ErrorKind = "UsernameConflict"
 	EmailConflict            ErrorKind = "EmailConflict"
 	InternalFailure          ErrorKind = "InternalFailure"
-	ClientNotFound           ErrorKind = "ClientNotFound"
 	EmailNotFound            ErrorKind = "EmailNotFound"
 	InvalidOtp               ErrorKind = "InvalidOtp"
 	Unauthorized             ErrorKind = "Unauthorized"
@@ -40,7 +39,6 @@ var ErrorDescriptions = map[ErrorKind]string{
 	UsernameConflict:         "Username already exists.",
 	EmailConflict:            "Email already exists.",
 	InternalFailure:          "An unexpected internal error occurred while processing the request.",
-	ClientNotFound:           "The provided client id is not found",
 	EmailNotFound:            "The provided email is not found",
 	InvalidOtp:               "The provided otp is not invalid or expired",
 	Unauthorized:             "Authentication is required or the provided credentials are invalid",

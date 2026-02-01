@@ -1,6 +1,6 @@
 -- name: InsertOtp :exec
-insert into otps (id, user_id, client_id, otp_hash, channel, purpose, expires_at)
-values ($1, $2, $3, $4, $5, $6, $7);
+insert into otps (id, user_id, otp_hash, channel, purpose, expires_at)
+values ($1, $2, $3, $4, $5, $6);
 
 -- name: GetOtpByID :one
 select * from otps where id = $1 for update;

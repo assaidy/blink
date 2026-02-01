@@ -1,47 +1,6 @@
 @baseUrl = http://localhost:8000
 
 ################################################################################
-# AUTH ROUTES - Client Management
-################################################################################
-
-### Create Client - Success
-POST {{baseUrl}}/auth/clients
-
-{
-  "platform": "ios",
-  "os": "17.0",
-  "app": "1.0.0"
-}
-
-### clientID: 01KFAMQ29DJFDQVNA754Y31A99
-
-### Create Client - Missing Fields (Validation Error)
-POST {{baseUrl}}/auth/clients
-
-{
-  "platform": "ios"
-}
-
-### Create Client - Invalid JSON
-POST {{baseUrl}}/auth/clients
-
-"invalid json"
-
-### Update Client - Success
-PUT {{baseUrl}}/auth/clients/01KFAMQ29DJFDQVNA754Y31A99
-
-{
-  "app": "2.0.0"
-}
-
-### Update Client - Client Not Found
-PUT {{baseUrl}}/auth/clients/nonexistent_client_id
-
-{
-  "app": "2.0.0"
-}
-
-################################################################################
 # AUTH ROUTES - Registration Flow
 ################################################################################
 
@@ -109,7 +68,6 @@ POST {{baseUrl}}/auth/otp/request
   "channel": "email",
   "identifier": "john@example.com",
   "purpose": "login",
-  "clientID": "01KFAMQ29DJFDQVNA754Y31A99"
 }
 
 ### otpID: 01KFAQS2S7TTCNXP8K2MN3KXVZ
@@ -121,17 +79,6 @@ POST {{baseUrl}}/auth/otp/request
   "channel": "email",
   "identifier": "nonexistent@example.com",
   "purpose": "login",
-  "clientID": "01KFAMQ29DJFDQVNA754Y31A99"
-}
-
-### Request OTP - Client Not Found
-POST {{baseUrl}}/auth/otp/request
-
-{
-  "channel": "email",
-  "identifier": "john@example.com",
-  "purpose": "login",
-  "clientID": "nonexistent_client"
 }
 
 ### Request OTP - Invalid Purpose
@@ -141,7 +88,6 @@ POST {{baseUrl}}/auth/otp/request
   "channel": "email",
   "identifier": "john@example.com",
   "purpose": "invalid",
-  "clientID": "01KFAMQ29DJFDQVNA754Y31A99"
 }
 
 ### Verify OTP - Success

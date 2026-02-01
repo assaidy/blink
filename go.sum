@@ -9,8 +9,8 @@ github.com/antlr4-go/antlr/v4 v4.13.1 h1:SqQKkuVZ+zWkMMNkjy5FZe5mr5WURWnlpmOuzYW
 github.com/antlr4-go/antlr/v4 v4.13.1/go.mod h1:GKmUxMtwp6ZgGwZSva4eWPC5mS6vUAmOABFgjdkM7Nw=
 github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 h1:zV3ejI06GQ59hwDQAvmK1qxOQGB3WuVTRoY0okPTAv0=
 github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496/go.mod h1:oGkLhpf+kjZl6xBf758TQhh5XrAeiJv/7FRz/2spLIg=
-github.com/assaidy/gg v0.0.0-20260131205237-f13b85cea1d8 h1:wnANW0g9xtwGhMRyXillEbFs6UwABWX/tRAT9PtSHrE=
-github.com/assaidy/gg v0.0.0-20260131205237-f13b85cea1d8/go.mod h1:/27yS8QhjQMi6W7zTGwaFYq2AOhk/rqM4NFozJum9Ys=
+github.com/assaidy/gg v0.0.0-20260201205040-4bc117c92bc1 h1:HKe88iwDiIRy+dYWO/9AV9HbtBMBPGjhsf4Ai0dOVNg=
+github.com/assaidy/gg v0.0.0-20260201205040-4bc117c92bc1/go.mod h1:/27yS8QhjQMi6W7zTGwaFYq2AOhk/rqM4NFozJum9Ys=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

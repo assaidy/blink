@@ -18,16 +18,9 @@ type ChatMessage struct {
 	IsRead     bool
 }
 
-type Client struct {
-	ID       string
-	Platform string
-	Os       string
-}
-
 type Otp struct {
 	ID        string
 	UserID    string
-	ClientID  string
 	OtpHash   string
 	Channel   string
 	Purpose   string
@@ -40,7 +33,8 @@ type Session struct {
 	Token     string
 	CsrfToken string
 	UserID    string
-	ClientID  string
+	Platform  string
+	Os        string
 	CreatedAt time.Time
 	ExpiresAt time.Time
 }

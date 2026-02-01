@@ -29,7 +29,7 @@ type SearchProfileResponseItem struct {
 
 type SearchProfileResponse CursoredResponse[SearchProfileResponseItem]
 
-func (me *ProfileHandler) HandleSearchProfiles(c *fiber.Ctx) error {
+func (me *ProfileHandler) HandleApiSearchProfiles(c *fiber.Ctx) error {
 	query := c.Query("query")
 	if query == "" {
 		return c.Status(fiber.StatusOK).JSON(SearchProfileResponse{
@@ -82,7 +82,7 @@ type GetProfileResponse struct {
 	JoinedAt time.Time `json:"joinedAt"`
 }
 
-func (me *ProfileHandler) HandleGetProfile(c *fiber.Ctx) error {
+func (me *ProfileHandler) HandleApiGetProfile(c *fiber.Ctx) error {
 	profile, err := me.profileService.GetProfile(c.Params("user_id"))
 	if err != nil {
 		return err
@@ -107,7 +107,7 @@ type GetMyProfileResponse struct {
 	JoinedAt        time.Time `json:"joinedAt"`
 }
 
-func (me *ProfileHandler) HandleGetMyProfile(c *fiber.Ctx) error {
+func (me *ProfileHandler) HandleApiGetMyProfile(c *fiber.Ctx) error {
 	profile, err := me.profileService.GetProfile(getCurrentUserID(c))
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ type UpdateProfileRequest struct {
 	Bio      string `json:"bio"`
 }
 
-func (me *ProfileHandler) HandleUpdateProfile(c *fiber.Ctx) error {
+func (me *ProfileHandler) HandleApiUpdateProfile(c *fiber.Ctx) error {
 	var request UpdateProfileRequest
 	if err := c.BodyParser(&request); err != nil {
 		return utils.NewError(utils.InvalidJson, err)
@@ -149,7 +149,7 @@ func (me *ProfileHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (me *ProfileHandler) HandleDeleteProfile(c *fiber.Ctx) error {
+func (me *ProfileHandler) HandleApiDeleteProfile(c *fiber.Ctx) error {
 	if err := me.profileService.DeleteProfile(getCurrentUserID(c)); err != nil {
 		return err
 	}

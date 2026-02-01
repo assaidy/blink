@@ -13,18 +13,9 @@ create table users (
   primary key (id)
 );
 
-create table clients (
-  id varchar not null,
-  platform varchar not null, -- e.g. IPhone 15 Pro, ThinkPad Z13, Firefox
-  os varchar not null, -- e.g. Linux, Android
-
-  primary key (id)
-);
-
 create table otps (
   id varchar not null,
   user_id varchar not null,
-  client_id varchar not null,
   otp_hash varchar not null,
   channel varchar not null, -- e.g. email, sms, ...etc
   purpose varchar not null, -- e.g. login, email_verify, ...etc
@@ -32,8 +23,7 @@ create table otps (
   expires_at timestamptz not null,
 
   primary key (id),
-  foreign key (user_id) references users (id) on delete cascade,
-  foreign key (client_id) references clients (id) on delete cascade
+  foreign key (user_id) references users (id) on delete cascade
 );
 
 create index on otps (expires_at);
@@ -43,14 +33,14 @@ create table sessions (
   token varchar not null unique,
   csrf_token varchar not null unique,
   user_id varchar not null,
-  client_id varchar not null,
+  platform varchar not null, -- e.g. IPhone 15 Pro, ThinkPad Z13, Firefox
+  os varchar not null, -- e.g. Linux, Android
   created_at timestamptz not null default now(),
   expires_at timestamptz not null,
   -- last_active timestamptz not null default now()
 
   primary key (id),
-  foreign key (user_id) references users (id) on delete cascade,
-  foreign key (client_id) references clients (id) on delete cascade
+  foreign key (user_id) references users (id) on delete cascade
 );
 
 create index on sessions (expires_at);
@@ -77,5 +67,4 @@ create index on chat_messages ((case when sender_id is null or receiver_id is nu
 drop table chat_messages;
 drop table sessions;
 drop table otps;
-drop table clients;
 drop table users;

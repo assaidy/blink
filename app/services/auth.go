@@ -34,42 +34,6 @@ func NewAuthService(db *sql.DB) *AuthService {
 	}
 }
 
-type CreateClientParams struct {
-	Platform string
-	Os       string
-	App      string
-}
-
-func (me *CreateClientParams) cleanAndValidate() error {
-	me.Platform = strings.TrimSpace(me.Platform)
-	me.Os = strings.TrimSpace(me.Os)
-
-	return validation.ValidateStruct(me,
-		validation.Field(&me.Platform, validation.Required),
-		validation.Field(&me.Os, validation.Required),
-	)
-}
-
-// creates a client and returns its id
-func (me *AuthService) CreateClient(params CreateClientParams) (string, error) {
-	if err := params.cleanAndValidate(); err != nil {
-		return "", utils.NewError(utils.InvalidData, err)
-	}
-
-	ctx := context.Background()
-
-	clientID := ulid.Make().String()
-	if err := me.queries.InsertClient(ctx, repo.InsertClientParams{
-		ID:       clientID,
-		Platform: params.Platform,
-		Os:       params.Os,
-	}); err != nil {
-		return "", fmt.Errorf("failed to insert client: %w", err)
-	}
-
-	return clientID, nil
-}
-
 type RegisterParams struct {
 	Name     string
 	Username string
@@ -139,14 +103,12 @@ type SendOtpParams struct {
 	Channel   string // the communication channel to send opt through
 	Identifer string // email/sms/... according to channel
 	Purpose   string // login, password_reset, email_verify
-	ClientID  string // client app id
 }
 
 func (me *SendOtpParams) cleanAndValidate() error {
 	me.Channel = strings.ToLower(strings.TrimSpace(me.Channel))
 	me.Identifer = strings.ToLower(strings.TrimSpace(me.Identifer))
 	me.Purpose = strings.ToLower(strings.TrimSpace(me.Purpose))
-	me.ClientID = strings.TrimSpace(me.ClientID)
 
 	if err := validation.ValidateStruct(me,
 		validation.Field(&me.Channel, validation.Required, validation.In("email")),
@@ -158,7 +120,6 @@ func (me *SendOtpParams) cleanAndValidate() error {
 			return nil
 		})),
 		validation.Field(&me.Purpose, validation.Required, validation.In("login")),
-		validation.Field(&me.ClientID, validation.Required),
 	); err != nil {
 		return err
 	}
@@ -173,12 +134,6 @@ func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
 	}
 
 	ctx := context.Background()
-
-	if ok, err := me.queries.CheckClientID(ctx, params.ClientID); err != nil {
-		return "", fmt.Errorf("failed to check client id: %w", err)
-	} else if !ok {
-		return "", utils.NewError(utils.ClientNotFound, nil)
-	}
 
 	var user repo.User
 	switch params.Channel {
@@ -203,7 +158,6 @@ func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
 	if err := me.queries.InsertOtp(ctx, repo.InsertOtpParams{
 		ID:        otpID,
 		UserID:    user.ID,
-		ClientID:  params.ClientID,
 		OtpHash:   otpHash,
 		Channel:   params.Channel,
 		Purpose:   params.Purpose,
@@ -212,12 +166,16 @@ func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
 		return "", fmt.Errorf("faield to insert otp: %w", err)
 	}
 
-	if err := utils.SendEmail(
-		user.Email,
-		"Blink OTP",
-		fmt.Sprintf("Your one-time password is: %s", otp),
-	); err != nil {
-		return "", fmt.Errorf("failed to send email: %w", err)
+	switch params.Channel {
+	case "email":
+		// TODO: inject a Mailer interface
+		if err := utils.SendEmail(
+			user.Email,
+			"Blink OTP",
+			fmt.Sprintf("Your one-time password is: %s", otp),
+		); err != nil {
+			return "", fmt.Errorf("failed to send email: %w", err)
+		}
 	}
 
 	return otpID, nil
@@ -247,14 +205,21 @@ func verifyOtp(otp string, hash string) bool {
 }
 
 type VerifyOtpParams struct {
-	OtpID string
-	Otp   string
+	OtpID    string
+	Otp      string
+	Platform string
+	OS       string
 }
 
 func (me *VerifyOtpParams) validate() error {
+	me.Platform = strings.TrimSpace(me.Platform)
+	me.OS = strings.TrimSpace(me.OS)
+
 	return validation.ValidateStruct(me,
 		validation.Field(&me.OtpID, validation.Required),
 		validation.Field(&me.Otp, validation.Required),
+		validation.Field(&me.Platform, validation.Required),
+		validation.Field(&me.OS, validation.Required),
 	)
 }
 
@@ -297,8 +262,8 @@ func (me *AuthService) VerifyOtp(params VerifyOtpParams) (*LoginSession, error) 
 			Token:     sessionToken,
 			CsrfToken: csrfToken,
 			UserID:    otp.UserID,
-			ClientID:  otp.ClientID,
-			// no expiration for now
+			Platform:  params.Platform,
+			Os:        params.OS,
 			ExpiresAt: sessionExpiration,
 		}); err != nil {
 			return nil, fmt.Errorf("failed to insert session: %w", err)
@@ -320,13 +285,33 @@ func generateCryptoRandomHex(nBytes uint) string {
 	return hex.EncodeToString(buf)
 }
 
-func (me *AuthService) ValidateSession(sessionToken, csrfToken string) (sessionID, userID string, error error) {
+func (me *AuthService) ValidateSessionToken(sessionToken string) (sessionID, userID string, error error) {
+	if sessionToken == "" {
+		return "", "", utils.NewError(utils.Unauthorized, nil)
+	}
+
+	ctx := context.Background()
+	session, err := me.queries.GetSessionById(ctx, strings.Split(sessionToken, "_")[0])
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", utils.NewError(utils.Unauthorized, nil)
+		}
+		return "", "", fmt.Errorf("failed to get session by id: %w", err)
+	}
+
+	if session.Token != sessionToken || !time.Now().Before(session.ExpiresAt) {
+		return "", "", utils.NewError(utils.Unauthorized, nil)
+	}
+
+	return session.ID, session.UserID, nil
+}
+
+func (me *AuthService) ValidateSessionAndCsrfTokens(sessionToken, csrfToken string) (sessionID, userID string, error error) {
 	if sessionToken == "" || csrfToken == "" {
 		return "", "", utils.NewError(utils.Unauthorized, nil)
 	}
 
 	ctx := context.Background()
-
 	session, err := me.queries.GetSessionById(ctx, strings.Split(sessionToken, "_")[0])
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

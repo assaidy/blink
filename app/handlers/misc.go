@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/utils"
+	"github.com/assaidy/gg"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -53,7 +54,7 @@ func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 				switch ue.Kind {
 				case utils.InvalidJson, utils.InvalidData, utils.InvalidCursor:
 					code = fiber.StatusBadRequest
-				case utils.NotFound, utils.ClientNotFound, utils.EmailNotFound, utils.InvalidEndpoint:
+				case utils.NotFound, utils.EmailNotFound, utils.InvalidEndpoint:
 					code = fiber.StatusNotFound
 				case utils.EmailConflict, utils.UsernameConflict:
 					code = fiber.StatusConflict
@@ -123,4 +124,31 @@ func decodeCursor(decoded string, v any) error {
 type CursoredResponse[T any] struct {
 	Items  []T    `json:"items"`
 	Cursor string `json:"cursor,omitempty"`
+}
+
+func render(c *fiber.Ctx, component gg.Node) error {
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+	return component.Render(c)
+}
+
+func redirect(c *fiber.Ctx, endpoint string) error {
+	if c.Get("HX-Request") == "true" {
+		c.Set("HX-Redirect", endpoint)
+	} else if c.Get("HX-Boosted") == "true" {
+		c.Set("HX-Location", endpoint)
+	} else {
+		return c.Redirect(endpoint)
+	}
+	return nil
+}
+
+func WithRedirectToLogin(c *fiber.Ctx) error {
+	if err := c.Next(); err != nil {
+		var ue utils.Error
+		if errors.As(err, &ue) && ue.Kind == utils.Unauthorized {
+			return redirect(c, "/login")
+		}
+		return err
+	}
+	return nil
 }

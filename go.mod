@@ -5,7 +5,7 @@ go 1.25.5
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
 require (
-	github.com/assaidy/gg v0.0.0-20260131205237-f13b85cea1d8
+	github.com/assaidy/gg v0.0.0-20260201205040-4bc117c92bc1
 	github.com/charmbracelet/log v0.4.2
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
