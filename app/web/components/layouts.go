@@ -20,11 +20,11 @@ func rootLayout(children ...any) gg.Node {
 				"hx-on::config-request": `
 					event.detail.headers['X-CSRF-Token'] = document.cookie
 						.split('; ')
-						.find(row => row.startsWith('csrf_token='))?
-						.split('=')[1]?
-						.trim() || '';
+						.find(row => row.startsWith('csrf_token='))
+						?.split('=')[1]
+						?.trim() || '';
 				`,
-				"class": "bg-bg-primary",
+				"class": "bg-bg-primary text-fg-primary",
 			},
 				gg.Div(children...),
 			),

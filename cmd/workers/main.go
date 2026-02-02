@@ -55,6 +55,8 @@ var (
 	queries = repo.New(db.GetPool())
 )
 
+// TODO: add retries count, retry delay
+// might make a separate library
 type Worker struct {
 	name    string
 	job     func(ctx context.Context) error

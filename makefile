@@ -12,6 +12,7 @@ build: sqlc tailwind
 run: build
 	@./bin/api
 
+# TODO: create a separate watcher library
 WATCH_CMD = watchexec --ignore-nothing
 watch:
 	# tailwind watch mode didn't work when i put '&' at the end

@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/utils"
 	"github.com/assaidy/gg"
 	"github.com/gofiber/fiber/v2"
@@ -102,6 +104,56 @@ func WithLogging(logger *slog.Logger) fiber.Handler {
 	}
 }
 
+const (
+	currentSessionID = "Auth.SessionID"
+	currentUserID    = "Auth.UserID"
+)
+
+func WithSessionToken(authService *services.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		sessionID, userID, err := authService.ValidateSessionToken(c.Cookies("session_token"))
+		if err != nil {
+			return err
+		}
+
+		c.Locals(currentSessionID, sessionID)
+		c.Locals(currentUserID, userID)
+		return c.Next()
+	}
+}
+
+func WithSessionAndCsrfTokens(authService *services.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		sessionID, userID, err := authService.ValidateSessionAndCsrfTokens(c.Cookies("session_token"), c.Get("X-CSRF-Token"))
+		if err != nil {
+			return err
+		}
+
+		c.Locals(currentSessionID, sessionID)
+		c.Locals(currentUserID, userID)
+		return c.Next()
+	}
+}
+
+func getCurrentSessionID(c *fiber.Ctx) string {
+	return c.Locals(currentSessionID).(string)
+}
+
+func getCurrentUserID(c *fiber.Ctx) string {
+	return c.Locals(currentUserID).(string)
+}
+
+func WithRedirectUnauthorizedToLogin(c *fiber.Ctx) error {
+	if err := c.Next(); err != nil {
+		var ue utils.Error
+		if errors.As(err, &ue) && ue.Kind == utils.Unauthorized {
+			return redirect(c, "/login")
+		}
+		return err
+	}
+	return nil
+}
+
 func encodeCursor(v any) (string, error) {
 	bytes, err := json.Marshal(v)
 	if err != nil {
@@ -142,13 +194,58 @@ func redirect(c *fiber.Ctx, endpoint string) error {
 	return nil
 }
 
-func WithRedirectToLogin(c *fiber.Ctx) error {
-	if err := c.Next(); err != nil {
-		var ue utils.Error
-		if errors.As(err, &ue) && ue.Kind == utils.Unauthorized {
-			return redirect(c, "/login")
-		}
-		return err
+func extractPlatformAndOSFromUserAgent(userAgent string) (platform string, os string) {
+	if userAgent == "" {
+		return "Unknown", "Unknown"
 	}
-	return nil
+
+	ua := strings.ToLower(userAgent)
+
+	os = "Unknown"
+	for pattern, osName := range osPatterns {
+		if strings.Contains(ua, pattern) {
+			os = osName
+			break
+		}
+	}
+
+	platform = "Unknown"
+	for pattern, platformName := range platformPatterns {
+		if strings.Contains(ua, pattern) {
+			platform = platformName
+			break
+		}
+	}
+
+	return platform, os
+}
+
+var osPatterns = map[string]string{
+	"windows nt 10.0": "Windows 10",
+	"windows nt 6.3":  "Windows 8.1",
+	"windows nt 6.2":  "Windows 8",
+	"windows nt 6.1":  "Windows 7",
+	"windows":         "Windows",
+	"macintosh":       "macOS",
+	"mac os":          "macOS",
+	"linux":           "Linux",
+	"android":         "Android",
+	"iphone":          "iOS",
+	"ipad":            "iOS",
+	"ios":             "iOS",
+}
+
+var platformPatterns = map[string]string{
+	"firefox":   "Firefox",
+	"chrome":    "Chrome",
+	"safari":    "Safari",
+	"edge":      "Edge",
+	"opera":     "Opera",
+	"brave":     "Brave",
+	"iphone":    "iPhone",
+	"ipad":      "iPad",
+	"android":   "Android Device",
+	"macintosh": "Mac",
+	"windows":   "Windows PC",
+	"linux":     "Linux PC",
 }

@@ -96,34 +96,38 @@ func (me *App) registerRoutes() {
 }
 
 func (me *App) registerApiRoutes() {
-	authHandler := handlers.NewAuthHandler(me.logger, me.authService)
-	profileHandler := handlers.NewProfileHandler(me.profileService)
-	chatHandler := handlers.NewChatHandler(me.chatService)
-	wsHandler := handlers.NewWebsocketHandler(me.logger, me.presenceService)
+	apiHandler := handlers.NewApiHandler(
+		me.logger,
+		me.authService,
+		me.chatService,
+		me.profileService,
+		me.presenceService,
+		me.pubsub,
+	)
+	withSessionAndCsrfTokens := handlers.WithSessionAndCsrfTokens(me.authService)
 
 	v1 := me.router.Group("/api/v1")
 	{
-		v1.Post("auth/register", authHandler.HandleApiRegister)
-		v1.Post("auth/otp/request", authHandler.HandleApiRequestOtp)
-		v1.Post("auth/otp/verify", authHandler.HandleApiVerifyOtp)
-		v1.Post("auth/logout", authHandler.WithSessionAndCSRFTokens, authHandler.HandleApiLogout)
-		v1.Get("auth/sessions", authHandler.WithSessionAndCSRFTokens, authHandler.HandleApiGetActiveSessions)
+		v1.Post("/auth/register", apiHandler.HandleRegister)
+		v1.Post("/auth/otp/request", apiHandler.HandleRequestOtp)
+		v1.Post("/auth/otp/verify", apiHandler.HandleVerifyOtp)
+		v1.Post("/auth/logout", withSessionAndCsrfTokens, apiHandler.HandleLogout)
+		v1.Get("/auth/sessions", withSessionAndCsrfTokens, apiHandler.HandleGetActiveSessions)
 
-		v1.Get("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiSearchProfiles)
-		v1.Get("/profiles/others/:user_id", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiGetProfile)
-		v1.Get("/profiles/me", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiGetMyProfile)
-		v1.Put("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiUpdateProfile)
-		v1.Delete("/profiles", authHandler.WithSessionAndCSRFTokens, profileHandler.HandleApiDeleteProfile)
+		v1.Get("/profiles", withSessionAndCsrfTokens, apiHandler.HandleSearchProfiles)
+		v1.Get("/profiles/others/:user_id", withSessionAndCsrfTokens, apiHandler.HandleGetProfile)
+		v1.Get("/profiles/me", withSessionAndCsrfTokens, apiHandler.HandleGetMyProfile)
+		v1.Put("/profiles", withSessionAndCsrfTokens, apiHandler.HandleUpdateProfile)
+		v1.Delete("/profiles", withSessionAndCsrfTokens, apiHandler.HandleDeleteProfile)
 
-		v1.Get("/chats", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleApiGetChatPartners)
-		v1.Delete("/chats/:partner_id", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleApiDeleteChat)
-		v1.Get("/chats/:partner_id", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleApiGetChatMessages)
-		v1.Post("/chats/:partner_id/mark_as_read", authHandler.WithSessionAndCSRFTokens, chatHandler.HandleApiMarkMessagesAsRead)
+		v1.Get("/chats", withSessionAndCsrfTokens, apiHandler.HandleGetChatPartners)
+		v1.Delete("/chats/:partner_id", withSessionAndCsrfTokens, apiHandler.HandleDeleteChat)
+		v1.Get("/chats/:partner_id", withSessionAndCsrfTokens, apiHandler.HandleGetChatMessages)
+		v1.Post("/chats/:partner_id/mark_as_read", withSessionAndCsrfTokens, apiHandler.HandleMarkMessagesAsRead)
 
-		v1.Get("/ws", authHandler.WithSessionAndCSRFTokens, wsHandler.WithWebsocket, websocket.New(
-			wsHandler.HandleApiWebsocket,
+		v1.Get("/ws", withSessionAndCsrfTokens, apiHandler.WithWebsocket, websocket.New(
+			apiHandler.HandleWebsocket,
 			websocket.Config{
-				// https://docs.gofiber.io/contrib/websocket/#note-with-recover-middleware
 				RecoverHandler: func(c *websocket.Conn) {
 					if err := recover(); err != nil {
 						fmt.Fprintf(os.Stderr, "panic: %v\n\n%s\n", err, debug.Stack())
@@ -138,19 +142,27 @@ func (me *App) registerApiRoutes() {
 var staticFS embed.FS
 
 func (me *App) registerHtmlRoutes() {
-	authHandler := handlers.NewAuthHandler(me.logger, me.authService)
-	chatHandler := handlers.NewChatHandler(me.chatService)
+	htmlHandler := handlers.NewHtmlHandler(
+		me.logger,
+		me.authService,
+		me.chatService,
+		me.profileService,
+	)
+	withSessionToken := handlers.WithSessionToken(me.authService)
+	withSessionAndCsrfTokens := handlers.WithSessionAndCsrfTokens(me.authService)
 
 	me.router.Use("/public", filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
 		PathPrefix: "web/public",
 	}))
-	me.router.Use(handlers.WithRedirectToLogin)
+	me.router.Use(handlers.WithRedirectUnauthorizedToLogin)
 
-	me.router.Get("/register", authHandler.HandleRegisterPage)
-	me.router.Post("/register", authHandler.HandleRegister)
-	me.router.Get("/login", authHandler.HandleLoginPage)
-	me.router.Post("/login", authHandler.HandleLogin)
-	me.router.Post("/verify_otp", authHandler.HandleVerifyOtp)
-	me.router.Get("/", authHandler.WithSessionToken, chatHandler.HandleChatPage)
+	me.router.Get("/register", htmlHandler.HandleRegisterPage)
+	me.router.Post("/register", htmlHandler.HandleRegister)
+	me.router.Get("/login", htmlHandler.HandleLoginPage)
+	me.router.Post("/login", htmlHandler.HandleLogin)
+	me.router.Post("/verify_otp", htmlHandler.HandleVerifyOtp)
+	me.router.Get("/", withSessionToken, htmlHandler.HandleChatPage)
+	me.router.Get("/profile_modal", withSessionAndCsrfTokens, htmlHandler.HandleProfileModal)
+	me.router.Put("/profile", withSessionAndCsrfTokens, htmlHandler.HandleUpdateProfile)
 }
