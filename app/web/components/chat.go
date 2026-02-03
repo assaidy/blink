@@ -1,6 +1,8 @@
 package components
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -242,20 +244,79 @@ func ProfileForm(params ProfileFormParams) gg.Node {
 		),
 		// TODO: add disabled & spinner to other forms
 		gg.Button(gg.KV{"class": "w-full rounded-lg bg-blue hover:bg-blue/80 disabled:hover:bg-blue disabled:opacity-50 disabled:cursor-not-allowed text-bg-primary font-semibold py-3 px-4 cursor-pointer transition-colors mt-2 flex items-center justify-center gap-2"},
-			"Save", spinner(),
+			"Save", spinner("spinner"),
 		),
 	)
 }
 
-func spinner() gg.Node {
-	return gg.Span(gg.KV{"id": "spinner", "class": "htmx-indicator animate-spin hidden [&.htmx-request]:block"},
+func spinner(id string) gg.Node {
+	return gg.Span(gg.KV{"id": id, "class": "htmx-indicator animate-spin hidden [&.htmx-request]:block"},
 		gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader-icon lucide-loader"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>`),
 	)
 }
 
 type SessionsTabParams struct {
+	Sessions         []Session
+	CurrentSessionID string
 }
 
-func SessionsTab(parms SessionsTabParams) gg.Node {
-	return gg.P("sessions tab")
+type Session struct {
+	ID       string
+	Platform string
+	Os       string
+}
+
+func SessionsTab(params SessionsTabParams) gg.Node {
+	slices.SortFunc(params.Sessions, func(s1, s2 Session) int {
+		return gg.IfElse(s1.ID == params.CurrentSessionID, -1,
+			gg.IfElse(s2.ID == params.CurrentSessionID, 1, 0),
+		)
+	})
+
+	return gg.Div(gg.KV{"id": "sessions-tab", "class": "space-y-3"},
+		gg.MapSlice(params.Sessions, func(session Session) gg.Node {
+			elementID := fmt.Sprintf("session-%s", session.ID)
+			isCurrent := params.CurrentSessionID == session.ID
+			spinnerID := fmt.Sprintf("spinner-%s", session.ID)
+
+			return gg.Div(gg.KV{
+				"id":    elementID,
+				"class": "flex items-center justify-between p-4 rounded-xl border-2 " + gg.IfElse(isCurrent, "border-blue bg-blue/5", "border-bg-tertiary bg-bg-tertiary/30"),
+			},
+				// Left side: Session info
+				gg.Div(gg.KV{"class": "flex flex-col"},
+					gg.Div(gg.KV{"class": "flex items-center gap-2"},
+						gg.P(gg.KV{"class": "font-semibold text-fg-primary"}, session.Platform),
+						gg.If(isCurrent,
+							gg.Span(gg.KV{"class": "px-2 py-0.5 text-xs font-medium bg-blue text-bg-primary rounded-full"}, "Current"),
+						),
+					),
+					gg.P(gg.KV{"class": "text-sm text-fg-secondary"}, session.Os),
+				),
+				// Right side: Action button
+				gg.IfElse(isCurrent,
+					gg.Button(gg.KV{
+						"hx-post":         "/logout",
+						"hx-disabled-elt": "this",
+						"hx-indicator":    "#" + spinnerID,
+						"class":           "px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 font-medium transition-colors flex items-center gap-2 cursor-pointer",
+					},
+						gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>`),
+						"Logout", spinner(spinnerID),
+					),
+					gg.Button(gg.KV{
+						"hx-delete":       fmt.Sprintf("/sessions/%s", session.ID),
+						"hx-target":       "#" + elementID,
+						"hx-swap":         "delete",
+						"hx-disabled-elt": "this",
+						"hx-indicator":    "#" + spinnerID,
+						"class":           "px-4 py-2 rounded-lg hover:bg-red-500/10 text-fg-secondary hover:text-red-500 font-medium transition-colors flex items-center gap-2 cursor-pointer",
+					},
+						gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`),
+						"Remove", spinner(spinnerID),
+					),
+				),
+			)
+		}),
+	)
 }

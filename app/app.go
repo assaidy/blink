@@ -92,7 +92,7 @@ func (me *App) registerRoutes() {
 	// TODO: use rate limiting for different purposes
 
 	me.registerApiRoutes()
-	me.registerHtmlRoutes()
+	me.registerHTMLRoutes()
 }
 
 func (me *App) registerApiRoutes() {
@@ -112,6 +112,7 @@ func (me *App) registerApiRoutes() {
 		v1.Post("/auth/otp/request", apiHandler.HandleRequestOtp)
 		v1.Post("/auth/otp/verify", apiHandler.HandleVerifyOtp)
 		v1.Post("/auth/logout", withSessionAndCsrfTokens, apiHandler.HandleLogout)
+		v1.Post("/auth/sessions/:session_id", withSessionAndCsrfTokens, apiHandler.HandleDeleteSession)
 		v1.Get("/auth/sessions", withSessionAndCsrfTokens, apiHandler.HandleGetActiveSessions)
 
 		v1.Get("/profiles", withSessionAndCsrfTokens, apiHandler.HandleSearchProfiles)
@@ -141,7 +142,7 @@ func (me *App) registerApiRoutes() {
 //go:embed web/public/*
 var staticFS embed.FS
 
-func (me *App) registerHtmlRoutes() {
+func (me *App) registerHTMLRoutes() {
 	htmlHandler := handlers.NewHtmlHandler(
 		me.logger,
 		me.authService,
@@ -151,11 +152,11 @@ func (me *App) registerHtmlRoutes() {
 	withSessionToken := handlers.WithSessionToken(me.authService)
 	withSessionAndCsrfTokens := handlers.WithSessionAndCsrfTokens(me.authService)
 
-	me.router.Use("/public", filesystem.New(filesystem.Config{
+	me.router.Use(handlers.WithRedirectUnauthorizedToLogin)
+	me.router.Use("/public", handlers.WithForbiddenAsInvalidEndpoint, filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
 		PathPrefix: "web/public",
 	}))
-	me.router.Use(handlers.WithRedirectUnauthorizedToLogin)
 
 	me.router.Get("/register", htmlHandler.HandleRegisterPage)
 	me.router.Post("/register", htmlHandler.HandleRegister)
@@ -165,4 +166,6 @@ func (me *App) registerHtmlRoutes() {
 	me.router.Get("/", withSessionToken, htmlHandler.HandleChatPage)
 	me.router.Get("/profile_modal", withSessionAndCsrfTokens, htmlHandler.HandleProfileModal)
 	me.router.Put("/profile", withSessionAndCsrfTokens, htmlHandler.HandleUpdateProfile)
+	me.router.Post("/logout", withSessionAndCsrfTokens, htmlHandler.HandleLogout)
+	me.router.Delete("/sessions/:session_id", withSessionAndCsrfTokens, htmlHandler.HandleDeleteSession)
 }

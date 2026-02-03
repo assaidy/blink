@@ -327,10 +327,30 @@ func (me *AuthService) ValidateSessionAndCsrfTokens(sessionToken, csrfToken stri
 	return session.ID, session.UserID, nil
 }
 
-func (me *AuthService) Logout(sessionID string) error {
+func (me *AuthService) DeleteSession(userID, sessionID string) error {
 	ctx := context.Background()
-	if err := me.queries.RemoveSession(ctx, sessionID); err != nil {
+	tx, err := me.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := me.queries.WithTx(tx)
+	if ok, err := qtx.CheckSessionForUser(ctx, repo.CheckSessionForUserParams{
+		ID:     sessionID,
+		UserID: userID,
+	}); err != nil {
+		return fmt.Errorf("failed to check session for user: %w", err)
+	} else if !ok {
+		return utils.NewError(utils.NotFound, "session not found")
+	}
+
+	if err := qtx.RemoveSession(ctx, sessionID); err != nil {
 		return fmt.Errorf("failed to remove session: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 	return nil
 }

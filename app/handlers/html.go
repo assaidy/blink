@@ -182,11 +182,7 @@ func (me *HtmlHandler) HandleChatPage(c *fiber.Ctx) error {
 }
 
 func (me *HtmlHandler) HandleProfileModal(c *fiber.Ctx) error {
-	tab := c.Query("tab")
-	if tab == "" {
-		tab = "profile"
-	}
-
+	tab := c.Query("tab", "profile")
 	params := components.ProfileModalParams{}
 
 	switch tab {
@@ -207,11 +203,20 @@ func (me *HtmlHandler) HandleProfileModal(c *fiber.Ctx) error {
 
 	case "sessions":
 		params.ActiveTab = components.TabSessions
+		params.SessionsTabParams.CurrentSessionID = getCurrentSessionID(c)
+		sessions, err := me.authService.GetActiveSessionsForUser(getCurrentUserID(c))
+		if err != nil {
+			return err
+		}
+		for _, session := range sessions {
+			params.SessionsTabParams.Sessions = append(params.SessionsTabParams.Sessions, components.Session(session))
+		}
 	}
 
 	return render(c, components.ProfileModal(params))
 }
 
+// TODO: return an oob component to update the user block at the top of the sidebar
 func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	name := c.FormValue("name")
 	username := c.FormValue("username")
@@ -256,4 +261,17 @@ func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	}
 
 	return render(c, components.ProfileForm(params))
+}
+
+func (me *HtmlHandler) HandleLogout(c *fiber.Ctx) error {
+	if err := me.authService.DeleteSession(getCurrentUserID(c), getCurrentSessionID(c)); err != nil {
+		return err
+	}
+	c.ClearCookie("session_token", "csrf_token")
+	return redirect(c, "/login")
+}
+
+func (me *HtmlHandler) HandleDeleteSession(c *fiber.Ctx) error {
+	sessionID := c.Params("session_id")
+	return me.authService.DeleteSession(getCurrentUserID(c), sessionID)
 }

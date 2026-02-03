@@ -34,6 +34,22 @@ func (q *Queries) BatchDeleteExpriredSessions(ctx context.Context) error {
 	return err
 }
 
+const checkSessionForUser = `-- name: CheckSessionForUser :one
+select exists (select 1 from sessions where id = $1 and user_id = $2 for update)
+`
+
+type CheckSessionForUserParams struct {
+	ID     string
+	UserID string
+}
+
+func (q *Queries) CheckSessionForUser(ctx context.Context, arg CheckSessionForUserParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkSessionForUser, arg.ID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const getActiveSessionsForUser = `-- name: GetActiveSessionsForUser :many
 select 
   id,

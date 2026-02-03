@@ -138,18 +138,22 @@ func (me *ApiHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 }
 
 func (me *ApiHandler) HandleLogout(c *fiber.Ctx) error {
-	if err := me.authService.Logout(getCurrentSessionID(c)); err != nil {
+	if err := me.authService.DeleteSession(getCurrentUserID(c), getCurrentSessionID(c)); err != nil {
 		return err
 	}
 	c.ClearCookie("session_token", "csrf_token")
 	return c.SendStatus(fiber.StatusOK)
 }
 
+func (me *ApiHandler) HandleDeleteSession(c *fiber.Ctx) error {
+	sessionID := c.Params("session_id")
+	return me.authService.DeleteSession(getCurrentUserID(c), sessionID)
+}
+
 type GetActiveSessionsResponseItem struct {
 	ID       string `json:"id"`
 	Platform string `json:"platform"`
 	Os       string `json:"os"`
-	App      string `json:"app"`
 }
 
 func (me *ApiHandler) HandleGetActiveSessions(c *fiber.Ctx) error {

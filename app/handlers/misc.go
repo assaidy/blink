@@ -42,8 +42,7 @@ func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 			if errors.As(err, &fe) {
 				code = fe.Code
 				switch fe.Code {
-				// forbidden is returned from the filesystem middleware when triying to access an invalid resource
-				case fiber.StatusForbidden, fiber.StatusNotFound:
+				case fiber.StatusNotFound:
 					err = utils.NewError(utils.InvalidEndpoint, nil)
 				case fiber.StatusMethodNotAllowed:
 					err = utils.NewError(utils.MethodNotAllowed, nil)
@@ -104,11 +103,6 @@ func WithLogging(logger *slog.Logger) fiber.Handler {
 	}
 }
 
-const (
-	currentSessionID = "Auth.SessionID"
-	currentUserID    = "Auth.UserID"
-)
-
 func WithSessionToken(authService *services.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		sessionID, userID, err := authService.ValidateSessionToken(c.Cookies("session_token"))
@@ -135,6 +129,11 @@ func WithSessionAndCsrfTokens(authService *services.AuthService) fiber.Handler {
 	}
 }
 
+const (
+	currentSessionID = "Auth.SessionID"
+	currentUserID    = "Auth.UserID"
+)
+
 func getCurrentSessionID(c *fiber.Ctx) string {
 	return c.Locals(currentSessionID).(string)
 }
@@ -148,6 +147,18 @@ func WithRedirectUnauthorizedToLogin(c *fiber.Ctx) error {
 		var ue utils.Error
 		if errors.As(err, &ue) && ue.Kind == utils.Unauthorized {
 			return redirect(c, "/login")
+		}
+		return err
+	}
+	return nil
+}
+
+func WithForbiddenAsInvalidEndpoint(c *fiber.Ctx) error {
+	if err := c.Next(); err != nil {
+		var fe *fiber.Error
+		if errors.As(err, &fe) && fe.Code == fiber.StatusForbidden {
+			c.Status(fiber.StatusNotFound)
+			return utils.NewError(utils.InvalidEndpoint, nil)
 		}
 		return err
 	}

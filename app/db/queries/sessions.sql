@@ -5,6 +5,9 @@ values ($1, $2, $3, $4, $5, $6, $7);
 -- name: GetSessionById :one
 select * from sessions where id = $1;
 
+-- name: CheckSessionForUser :one
+select exists (select 1 from sessions where id = $1 and user_id = $2 for update);
+
 -- name: RemoveSession :exec
 delete from sessions where id = $1;
 
