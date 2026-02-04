@@ -30,7 +30,13 @@ func ChatPage(params ChatPageParams) gg.Node {
 					},
 						userBlock(params.User),
 					),
-					gg.Button(gg.KV{"class": "p-3 hover:bg-bg-tertiary rounded-lg transition-colors flex-shrink-0 cursor-pointer"},
+					gg.Button(gg.KV{
+						"hx-get":     "/search_modal",
+						"hx-trigger": "click",
+						"hx-target":  "body",
+						"hx-swap":    "beforeend",
+						"class":      "p-3 hover:bg-bg-tertiary rounded-lg transition-colors flex-shrink-0 cursor-pointer",
+					},
 						gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`),
 					),
 				),
@@ -250,9 +256,12 @@ func ProfileForm(params ProfileFormParams) gg.Node {
 }
 
 func spinner(id string) gg.Node {
-	return gg.Span(gg.KV{"id": id, "class": "htmx-indicator animate-spin hidden [&.htmx-request]:block"},
-		gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader-icon lucide-loader"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>`),
-	)
+	return gg.RawHTML(fmt.Sprintf(`<svg
+	id="%s"
+	class="htmx-indicator animate-spin opacity-0 mx-auto [&.htmx-request]:opacity-100"
+	xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader-icon lucide-loader"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>`,
+		id,
+	))
 }
 
 type SessionsTabParams struct {
@@ -318,5 +327,94 @@ func SessionsTab(params SessionsTabParams) gg.Node {
 				),
 			)
 		}),
+	)
+}
+
+func SearchModal() gg.Node {
+	return gg.Div(gg.KV{
+		"hx-on:click": "if (event.target === this) this.remove()",
+		"id":          "search-modal",
+		"class":       "fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20",
+	},
+		gg.Div(gg.KV{"class": "bg-bg-secondary rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden"},
+			// Header with search input
+			gg.Div(gg.KV{"class": "flex items-center gap-3 p-4 border-b border-bg-tertiary"},
+				gg.Div(gg.KV{"class": "flex-1 relative"},
+					gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-fg-secondary"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`),
+					gg.Input(gg.KV{
+						"type":        "text",
+						"placeholder": "Search users...",
+						"autofocus":   "true",
+						"name":        "query",
+						"hx-get":      "/search/users",
+						"hx-trigger":  "input changed delay:300ms",
+						"hx-target":   "#search-results",
+						"hx-swap":     "innerHTML",
+						"class":       "w-full bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary pl-10 pr-4 py-3 outline-none transition-colors",
+					}),
+				),
+				gg.Button(gg.KV{
+					"hx-on:click": "this.closest('#search-modal').remove()",
+					"class":       "p-2 hover:bg-bg-tertiary rounded-lg transition-colors cursor-pointer",
+				},
+					gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`),
+				),
+			),
+			// Content area with results
+			gg.Div(gg.KV{"id": "search-results", "class": "flex-1 p-4 overflow-y-auto max-h-96"},
+				gg.P(gg.KV{"class": "text-fg-secondary text-center py-3"}, "Search for users by name or username"),
+			),
+		),
+	)
+}
+
+type SearchResultParams struct {
+	Query        string
+	HasMore      bool
+	ProfileItems []SearchProfileItem
+}
+
+type SearchProfileItem struct {
+	ID       string
+	Name     string
+	Username string
+}
+
+func SearchResult(params SearchResultParams) gg.Node {
+	if params.Query == "" {
+		return gg.P(gg.KV{"class": "text-fg-secondary text-center py-3"}, "Search for users by name or username")
+	}
+
+	if len(params.ProfileItems) == 0 {
+		return gg.Empty()
+	}
+
+	lastID := params.ProfileItems[len(params.ProfileItems)-1].ID
+
+	return gg.Div(gg.KV{"class": "space-y-1"},
+		gg.MapSlice(params.ProfileItems, func(profile SearchProfileItem) gg.Node {
+			return gg.IfElse(profile.ID == lastID,
+				gg.Div(gg.KV{
+					"hx-get":     "/search/users?query=" + params.Query + "&cursor=" + lastID,
+					"hx-trigger": "intersect once",
+					"hx-swap":    "afterend",
+				},
+					profileBlock(profile),
+				),
+				profileBlock(profile),
+			)
+		}),
+	)
+}
+
+func profileBlock(profile SearchProfileItem) gg.Element {
+	return gg.Div(gg.KV{"class": "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors"},
+		gg.Div(gg.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
+			getInitials(profile.Name),
+		),
+		gg.Div(gg.KV{"class": "flex-1 min-w-0"},
+			gg.P(gg.KV{"class": "text-fg-primary font-medium truncate"}, profile.Name),
+			gg.P(gg.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+profile.Username),
+		),
 	)
 }

@@ -168,4 +168,6 @@ func (me *App) registerHTMLRoutes() {
 	me.router.Put("/profile", withSessionAndCsrfTokens, htmlHandler.HandleUpdateProfile)
 	me.router.Post("/logout", withSessionAndCsrfTokens, htmlHandler.HandleLogout)
 	me.router.Delete("/sessions/:session_id", withSessionAndCsrfTokens, htmlHandler.HandleDeleteSession)
+	me.router.Get("/search_modal", withSessionAndCsrfTokens, htmlHandler.HandleSearchModal)
+	me.router.Get("/search/users", withSessionAndCsrfTokens, htmlHandler.HandleSearchUsers)
 }

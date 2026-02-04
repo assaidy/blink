@@ -275,3 +275,37 @@ func (me *HtmlHandler) HandleDeleteSession(c *fiber.Ctx) error {
 	sessionID := c.Params("session_id")
 	return me.authService.DeleteSession(getCurrentUserID(c), sessionID)
 }
+
+func (me *HtmlHandler) HandleSearchModal(c *fiber.Ctx) error {
+	return render(c, components.SearchModal())
+}
+
+func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
+	query := c.Query("query")
+	cursor := c.Query("cursor")
+
+	if query == "" {
+		return render(c, components.SearchResult(components.SearchResultParams{Query: query}))
+	}
+
+	limit := 15
+	profiles, err := me.profileService.SearchProfiles(query, limit, cursor)
+	if err != nil {
+		return err
+	}
+
+	profileItems := make([]components.SearchProfileItem, 0, len(profiles))
+	for _, p := range profiles {
+		profileItems = append(profileItems, components.SearchProfileItem{
+			ID:       p.ID,
+			Name:     p.Name,
+			Username: p.Username,
+		})
+	}
+
+	return render(c, components.SearchResult(components.SearchResultParams{
+		Query:        query,
+		HasMore:      len(profiles) == limit,
+		ProfileItems: profileItems,
+	}))
+}
