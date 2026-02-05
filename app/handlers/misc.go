@@ -213,17 +213,17 @@ func extractPlatformAndOSFromUserAgent(userAgent string) (platform string, os st
 	ua := strings.ToLower(userAgent)
 
 	os = "Unknown"
-	for pattern, osName := range osPatterns {
-		if strings.Contains(ua, pattern) {
-			os = osName
+	for _, p := range osPatterns {
+		if strings.Contains(ua, p.pattern) {
+			os = p.name
 			break
 		}
 	}
 
 	platform = "Unknown"
-	for pattern, platformName := range platformPatterns {
-		if strings.Contains(ua, pattern) {
-			platform = platformName
+	for _, p := range platformPatterns {
+		if strings.Contains(ua, p.pattern) {
+			platform = p.name
 			break
 		}
 	}
@@ -231,26 +231,31 @@ func extractPlatformAndOSFromUserAgent(userAgent string) (platform string, os st
 	return platform, os
 }
 
-var platformPatterns = map[string]string{
-	"firefox": "Firefox",
-	"chrome":  "Chrome",
-	"safari":  "Safari",
-	"edge":    "Edge",
-	"opera":   "Opera",
-	"brave":   "Brave",
+type pattern struct {
+	pattern string
+	name    string
 }
 
-var osPatterns = map[string]string{
-	"windows nt 10.0": "Windows 10",
-	"windows nt 6.3":  "Windows 8.1",
-	"windows nt 6.2":  "Windows 8",
-	"windows nt 6.1":  "Windows 7",
-	"windows":         "Windows",
-	"macintosh":       "macOS",
-	"mac os":          "macOS",
-	"linux":           "Linux",
-	"android":         "Android",
-	"iphone":          "iOS",
-	"ipad":            "iOS",
-	"ios":             "iOS",
+var platformPatterns = []pattern{
+	{"firefox", "Firefox"},
+	{"chrome", "Chrome"},
+	{"safari", "Safari"},
+	{"edge", "Edge"},
+	{"opera", "Opera"},
+	{"brave", "Brave"},
+}
+
+var osPatterns = []pattern{
+	{"windows nt 10.0", "Windows 10"},
+	{"windows nt 6.3", "Windows 8.1"},
+	{"windows nt 6.2", "Windows 8"},
+	{"windows nt 6.1", "Windows 7"},
+	{"windows", "Windows"},
+	{"macintosh", "macOS"},
+	{"mac os", "macOS"},
+	{"linux", "Linux"},
+	{"android", "Android"},
+	{"iphone", "iOS"},
+	{"ipad", "iOS"},
+	{"ios", "iOS"},
 }
