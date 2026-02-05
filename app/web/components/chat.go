@@ -10,8 +10,7 @@ import (
 )
 
 type ChatPageParams struct {
-	User         UserBlockParams
-	ChatPartners []UserBlockParams
+	User UserBlockParams
 }
 
 func ChatPage(params ChatPageParams) gg.Node {
@@ -40,15 +39,38 @@ func ChatPage(params ChatPageParams) gg.Node {
 						gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`),
 					),
 				),
-				// Partners list
-				gg.Div(gg.KV{"class": "flex-1 overflow-y-auto"},
-					gg.MapSlice(params.ChatPartners, func(partner UserBlockParams) gg.Node {
-						return userBlock(partner)
+				// Partners list container
+				gg.Div(gg.KV{
+					"id":           "partners-container",
+					"hx-indicator": "#partners-indicator",
+					"class":        "flex-1 overflow-y-auto px-2 py-2",
+				},
+					gg.Div(gg.KV{
+						"hx-get":              "/partners",
+						"hx-trigger":          "load",
+						"hx-swap":             "afterend",
+						"hx-on::after-settle": "document.getElementById('partners-container').scrollTop = 0; this.remove()",
 					}),
+					gg.Div(gg.KV{"class": "flex justify-center"},
+						spinner("partners-indicator"),
+					),
 				),
 			),
 			// Current chat area (placeholder)
-			gg.Div(gg.KV{"class": "flex-1 flex flex-col bg-bg-primary"},
+			gg.Div(gg.KV{
+				"id": "chat-container",
+				"hx-on::before-swap": `const oldActive = document.getElementById('active-chat-partner');
+															 if (oldActive) {
+																 oldActive.removeAttribute('id');
+																 oldActive.classList.remove('bg-bg-tertiary', 'rounded-lg');
+																 oldActive.classList.add('hover:bg-bg-tertiary/50', 'hover:rounded-lg')
+															 }
+															 const newActive = event.detail.requestConfig.elt;
+															 newActive.setAttribute('id', 'active-chat-partner');
+															 newActive.classList.remove('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
+															 newActive.classList.add('bg-bg-tertiary', 'rounded-lg')`,
+				"class": "flex-1 flex flex-col bg-bg-primary",
+			},
 				gg.Div(gg.KV{"class": "flex-1 flex items-center justify-center"},
 					gg.P(gg.KV{"class": "text-fg-secondary text-lg"}, "Select a chat to start messaging"),
 				),
@@ -258,7 +280,7 @@ func ProfileForm(params ProfileFormParams) gg.Node {
 func spinner(id string) gg.Node {
 	return gg.RawHTML(fmt.Sprintf(`<svg
 	id="%s"
-	class="htmx-indicator animate-spin opacity-0 mx-auto [&.htmx-request]:opacity-100"
+	class="htmx-indicator animate-spin opacity-0 mx-auto hidden [&.htmx-request]:inline-block"
 	xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader-icon lucide-loader"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>`,
 		id,
 	))
@@ -369,15 +391,9 @@ func SearchModal() gg.Node {
 }
 
 type SearchResultParams struct {
-	Query        string
-	HasMore      bool
-	ProfileItems []SearchProfileItem
-}
-
-type SearchProfileItem struct {
-	ID       string
-	Name     string
-	Username string
+	Query          string
+	HasMore        bool
+	ProfileResults []ProfileBlockParams
 }
 
 func SearchResult(params SearchResultParams) gg.Node {
@@ -385,14 +401,14 @@ func SearchResult(params SearchResultParams) gg.Node {
 		return gg.P(gg.KV{"class": "text-fg-secondary text-center py-3"}, "Search for users by name or username")
 	}
 
-	if len(params.ProfileItems) == 0 {
+	if len(params.ProfileResults) == 0 {
 		return gg.Empty()
 	}
 
-	lastID := params.ProfileItems[len(params.ProfileItems)-1].ID
+	lastID := params.ProfileResults[len(params.ProfileResults)-1].ID
 
 	return gg.Div(gg.KV{"class": "space-y-1"},
-		gg.MapSlice(params.ProfileItems, func(profile SearchProfileItem) gg.Node {
+		gg.MapSlice(params.ProfileResults, func(profile ProfileBlockParams) gg.Node {
 			return gg.IfElse(profile.ID == lastID,
 				gg.Div(gg.KV{
 					"hx-get":     "/search/users?query=" + params.Query + "&cursor=" + lastID,
@@ -407,7 +423,13 @@ func SearchResult(params SearchResultParams) gg.Node {
 	)
 }
 
-func profileBlock(profile SearchProfileItem) gg.Element {
+type ProfileBlockParams struct {
+	ID       string
+	Name     string
+	Username string
+}
+
+func profileBlock(profile ProfileBlockParams) gg.Element {
 	return gg.Div(gg.KV{"class": "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors"},
 		gg.Div(gg.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
 			getInitials(profile.Name),
@@ -417,4 +439,47 @@ func profileBlock(profile SearchProfileItem) gg.Element {
 			gg.P(gg.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+profile.Username),
 		),
 	)
+}
+
+type PartnersListParams struct {
+	Partners []ProfileBlockParams
+	// this is the cursor. empty when no more partners
+	LastMessageWithLastPartnerID string
+}
+
+func PartnersList(params PartnersListParams) gg.Node {
+	if len(params.Partners) == 0 {
+		return gg.Empty()
+	}
+
+	lastID := params.Partners[len(params.Partners)-1].ID
+
+	return gg.Div(gg.KV{"class": "space-y-1"},
+		gg.MapSlice(params.Partners, func(partner ProfileBlockParams) gg.Node {
+			attrs := gg.IfElse(partner.ID == lastID && params.LastMessageWithLastPartnerID != "", gg.KV{
+				"hx-get":     "/partners?cursor=" + params.LastMessageWithLastPartnerID,
+				"hx-trigger": "intersect once",
+				"hx-swap":    "afterend",
+			}, nil)
+
+			return gg.Div(attrs,
+				gg.Div(gg.KV{
+					"hx-get":     "/chat/" + partner.ID,
+					"hx-trigger": "click",
+					"hx-target":  "#chat-container",
+					"hx-swap":    "innerHTML",
+					// cancel the request if clicking the active partner
+					"hx-on::config-request": "if (this.getAttribute('id') === 'active-chat-partner') event.preventDefault();",
+				},
+					// FIX: the spinner of the side bar (hx-indicator) appears when this request issued
+					// i should limit it to the infinite scrolling
+					profileBlock(partner),
+				),
+			)
+		}),
+	)
+}
+
+func ChatContainer(partner_id string) gg.Node {
+	return gg.P("chatting with ", partner_id)
 }

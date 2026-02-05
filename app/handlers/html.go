@@ -168,7 +168,8 @@ func (me *HtmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 }
 
 func (me *HtmlHandler) HandleChatPage(c *fiber.Ctx) error {
-	profile, err := me.profileService.GetProfile(getCurrentUserID(c))
+	userID := getCurrentUserID(c)
+	profile, err := me.profileService.GetProfile(userID)
 	if err != nil {
 		return err
 	}
@@ -178,6 +179,35 @@ func (me *HtmlHandler) HandleChatPage(c *fiber.Ctx) error {
 			Name:     profile.Name,
 			Username: profile.Username,
 		},
+	}))
+}
+
+func (me *HtmlHandler) HandleGetChatPartners(c *fiber.Ctx) error {
+	cursor := c.Query("cursor")
+
+	limit := 15
+	partners, err := me.chatService.GetChatPartners(getCurrentUserID(c), cursor, limit)
+	if err != nil {
+		return err
+	}
+
+	partnerBlocks := make([]components.ProfileBlockParams, 0, len(partners))
+	for _, p := range partners {
+		partnerBlocks = append(partnerBlocks, components.ProfileBlockParams{
+			ID:       p.ID,
+			Name:     p.Name,
+			Username: p.Username,
+		})
+	}
+
+	lastMessageID := ""
+	if len(partners) == limit {
+		lastMessageID = partners[len(partners)-1].LastMessageID
+	}
+
+	return render(c, components.PartnersList(components.PartnersListParams{
+		Partners:                     partnerBlocks,
+		LastMessageWithLastPartnerID: lastMessageID,
 	}))
 }
 
@@ -294,9 +324,9 @@ func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 		return err
 	}
 
-	profileItems := make([]components.SearchProfileItem, 0, len(profiles))
+	profileItems := make([]components.ProfileBlockParams, 0, len(profiles))
 	for _, p := range profiles {
-		profileItems = append(profileItems, components.SearchProfileItem{
+		profileItems = append(profileItems, components.ProfileBlockParams{
 			ID:       p.ID,
 			Name:     p.Name,
 			Username: p.Username,
@@ -304,8 +334,12 @@ func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 	}
 
 	return render(c, components.SearchResult(components.SearchResultParams{
-		Query:        query,
-		HasMore:      len(profiles) == limit,
-		ProfileItems: profileItems,
+		Query:          query,
+		HasMore:        len(profiles) == limit,
+		ProfileResults: profileItems,
 	}))
+}
+
+func (me *HtmlHandler) HandleChatContainer(c *fiber.Ctx) error {
+	return render(c, components.ChatContainer(c.Params("partner_id")))
 }

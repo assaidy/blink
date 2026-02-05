@@ -170,4 +170,6 @@ func (me *App) registerHTMLRoutes() {
 	me.router.Delete("/sessions/:session_id", withSessionAndCsrfTokens, htmlHandler.HandleDeleteSession)
 	me.router.Get("/search_modal", withSessionAndCsrfTokens, htmlHandler.HandleSearchModal)
 	me.router.Get("/search/users", withSessionAndCsrfTokens, htmlHandler.HandleSearchUsers)
+	me.router.Get("/partners", withSessionAndCsrfTokens, htmlHandler.HandleGetChatPartners)
+	me.router.Get("/chat/:partner_Id", withSessionAndCsrfTokens, htmlHandler.HandleChatContainer)
 }
