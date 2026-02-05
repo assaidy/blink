@@ -231,6 +231,15 @@ func extractPlatformAndOSFromUserAgent(userAgent string) (platform string, os st
 	return platform, os
 }
 
+var platformPatterns = map[string]string{
+	"firefox": "Firefox",
+	"chrome":  "Chrome",
+	"safari":  "Safari",
+	"edge":    "Edge",
+	"opera":   "Opera",
+	"brave":   "Brave",
+}
+
 var osPatterns = map[string]string{
 	"windows nt 10.0": "Windows 10",
 	"windows nt 6.3":  "Windows 8.1",
@@ -244,19 +253,4 @@ var osPatterns = map[string]string{
 	"iphone":          "iOS",
 	"ipad":            "iOS",
 	"ios":             "iOS",
-}
-
-var platformPatterns = map[string]string{
-	"firefox":   "Firefox",
-	"chrome":    "Chrome",
-	"safari":    "Safari",
-	"edge":      "Edge",
-	"opera":     "Opera",
-	"brave":     "Brave",
-	"iphone":    "iPhone",
-	"ipad":      "iPad",
-	"android":   "Android Device",
-	"macintosh": "Mac",
-	"windows":   "Windows PC",
-	"linux":     "Linux PC",
 }
