@@ -16,22 +16,28 @@ import (
 func main() {
 	workers := []Worker{
 		{
-			name:    "clean expired sessions",
-			job:     cleanExpiredSessionsJob,
-			tick:    24 * time.Hour,
-			timeout: 30 * time.Minute,
+			name:       "clean expired sessions",
+			job:        cleanExpiredSessionsJob,
+			tick:       24 * time.Hour,
+			timeout:    30 * time.Minute,
+			retries:    5,
+			retryDelay: 1 * time.Minute,
 		},
 		{
-			name:    "clean expired OTPs",
-			job:     cleanExpiredOtpsJob,
-			tick:    12 * time.Hour,
-			timeout: 30 * time.Minute,
+			name:       "clean expired OTPs",
+			job:        cleanExpiredOtpsJob,
+			tick:       12 * time.Hour,
+			timeout:    30 * time.Minute,
+			retries:    5,
+			retryDelay: 1 * time.Minute,
 		},
 		{
-			name:    "clean deleted chat messages",
-			job:     cleanDeletedChatMessagesJob,
-			tick:    1 * time.Hour,
-			timeout: 30 * time.Minute,
+			name:       "clean deleted chat messages",
+			job:        cleanDeletedChatMessagesJob,
+			tick:       1 * time.Hour,
+			timeout:    30 * time.Minute,
+			retries:    5,
+			retryDelay: 1 * time.Minute,
 		},
 	}
 
@@ -55,16 +61,16 @@ var (
 	queries = repo.New(db.GetPool())
 )
 
-// TODO: add retries count, retry delay
-// might make a separate library
 type Worker struct {
-	name    string
-	job     func(ctx context.Context) error
-	tick    time.Duration
-	timeout time.Duration
+	name       string
+	job        func(ctx context.Context) error
+	tick       time.Duration
+	timeout    time.Duration
+	retries    uint
+	retryDelay time.Duration
 }
 
-func (me Worker) start(ctx context.Context) {
+func (me Worker) start(workerCtx context.Context) {
 	logger.Info("worker started", "worker", me.name)
 	defer logger.Info("worker stopped", "worker", me.name)
 
@@ -75,15 +81,27 @@ func (me Worker) start(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			logger.Info("job started", "worker", me.name)
-			ctx, cancel := context.WithTimeout(context.Background(), me.timeout)
-			if err := me.job(ctx); err != nil {
-				logger.Error("job failed", "worker", me.name, "error", err)
-			} else {
-				logger.Info("job finished", "worker", me.name)
-			}
-			cancel()
 
-		case <-ctx.Done():
+			jobCtx, jobCtxCancel := context.WithTimeout(context.Background(), me.timeout)
+			if err := me.job(jobCtx); err != nil {
+				logger.Error("job failed", "worker", me.name, "error", err)
+
+				for i := uint(1); i <= me.retries; i++ {
+					<-time.After(me.retryDelay)
+
+					logger.Error("job retry started", "worker", me.name, "retry", i)
+					if err := me.job(jobCtx); err != nil {
+						logger.Error("job retry failed", "worker", me.name, "retry", i)
+						continue
+					}
+					logger.Error("job retry finished successfully", "worker", me.name, "retry", i)
+				}
+			} else {
+				logger.Info("job finished successfully", "worker", me.name)
+			}
+			jobCtxCancel()
+
+		case <-workerCtx.Done():
 			return
 		}
 	}
