@@ -41,14 +41,14 @@ func ChatPage(params ChatPageParams) gg.Node {
 				),
 				// Partners list container
 				gg.Div(gg.KV{
-					"id":           "partners-container",
-					"hx-indicator": "#partners-indicator",
-					"class":        "flex-1 overflow-y-auto px-2 py-2",
+					"id":    "partners-container",
+					"class": "flex-1 overflow-y-auto px-2 py-2",
 				},
 					gg.Div(gg.KV{
 						"hx-get":              "/partners",
 						"hx-trigger":          "load",
 						"hx-swap":             "afterend",
+						"hx-indicator":        "#partners-indicator",
 						"hx-on::after-settle": "document.getElementById('partners-container').scrollTop = 0; this.remove()",
 					}),
 					gg.Div(gg.KV{"class": "flex justify-center"},
@@ -457,9 +457,12 @@ func PartnersList(params PartnersListParams) gg.Node {
 	return gg.Div(gg.KV{"class": "space-y-1"},
 		gg.MapSlice(params.Partners, func(partner ProfileBlockParams) gg.Node {
 			attrs := gg.IfElse(partner.ID == lastID && params.LastMessageWithLastPartnerID != "", gg.KV{
-				"hx-get":     "/partners?cursor=" + params.LastMessageWithLastPartnerID,
-				"hx-trigger": "intersect once",
-				"hx-swap":    "afterend",
+				"hx-get":       "/partners?cursor=" + params.LastMessageWithLastPartnerID,
+				"hx-trigger":   "intersect once",
+				"hx-swap":      "afterend",
+				"hx-indicator": "#partners-indicator",
+				// disable the sidebar indicator for requets in blocks
+				"hx-disinherit": "hx-indicator",
 			}, nil)
 
 			return gg.Div(attrs,
@@ -471,8 +474,6 @@ func PartnersList(params PartnersListParams) gg.Node {
 					// cancel the request if clicking the active partner
 					"hx-on::config-request": "if (this.getAttribute('id') === 'active-chat-partner') event.preventDefault();",
 				},
-					// FIX: the spinner of the side bar (hx-indicator) appears when this request issued
-					// i should limit it to the infinite scrolling
 					profileBlock(partner),
 				),
 			)
