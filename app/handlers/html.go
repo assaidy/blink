@@ -341,5 +341,46 @@ func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 }
 
 func (me *HtmlHandler) HandleChatContainer(c *fiber.Ctx) error {
-	return render(c, components.ChatContainer(c.Params("partner_id")))
+	partnerID := c.Params("partner_id")
+
+	partnerProfile, err := me.profileService.GetProfile(partnerID)
+	if err != nil {
+		return err
+	}
+
+	return render(c, components.ChatContainer(components.ChatContainerParams{
+		Partner: components.ProfileBlockParams{
+			ID:       partnerProfile.ID,
+			Name:     partnerProfile.Name,
+			Username: partnerProfile.Username,
+		},
+	}))
+}
+
+func (me *HtmlHandler) HandleChatMessages(c *fiber.Ctx) error {
+	cursor := c.Query("cursor")
+	partnerID := c.Params("partner_id")
+
+	limit := 15
+	messages, err := me.chatService.GetChatMessages(getCurrentUserID(c), partnerID, cursor, limit)
+	if err != nil {
+		return err
+	}
+
+	messageItems := make([]components.ChatMessageParams, 0, len(messages))
+	for _, m := range messages {
+		messageItems = append(messageItems, components.ChatMessageParams{
+			ID:      m.ID,
+			Content: m.Content,
+			SentAt:  m.SentAt,
+			IsRead:  m.IsRead,
+			FromMe:  m.FromMe,
+		})
+	}
+
+	return render(c, components.ChatMessagesList(components.ChatMessagesListParams{
+		PartnerID: partnerID,
+		Messages:  messageItems,
+		HasMore:   len(messages) == limit,
+	}))
 }

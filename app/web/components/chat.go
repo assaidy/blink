@@ -19,22 +19,28 @@ func ChatPage(params ChatPageParams) gg.Node {
 			// Sidebar
 			gg.Div(gg.KV{"class": "w-80 bg-bg-secondary border-r border-bg-tertiary flex flex-col"},
 				// Sticky top row
-				gg.Div(gg.KV{"class": "sticky top-0 bg-bg-secondary border-b border-bg-tertiary py-2 px-3 flex items-center gap-3 z-10"},
+				gg.Div(gg.KV{"class": "sticky top-0 z-10 bg-aqua/10 border-b border-bg-primary flex items-center"},
 					gg.Div(gg.KV{
 						"hx-get":     "/profile_modal",
 						"hx-trigger": "click",
 						"hx-target":  "body",
 						"hx-swap":    "beforeend",
-						"class":      "flex-1 min-w-0",
+						"class":      "flex-1 flex items-center gap-3 cursor-pointer hover:bg-aqua/20 transition-colors px-4 py-3",
 					},
-						userBlock(params.User),
+						gg.Div(gg.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold flex-shrink-0"},
+							getInitials(params.User.Name),
+						),
+						gg.Div(gg.KV{"class": "flex-1 min-w-0"},
+							gg.P(gg.KV{"class": "text-fg-primary font-medium truncate"}, params.User.Name),
+							gg.P(gg.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+params.User.Username),
+						),
 					),
 					gg.Button(gg.KV{
 						"hx-get":     "/search_modal",
 						"hx-trigger": "click",
 						"hx-target":  "body",
 						"hx-swap":    "beforeend",
-						"class":      "p-3 hover:bg-bg-tertiary rounded-lg transition-colors flex-shrink-0 cursor-pointer",
+						"class":      "flex items-center justify-center aspect-square h-full hover:bg-aqua/30 transition-colors cursor-pointer",
 					},
 						gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`),
 					),
@@ -58,17 +64,7 @@ func ChatPage(params ChatPageParams) gg.Node {
 			),
 			// Current chat area (placeholder)
 			gg.Div(gg.KV{
-				"id": "chat-container",
-				"hx-on::before-swap": `const oldActive = document.getElementById('active-chat-partner');
-															 if (oldActive) {
-																 oldActive.removeAttribute('id');
-																 oldActive.classList.remove('bg-bg-tertiary', 'rounded-lg');
-																 oldActive.classList.add('hover:bg-bg-tertiary/50', 'hover:rounded-lg')
-															 }
-															 const newActive = event.detail.requestConfig.elt;
-															 newActive.setAttribute('id', 'active-chat-partner');
-															 newActive.classList.remove('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
-															 newActive.classList.add('bg-bg-tertiary', 'rounded-lg')`,
+				"id":    "chat-container",
 				"class": "flex-1 flex flex-col bg-bg-primary",
 			},
 				gg.Div(gg.KV{"class": "flex-1 flex items-center justify-center"},
@@ -85,24 +81,24 @@ type UserBlockParams struct {
 	ProfileImageUrl string
 }
 
-func userBlock(params UserBlockParams) gg.Node {
-	return gg.Div(gg.KV{"class": "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors"},
-		gg.IfElse(params.ProfileImageUrl != "",
-			gg.Img(gg.KV{
-				"src":   params.ProfileImageUrl,
-				"alt":   params.Name,
-				"class": "w-10 h-10 rounded-full object-cover",
-			}),
-			gg.Div(gg.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
-				getInitials(params.Name),
-			),
-		),
-		gg.Div(gg.KV{"class": "flex-1 min-w-0"},
-			gg.P(gg.KV{"class": "text-fg-primary font-medium truncate"}, params.Name),
-			gg.P(gg.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+params.Username),
-		),
-	)
-}
+// func userBlock(params UserBlockParams) gg.Node {
+// 	return gg.Div(gg.KV{"class": "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors"},
+// 		gg.IfElse(params.ProfileImageUrl != "",
+// 			gg.Img(gg.KV{
+// 				"src":   params.ProfileImageUrl,
+// 				"alt":   params.Name,
+// 				"class": "w-10 h-10 rounded-full object-cover",
+// 			}),
+// 			gg.Div(gg.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
+// 				getInitials(params.Name),
+// 			),
+// 		),
+// 		gg.Div(gg.KV{"class": "flex-1 min-w-0"},
+// 			gg.P(gg.KV{"class": "text-fg-primary font-medium truncate"}, params.Name),
+// 			gg.P(gg.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+params.Username),
+// 		),
+// 	)
+// }
 
 func getInitials(name string) string {
 	words := strings.Fields(name)
@@ -140,7 +136,7 @@ func ProfileModal(params ProfileModalParams) gg.Node {
 	return gg.Div(gg.KV{
 		"hx-on:click": "if (event.target === this) this.remove()",
 		"id":          "profile-modal",
-		"class":       "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4",
+		"class":       "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 outline-none",
 	},
 		gg.Div(gg.KV{"class": "bg-bg-secondary rounded-2xl shadow-2xl max-w-3xl w-full flex overflow-hidden", "style": "height: 80vh; max-height: 700px;"},
 			// Left sidebar with tabs
@@ -354,9 +350,9 @@ func SessionsTab(params SessionsTabParams) gg.Node {
 
 func SearchModal() gg.Node {
 	return gg.Div(gg.KV{
-		"hx-on:click": "if (event.target === this) this.remove()",
-		"id":          "search-modal",
-		"class":       "fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20",
+		"hx-on:click":   "if (event.target === this) this.remove()",
+		"id":            "search-modal",
+		"class":         "fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20 outline-none",
 	},
 		gg.Div(gg.KV{"class": "bg-bg-secondary rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden"},
 			// Header with search input
@@ -472,7 +468,22 @@ func PartnersList(params PartnersListParams) gg.Node {
 					"hx-target":  "#chat-container",
 					"hx-swap":    "innerHTML",
 					// cancel the request if clicking the active partner
-					"hx-on::config-request": "if (this.getAttribute('id') === 'active-chat-partner') event.preventDefault();",
+					"hx-on::config-request": `
+						const oldActive = document.getElementById('active-chat-partner');
+						if (oldActive) {
+							if (oldActive == this) {
+								event.preventDefault();
+								return;
+							}
+							oldActive.removeAttribute('id');
+							oldActive.classList.remove('bg-bg-tertiary', 'rounded-lg');
+							oldActive.classList.add('hover:bg-bg-tertiary/50', 'hover:rounded-lg')
+						}
+						console.log('setting active', this)
+						this.setAttribute('id', 'active-chat-partner');
+						this.classList.remove('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
+						this.classList.add('bg-bg-tertiary', 'rounded-lg')
+					`,
 				},
 					profileBlock(partner),
 				),
@@ -481,6 +492,91 @@ func PartnersList(params PartnersListParams) gg.Node {
 	)
 }
 
-func ChatContainer(partner_id string) gg.Node {
-	return gg.P("chatting with ", partner_id)
+type ChatContainerParams struct {
+	Partner ProfileBlockParams
+}
+
+func ChatContainer(params ChatContainerParams) gg.Node {
+	return gg.Div(gg.KV{"class": "flex-1 flex flex-col bg-bg-primary h-full"},
+		gg.Div(gg.KV{"class": "px-4 py-3 bg-bg-secondary border-b border-bg-tertiary flex items-center gap-3"},
+			gg.Div(gg.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
+				getInitials(params.Partner.Name),
+			),
+			gg.Div(gg.KV{"class": "flex-1 min-w-0"},
+				gg.P(gg.KV{"class": "text-fg-primary font-medium truncate"}, params.Partner.Name),
+				gg.P(gg.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+params.Partner.Username),
+			),
+		),
+		gg.Div(gg.KV{
+			"id":    "messages-container",
+			"class": "flex-1 overflow-y-auto px-4 py-4 flex flex-col-reverse gap-3",
+		},
+			gg.Div(gg.KV{
+				"hx-get":              fmt.Sprintf("/chat/%s/messages", params.Partner.ID),
+				"hx-trigger":          "load",
+				"hx-swap":             "afterend",
+				"hx-indicator":        "#messages-indicator",
+				"hx-on::after-settle": "this.remove()",
+			}),
+			gg.Div(gg.KV{"class": "flex justify-center"},
+				spinner("messages-indicator"),
+			),
+		),
+	)
+}
+
+type ChatMessagesListParams struct {
+	PartnerID string
+	Messages  []ChatMessageParams
+	HasMore   bool
+}
+
+func ChatMessagesList(params ChatMessagesListParams) gg.Node {
+	if len(params.Messages) == 0 {
+		return gg.Empty()
+	}
+
+	// fmt.Println(params.Messages[0].SentAt, params.Messages[len(params.Messages)-1].SentAt)
+	cursorMessageID := params.Messages[len(params.Messages)-1].ID
+
+	return gg.MapSlice(params.Messages, func(msg ChatMessageParams) gg.Node {
+		return gg.Div(
+			gg.IfElse(params.HasMore && msg.ID == cursorMessageID,
+				gg.KV{
+					"hx-get":       fmt.Sprintf("/chat/%s/messages?cursor=%s", params.PartnerID, cursorMessageID),
+					"hx-trigger":   "intersect once",
+					"hx-swap":      "afterend",
+					"hx-indicator": "#messages-indicator",
+					// for internal requests not to use this indicator
+					"hx-disinherit": "hx-indicator",
+				},
+				nil,
+			),
+			chatMessage(msg),
+		)
+	})
+}
+
+type ChatMessageParams struct {
+	ID      string
+	Content string
+	SentAt  time.Time
+	IsRead  bool
+	FromMe  bool
+}
+
+func chatMessage(msg ChatMessageParams) gg.Node {
+	return gg.Div(gg.KV{"class": "flex w-full " + gg.IfElse(msg.FromMe, "justify-end", "justify-start")},
+		gg.Div(gg.KV{"class": "flex flex-col " + gg.IfElse(msg.FromMe, "items-end", "items-start") + " max-w-[70%]"},
+			gg.Div(gg.KV{"class": "px-4 py-2 " + gg.IfElse(msg.FromMe, "bg-blue text-bg-primary rounded-l-2xl rounded-tr-2xl", "bg-bg-tertiary text-fg-primary rounded-r-2xl rounded-tl-2xl")},
+				gg.P(gg.KV{"class": "break-words"}, msg.Content),
+			),
+			gg.Div(gg.KV{"class": "flex items-center gap-1 mt-1 px-1"},
+				gg.P(gg.KV{"class": "text-xs text-fg-secondary"}, msg.SentAt.Format("Jan 2, 3:04 PM")),
+				gg.If(msg.FromMe && msg.IsRead,
+					gg.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue"><polyline points="20 6 9 17 4 12"></polyline></svg>`),
+				),
+			),
+		),
+	)
 }
