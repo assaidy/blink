@@ -43,7 +43,7 @@ func main() {
 	)
 	workerManager.RegisterWorker(
 		workers.NewWorker("clean deleted chat messages", cleanDeletedChatMessagesJob,
-			workers.WithTick(6*time.Hour),
+			workers.WithSchedules(workers.DailyAt(2, 0)),
 			workers.WithTimeout(15*time.Minute),
 			workers.WithNRetries(2),
 			workers.WithRetryDelay(1*time.Minute),
