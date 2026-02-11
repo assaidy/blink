@@ -17,27 +17,38 @@ var (
 )
 
 func main() {
-	logger := slog.New(log.NewWithOptions(os.Stderr, log.Options{ReportTimestamp: true}))
+	logger := slog.New(log.NewWithOptions(os.Stderr,
+		log.Options{ReportTimestamp: true},
+	))
 
-	workerManager := workers.NewWorkerManager(workers.WithLogger(logger))
-	workerManager.RegisterWorker(workers.NewWorker("clean expired sessions", cleanExpiredSessionsJob,
-		workers.WithTick(1*time.Hour),
-		workers.WithTimeout(10*time.Minute),
-		workers.WithRetries(2),
-		workers.WithRetryDelay(30*time.Second),
-	))
-	workerManager.RegisterWorker(workers.NewWorker("clean expired OTPs", cleanExpiredOtpsJob,
-		workers.WithTick(5*time.Minute),
-		workers.WithTimeout(30*time.Second),
-		workers.WithRetries(3),
-		workers.WithRetryDelay(10*time.Second),
-	))
-	workerManager.RegisterWorker(workers.NewWorker("clean deleted chat messages", cleanDeletedChatMessagesJob,
-		workers.WithTick(6*time.Hour),
-		workers.WithTimeout(15*time.Minute),
-		workers.WithRetries(2),
-		workers.WithRetryDelay(1*time.Minute),
-	))
+	workerManager := workers.NewWorkerManager(
+		workers.WithLogger(logger),
+	)
+
+	workerManager.RegisterWorker(
+		workers.NewWorker("clean expired sessions", cleanExpiredSessionsJob,
+			workers.WithTick(1*time.Hour),
+			workers.WithTimeout(10*time.Minute),
+			workers.WithNRetries(2),
+			workers.WithRetryDelay(30*time.Second),
+		),
+	)
+	workerManager.RegisterWorker(
+		workers.NewWorker("clean expired OTPs", cleanExpiredOtpsJob,
+			workers.WithTick(5*time.Minute),
+			workers.WithTimeout(30*time.Second),
+			workers.WithNRetries(3),
+			workers.WithRetryDelay(10*time.Second),
+		),
+	)
+	workerManager.RegisterWorker(
+		workers.NewWorker("clean deleted chat messages", cleanDeletedChatMessagesJob,
+			workers.WithTick(6*time.Hour),
+			workers.WithTimeout(15*time.Minute),
+			workers.WithNRetries(2),
+			workers.WithRetryDelay(1*time.Minute),
+		),
+	)
 
 	workerManager.Start()
 }
