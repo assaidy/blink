@@ -2,7 +2,7 @@ package utils
 
 import "fmt"
 
-// inspired by https://core.telegram.org/method/auth.sendCode
+// Inspired by https://core.telegram.org/method/auth.sendCode
 
 type ErrorKind string
 

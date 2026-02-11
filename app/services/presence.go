@@ -77,7 +77,7 @@ func (me *PresenceService) StartHeartbeat(ctx context.Context, userID, sessionID
 	}
 }
 
-// (oniline == true) => went online, (oniline == false) => went offline
+// If online is true, the user went online; if false, the user went offline
 func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, userID string, online bool) {
 	if ok, err := me.IsUserOnline(ctx, userID); err != nil {
 		me.logger.Error("failed to get check if user online", "error", err)

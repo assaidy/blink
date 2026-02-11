@@ -4,22 +4,6 @@ import (
 	"github.com/assaidy/gg"
 )
 
-func RegisterPage() gg.Node {
-	return rootLayout(
-		gg.Div(gg.KV{"class": "min-h-screen flex justify-center items-center bg-bg-primary sm:px-6 lg:px-8"},
-			gg.Div(gg.KV{"class": "w-full min-h-screen sm:min-h-0 sm:max-w-md sm:p-8 bg-bg-secondary sm:rounded-lg sm:shadow-lg flex flex-col justify-center"},
-				gg.Div(gg.KV{"class": "p-6 sm:p-0"},
-					gg.H2(gg.KV{"class": "text-fg-primary text-2xl font-bold text-center mb-8"}, "Create Account"),
-					RegisterForm(),
-					gg.P(gg.KV{"class": "text-center text-fg-secondary text-sm mt-6"},
-						"Already have an account? ", gg.A(gg.KV{"href": "/login", "class": "text-blue hover:underline font-medium"}, "Sign in"),
-					),
-				),
-			),
-		),
-	)
-}
-
 type RegisterFormParams struct {
 	Name        string
 	NameErr     any
@@ -62,22 +46,6 @@ func RegisterForm(params ...RegisterFormParams) gg.Node {
 		),
 		gg.Button(gg.KV{"class": "w-full rounded-lg bg-blue hover:bg-blue/80 text-bg-primary font-semibold py-3 px-4 cursor-pointer transition-colors mt-2"},
 			"Create Account",
-		),
-	)
-}
-
-func LoginPage() gg.Node {
-	return rootLayout(
-		gg.Div(gg.KV{"class": "min-h-screen flex justify-center items-center bg-bg-primary sm:px-6 lg:px-8"},
-			gg.Div(gg.KV{"class": "w-full min-h-screen sm:min-h-0 sm:max-w-md sm:p-8 bg-bg-secondary sm:rounded-lg sm:shadow-lg flex flex-col justify-center"},
-				gg.Div(gg.KV{"class": "p-6 sm:p-0"},
-					gg.H2(gg.KV{"class": "text-fg-primary text-2xl font-bold text-center mb-8"}, "Sign In"),
-					LoginForm(),
-					gg.P(gg.KV{"class": "text-center text-fg-secondary text-sm mt-6"},
-						"Don't have an account? ", gg.A(gg.KV{"href": "/register", "class": "text-blue hover:underline font-medium"}, "Create one"),
-					),
-				),
-			),
 		),
 	)
 }

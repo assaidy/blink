@@ -89,7 +89,7 @@ func (me *App) registerRoutes() {
 	me.router.Use(recovermw.New(recovermw.Config{EnableStackTrace: true}))
 	me.router.Use(handlers.WithLogging(me.logger))
 	me.router.Use(handlers.WithErrorResolver(me.logger))
-	// TODO: use rate limiting for different purposes
+	// TODO: Use rate limiting for different purposes
 
 	me.registerApiRoutes()
 	me.registerHTMLRoutes()

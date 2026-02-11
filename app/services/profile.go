@@ -73,7 +73,7 @@ func (me *UpdateProfileParams) cleanAndValidate() error {
 		validation.Field(&me.Username, validation.Required, validation.Length(2, 50),
 			validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed"),
 		),
-		// max len 255 because is.Email doesn't check the length
+		// Max len 255 because is.Email doesn't check the length
 		validation.Field(&me.Email, validation.Required, is.Email, validation.Length(0, 255)),
 		validation.Field(&me.Bio, validation.Length(0, 255)),
 	)

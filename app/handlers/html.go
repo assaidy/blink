@@ -246,7 +246,7 @@ func (me *HtmlHandler) HandleProfileModal(c *fiber.Ctx) error {
 	return render(c, components.ProfileModal(params))
 }
 
-// TODO: return an oob component to update the user block at the top of the sidebar
+// FIX: Return an OOB component to update the user block at the top of the sidebar
 func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	name := c.FormValue("name")
 	username := c.FormValue("username")

@@ -15,8 +15,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// this error hadnler is called after [WithErrorResolver] and all the other handlers,
-// so err is utils.Error, and status code was set
+// This error handler is called after [WithErrorResolver] and all other handlers,
+// so err is utils.Error, and the status code was set
 func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		if c.Response().StatusCode() == fiber.StatusInternalServerError {
@@ -30,8 +30,8 @@ func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	}
 }
 
-// this ensures we always return utils.Error, and proper status code was set.
-// this must be registered (handled) before the logger middleware
+// This ensures we always return utils.Error, and the proper status code was set.
+// This must be registered after (handled before) the logger middleware
 func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if err := c.Next(); err != nil {

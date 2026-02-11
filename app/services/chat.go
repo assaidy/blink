@@ -219,7 +219,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 		return utils.NewError(utils.NotFound, "parnter not fount")
 	}
 
-	// TODO: make message writing async
+	// TODO: Make message writing async
 	messageID := ulid.Make().String()
 	timestamp := time.Now()
 	if err := qtx.InsertChatMessage(ctx, repo.InsertChatMessageParams{
@@ -236,7 +236,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
-	// notify sender sessions
+	// Notify sender sessions
 	if err := me.pubsub.Publish(ctx,
 		MessageWasSentEvent,
 		pubsub.JsonMessageGenerator,
@@ -252,7 +252,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 		return fmt.Errorf("failed to publish %s event: %w", MessageWasSentEvent, err)
 	}
 
-	// notify receiver sessions
+	// Notify receiver sessions
 	if ok, err := me.presenceService.IsUserOnline(ctx, receiverID); err != nil {
 		return fmt.Errorf("failed to check if user is online: %w", err)
 	} else if ok {

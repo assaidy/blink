@@ -11,7 +11,7 @@ type PayloadHandler func(payload any) error
 
 type Pubsub interface {
 	Publish(ctx context.Context, event string, generator MessageGenerator, payload any) error
-	// blocking
+	// Blocking
 	Subscribe(ctx context.Context, event string, payloadGenerator PayloadGenerator, handler PayloadHandler)
 }
 

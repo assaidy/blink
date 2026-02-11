@@ -127,7 +127,7 @@ func (me *SendOtpParams) cleanAndValidate() error {
 	return nil
 }
 
-// sends an otp and returns its id
+// Sends an OTP and returns its ID
 func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
 	if err := params.cleanAndValidate(); err != nil {
 		return "", utils.NewError(utils.InvalidData, err)
@@ -168,7 +168,7 @@ func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
 
 	switch params.Channel {
 	case "email":
-		// TODO: inject a Mailer interface
+		// TODO: Inject a Mailer interface
 		if err := utils.SendEmail(
 			user.Email,
 			"Blink OTP",
@@ -181,14 +181,14 @@ func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
 	return otpID, nil
 }
 
-// TODO: use an advanced libray e.g. https://github.com/pquerna/otp
+// TODO: Use an advanced library e.g. https://github.com/pquerna/otp
 func generateRandomOtp() (string, error) {
-	// Generates a number between 0 and 899,999
+	// Generate a number between 0 and 899,999
 	n, err := rand.Int(rand.Reader, big.NewInt(900_000))
 	if err != nil {
 		return "", err
 	}
-	// Adds 100,000 to ensure it is always 6 digits
+	// Add 100,000 to ensure it is always 6 digits
 	return fmt.Sprintf("%06d", n.Int64()+100_000), nil
 }
 
@@ -229,7 +229,7 @@ type LoginSession struct {
 	ExpiresAt    time.Time
 }
 
-// verifies otp and creates a session if otp was requested for login, otherwise returns a nil session
+// Verifies OTP and creates a session if OTP was requested for login, otherwise returns a nil session
 func (me *AuthService) VerifyOtp(params VerifyOtpParams) (*LoginSession, error) {
 	if err := params.validate(); err != nil {
 		return nil, utils.NewError(utils.InvalidData, err)
@@ -254,7 +254,7 @@ func (me *AuthService) VerifyOtp(params VerifyOtpParams) (*LoginSession, error) 
 		sessionID := ulid.Make()
 		sessionToken := fmt.Sprintf("%s_%s", sessionID, generateCryptoRandomHex(32))
 		csrfToken := fmt.Sprintf("%s_%s", sessionID, generateCryptoRandomHex(32))
-		// 400 days: https://developer.chrome.com/blog/cookie-max-age-expires
+		// Set cookie max-age to 400 days: https://developer.chrome.com/blog/cookie-max-age-expires
 		sessionExpiration := time.Now().Add(400 * 24 * time.Hour)
 
 		if err := me.queries.InsertSession(ctx, repo.InsertSessionParams{
