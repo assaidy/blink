@@ -17,6 +17,7 @@ import (
 	"github.com/assaidy/blink/app/env"
 	"github.com/assaidy/blink/app/repo"
 	"github.com/assaidy/blink/app/utils"
+	"github.com/assaidy/blink/app/utils/email"
 	"github.com/go-ozzo/ozzo-validation/is"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/oklog/ulid/v2"
@@ -25,12 +26,14 @@ import (
 type AuthService struct {
 	db      *sql.DB
 	queries *repo.Queries
+	mailer  email.Mailer
 }
 
-func NewAuthService(db *sql.DB) *AuthService {
+func NewAuthService(db *sql.DB, mailer email.Mailer) *AuthService {
 	return &AuthService{
 		db:      db,
 		queries: repo.New(db),
+		mailer:  mailer,
 	}
 }
 
@@ -168,8 +171,7 @@ func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
 
 	switch params.Channel {
 	case "email":
-		// TODO: Inject a Mailer interface
-		if err := utils.SendEmail(
+		if err := me.mailer.SendEmail(
 			user.Email,
 			"Blink OTP",
 			fmt.Sprintf("Your one-time password is: %s", otp),

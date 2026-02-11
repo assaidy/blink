@@ -18,6 +18,7 @@ import (
 	"github.com/assaidy/blink/app/env"
 	"github.com/assaidy/blink/app/handlers"
 	"github.com/assaidy/blink/app/services"
+	"github.com/assaidy/blink/app/utils/email"
 	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/contrib/websocket"
@@ -44,7 +45,9 @@ func NewApp() *App {
 	db := db.GetPool()
 	cache := cache.GetClient()
 	pubsub := pubsub.NewValkeyPubsub(cache, logger)
-	authService := services.NewAuthService(db)
+	mailer := email.NewPapercutMailer()
+
+	authService := services.NewAuthService(db, mailer)
 	profileService := services.NewProfileService(db, pubsub)
 	presenceService := services.NewPresenceService(db, cache, logger, pubsub)
 	chatService := services.NewChatService(db, presenceService, pubsub)

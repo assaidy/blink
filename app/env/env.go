@@ -20,10 +20,8 @@ var (
 	DBUrl      = getEnvOrPanic(ifElse(Environment == EnvProduction, "DB_URL", "DB_URL_LOCAL"))
 	ValkeyAddr = getEnvOrPanic(ifElse(Environment == EnvProduction, "VALKEY_ADDR", "VALKEY_ADDR_LOCAL"))
 
-	EmailFrom    = getEnvOrPanic("EMAIL_FROM")
-	SmtpHost     = getEnvOrPanic(ifElse(Environment == EnvProduction, "SMTP_HOST", "PAPERCUT_SMTP_HOST"))
-	SmtpUsername = getEnvOrAlt("SMTP_USERNAME", "")
-	SmtpPassword = getEnvOrAlt("SMTP_PASSWORD", "")
+	EmailFrom       = getEnvOrPanic("EMAIL_FROM")
+	PapercutSmtHost = getEnvOrPanic(ifElse(Environment == EnvProduction, "PAPERCUT_SMTP_HOST", "PAPERCUT_SMTP_HOST_LOCAL"))
 )
 
 func getEnvOrAlt(key, alt string) string {
