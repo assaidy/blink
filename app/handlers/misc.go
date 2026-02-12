@@ -40,6 +40,7 @@ func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 			var ue utils.Error
 
 			if errors.As(err, &fe) {
+				// Returned by fiber's router
 				code = fe.Code
 				switch fe.Code {
 				case fiber.StatusNotFound:
