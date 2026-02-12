@@ -16,7 +16,6 @@ import (
 
 	"github.com/assaidy/blink/app/env"
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils"
 	"github.com/assaidy/blink/app/utils/email"
 	"github.com/go-ozzo/ozzo-validation/is"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -37,32 +36,38 @@ func NewAuthService(db *sql.DB, mailer email.Mailer) *AuthService {
 	}
 }
 
-type RegisterParams struct {
-	Name     string
-	Username string
-	Email    string
-	Bio      string
-}
-
 var usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
-func (me *RegisterParams) cleanAndValidate() error {
-	me.Name = strings.TrimSpace(me.Name)
-	me.Username = strings.TrimSpace(me.Username)
-	me.Email = strings.ToLower(strings.TrimSpace(me.Email))
-	me.Bio = strings.TrimSpace(me.Bio)
+func validateRegistration(name, username, email, bio string) (string, string, string, string, error) {
+	name = strings.TrimSpace(name)
+	username = strings.TrimSpace(username)
+	email = strings.ToLower(strings.TrimSpace(email))
+	bio = strings.TrimSpace(bio)
 
-	return validation.ValidateStruct(me,
-		validation.Field(&me.Name, validation.Required, validation.Length(2, 50)),
-		validation.Field(&me.Username, validation.Required, validation.Length(2, 50), validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed")),
-		validation.Field(&me.Email, validation.Required, is.Email, validation.Length(0, 255)), // max len 255 because is.Email doesn't check the length
-		validation.Field(&me.Bio, validation.Length(0, 255)),
-	)
+	type Params struct {
+		Name     string
+		Username string
+		Email    string
+		Bio      string
+	}
+	params := Params{Name: name, Username: username, Email: email, Bio: bio}
+
+	if err := validation.ValidateStruct(&params,
+		validation.Field(&params.Name, validation.Required, validation.Length(2, 50)),
+		validation.Field(&params.Username, validation.Required, validation.Length(2, 50), validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed")),
+		validation.Field(&params.Email, validation.Required, is.Email, validation.Length(0, 255)), // max len 255 because is.Email doesn't check the length
+		validation.Field(&params.Bio, validation.Length(0, 255)),
+	); err != nil {
+		return "", "", "", "", fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
+	return name, username, email, bio, nil
 }
 
-func (me *AuthService) Register(params RegisterParams) error {
-	if err := params.cleanAndValidate(); err != nil {
-		return utils.NewError(utils.InvalidData, err)
+func (me *AuthService) Register(name, username, email, bio string) error {
+	name, username, email, bio, err := validateRegistration(name, username, email, bio)
+	if err != nil {
+		return err
 	}
 
 	ctx := context.Background()
@@ -73,24 +78,24 @@ func (me *AuthService) Register(params RegisterParams) error {
 	defer tx.Rollback()
 	qtx := me.queries.WithTx(tx)
 
-	if ok, err := qtx.CheckUsername(ctx, params.Username); err != nil {
+	if ok, err := qtx.CheckUsername(ctx, username); err != nil {
 		return fmt.Errorf("failed to check username: %w", err)
 	} else if ok {
-		return utils.NewError(utils.UsernameConflict, nil)
+		return ErrUsernameTaken
 	}
 
-	if ok, err := qtx.CheckEmail(ctx, params.Email); err != nil {
+	if ok, err := qtx.CheckEmail(ctx, email); err != nil {
 		return fmt.Errorf("failed to check email: %w", err)
 	} else if ok {
-		return utils.NewError(utils.EmailConflict, nil)
+		return ErrEmailTaken
 	}
 
 	if err := qtx.InsertUser(ctx, repo.InsertUserParams{
 		ID:       ulid.Make().String(),
-		Name:     params.Name,
-		Username: params.Username,
-		Email:    params.Email,
-		Bio:      params.Bio,
+		Name:     name,
+		Username: username,
+		Email:    email,
+		Bio:      bio,
 	}); err != nil {
 		return fmt.Errorf("failed to insert user: %w", err)
 	}
@@ -102,50 +107,52 @@ func (me *AuthService) Register(params RegisterParams) error {
 	return nil
 }
 
-type SendOtpParams struct {
-	Channel   string // the communication channel to send opt through
-	Identifer string // email/sms/... according to channel
-	Purpose   string // login, password_reset, email_verify
-}
+func validateSendOtp(channel, identifier, purpose string) (string, string, string, error) {
+	channel = strings.ToLower(strings.TrimSpace(channel))
+	identifier = strings.ToLower(strings.TrimSpace(identifier))
+	purpose = strings.ToLower(strings.TrimSpace(purpose))
 
-func (me *SendOtpParams) cleanAndValidate() error {
-	me.Channel = strings.ToLower(strings.TrimSpace(me.Channel))
-	me.Identifer = strings.ToLower(strings.TrimSpace(me.Identifer))
-	me.Purpose = strings.ToLower(strings.TrimSpace(me.Purpose))
+	type Params struct {
+		Channel   string
+		Identifer string
+		Purpose   string
+	}
+	params := Params{Channel: channel, Identifer: identifier, Purpose: purpose}
 
-	if err := validation.ValidateStruct(me,
-		validation.Field(&me.Channel, validation.Required, validation.In("email")),
-		validation.Field(&me.Identifer, validation.Required, validation.By(func(value any) error {
-			switch me.Channel {
+	if err := validation.ValidateStruct(&params,
+		validation.Field(&params.Channel, validation.Required, validation.In("email")),
+		validation.Field(&params.Identifer, validation.Required, validation.By(func(value any) error {
+			switch channel {
 			case "email":
 				return validation.Validate(value, is.Email)
 			}
 			return nil
 		})),
-		validation.Field(&me.Purpose, validation.Required, validation.In("login")),
+		validation.Field(&params.Purpose, validation.Required, validation.In("login")),
 	); err != nil {
-		return err
+		return "", "", "", fmt.Errorf("%w: %w", ErrValidation, err)
 	}
 
-	return nil
+	return channel, identifier, purpose, nil
 }
 
-// Sends an OTP and returns its ID
-func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
-	if err := params.cleanAndValidate(); err != nil {
-		return "", utils.NewError(utils.InvalidData, err)
+// SendOtp sends an OTP and returns its ID
+func (me *AuthService) SendOtp(channel, identifier, purpose string) (string, error) {
+	channel, identifier, purpose, err := validateSendOtp(channel, identifier, purpose)
+	if err != nil {
+		return "", err
 	}
 
 	ctx := context.Background()
 
 	var user repo.User
-	switch params.Channel {
+	switch channel {
 	case "email":
 		var err error
-		user, err = me.queries.GetUserByEmail(ctx, params.Identifer)
+		user, err = me.queries.GetUserByEmail(ctx, identifier)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return "", utils.NewError(utils.EmailNotFound, nil)
+				return "", ErrEmailNotFound
 			}
 			return "", fmt.Errorf("failed to get user by email: %w", err)
 		}
@@ -162,14 +169,14 @@ func (me *AuthService) SendOtp(params SendOtpParams) (string, error) {
 		ID:        otpID,
 		UserID:    user.ID,
 		OtpHash:   otpHash,
-		Channel:   params.Channel,
-		Purpose:   params.Purpose,
+		Channel:   channel,
+		Purpose:   purpose,
 		ExpiresAt: time.Now().Add(5 * time.Minute),
 	}); err != nil {
 		return "", fmt.Errorf("faield to insert otp: %w", err)
 	}
 
-	switch params.Channel {
+	switch channel {
 	case "email":
 		if err := me.mailer.SendEmail(
 			user.Email,
@@ -206,52 +213,58 @@ func verifyOtp(otp string, hash string) bool {
 	return hmac.Equal([]byte(actual), []byte(hash))
 }
 
-type VerifyOtpParams struct {
-	OtpID    string
-	Otp      string
-	Platform string
-	OS       string
-}
-
-func (me *VerifyOtpParams) validate() error {
-	me.Platform = strings.TrimSpace(me.Platform)
-	me.OS = strings.TrimSpace(me.OS)
-
-	return validation.ValidateStruct(me,
-		validation.Field(&me.OtpID, validation.Required),
-		validation.Field(&me.Otp, validation.Required),
-		validation.Field(&me.Platform, validation.Required),
-		validation.Field(&me.OS, validation.Required),
-	)
-}
-
 type LoginSession struct {
 	SessionToken string
 	CsrfToken    string
 	ExpiresAt    time.Time
 }
 
-// Verifies OTP and creates a session if OTP was requested for login, otherwise returns a nil session
-func (me *AuthService) VerifyOtp(params VerifyOtpParams) (*LoginSession, error) {
-	if err := params.validate(); err != nil {
-		return nil, utils.NewError(utils.InvalidData, err)
+func validateVerifyOtp(otpID, otp, platform, os string) (string, string, string, string, error) {
+	platform = strings.TrimSpace(platform)
+	os = strings.TrimSpace(os)
+
+	type Params struct {
+		OtpID    string
+		Otp      string
+		Platform string
+		OS       string
+	}
+	params := Params{OtpID: otpID, Otp: otp, Platform: platform, OS: os}
+
+	if err := validation.ValidateStruct(&params,
+		validation.Field(&params.OtpID, validation.Required),
+		validation.Field(&params.Otp, validation.Required),
+		validation.Field(&params.Platform, validation.Required),
+		validation.Field(&params.OS, validation.Required),
+	); err != nil {
+		return "", "", "", "", fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
+	return otpID, otp, platform, os, nil
+}
+
+// VerifyOtp verifies OTP and creates a session if OTP was requested for login, otherwise returns a nil session
+func (me *AuthService) VerifyOtp(otpID, otp, platform, os string) (*LoginSession, error) {
+	otpID, otp, platform, os, err := validateVerifyOtp(otpID, otp, platform, os)
+	if err != nil {
+		return nil, err
 	}
 
 	ctx := context.Background()
 
-	otp, err := me.queries.GetOtpByID(ctx, params.OtpID)
+	storedOtp, err := me.queries.GetOtpByID(ctx, otpID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, utils.NewError(utils.InvalidOtp, nil)
+			return nil, ErrInvalidOTP
 		}
 		return nil, fmt.Errorf("failed to get otp by id: %w", err)
 	}
 
-	if time.Since(otp.ExpiresAt) >= 0 || !verifyOtp(params.Otp, otp.OtpHash) {
-		return nil, utils.NewError(utils.InvalidOtp, nil)
+	if time.Since(storedOtp.ExpiresAt) >= 0 || !verifyOtp(otp, storedOtp.OtpHash) {
+		return nil, ErrInvalidOTP
 	}
 
-	switch otp.Purpose {
+	switch storedOtp.Purpose {
 	case "login":
 		sessionID := ulid.Make()
 		sessionToken := fmt.Sprintf("%s_%s", sessionID, generateCryptoRandomHex(32))
@@ -263,15 +276,15 @@ func (me *AuthService) VerifyOtp(params VerifyOtpParams) (*LoginSession, error) 
 			ID:        sessionID.String(),
 			Token:     sessionToken,
 			CsrfToken: csrfToken,
-			UserID:    otp.UserID,
-			Platform:  params.Platform,
-			Os:        params.OS,
+			UserID:    storedOtp.UserID,
+			Platform:  platform,
+			Os:        os,
 			ExpiresAt: sessionExpiration,
 		}); err != nil {
 			return nil, fmt.Errorf("failed to insert session: %w", err)
 		}
 
-		if err := me.queries.MarkEmailAsVerified(ctx, otp.UserID); err != nil {
+		if err := me.queries.MarkEmailAsVerified(ctx, storedOtp.UserID); err != nil {
 			return nil, fmt.Errorf("failed to mark email as verified: %w", err)
 		}
 
@@ -289,20 +302,20 @@ func generateCryptoRandomHex(nBytes uint) string {
 
 func (me *AuthService) ValidateSessionToken(sessionToken string) (sessionID, userID string, error error) {
 	if sessionToken == "" {
-		return "", "", utils.NewError(utils.Unauthorized, nil)
+		return "", "", ErrUnauthorized
 	}
 
 	ctx := context.Background()
 	session, err := me.queries.GetSessionById(ctx, strings.Split(sessionToken, "_")[0])
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", utils.NewError(utils.Unauthorized, nil)
+			return "", "", ErrUnauthorized
 		}
 		return "", "", fmt.Errorf("failed to get session by id: %w", err)
 	}
 
 	if session.Token != sessionToken || !time.Now().Before(session.ExpiresAt) {
-		return "", "", utils.NewError(utils.Unauthorized, nil)
+		return "", "", ErrUnauthorized
 	}
 
 	return session.ID, session.UserID, nil
@@ -310,20 +323,20 @@ func (me *AuthService) ValidateSessionToken(sessionToken string) (sessionID, use
 
 func (me *AuthService) ValidateSessionAndCsrfTokens(sessionToken, csrfToken string) (sessionID, userID string, error error) {
 	if sessionToken == "" || csrfToken == "" {
-		return "", "", utils.NewError(utils.Unauthorized, nil)
+		return "", "", ErrUnauthorized
 	}
 
 	ctx := context.Background()
 	session, err := me.queries.GetSessionById(ctx, strings.Split(sessionToken, "_")[0])
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", utils.NewError(utils.Unauthorized, nil)
+			return "", "", ErrUnauthorized
 		}
 		return "", "", fmt.Errorf("failed to get session by id: %w", err)
 	}
 
 	if session.Token != sessionToken || session.CsrfToken != csrfToken || !time.Now().Before(session.ExpiresAt) {
-		return "", "", utils.NewError(utils.Unauthorized, nil)
+		return "", "", ErrUnauthorized
 	}
 
 	return session.ID, session.UserID, nil
@@ -344,7 +357,7 @@ func (me *AuthService) DeleteSession(userID, sessionID string) error {
 	}); err != nil {
 		return fmt.Errorf("failed to check session for user: %w", err)
 	} else if !ok {
-		return utils.NewError(utils.NotFound, "session not found")
+		return ErrNotFound
 	}
 
 	if err := qtx.RemoveSession(ctx, sessionID); err != nil {

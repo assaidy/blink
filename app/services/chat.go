@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils"
 	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/oklog/ulid/v2"
 )
@@ -83,7 +82,7 @@ func (me *ChatService) DeleteChat(userID, partnerID string) error {
 	}); err != nil {
 		return fmt.Errorf("failed to check partner id: %w", err)
 	} else if !ok {
-		return utils.NewError(utils.NotFound, "parnter not fount")
+		return ErrNotFound
 	}
 
 	if err := me.queries.MarkChatAsDeleted(ctx, repo.MarkChatAsDeletedParams{
@@ -114,7 +113,7 @@ func (me *ChatService) GetChatMessages(userID, partnerID, lastMessageID string, 
 	}); err != nil {
 		return nil, fmt.Errorf("failed to check partner id: %w", err)
 	} else if !ok {
-		return nil, utils.NewError(utils.NotFound, "parnter not fount")
+		return nil, ErrNotFound
 	}
 
 	messages, err := me.queries.GetChatMessages(ctx, repo.GetChatMessagesParams{
@@ -147,7 +146,7 @@ func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID strin
 	}); err != nil {
 		return fmt.Errorf("failed to check partner id: %w", err)
 	} else if !ok {
-		return utils.NewError(utils.NotFound, "parnter not fount")
+		return ErrNotFound
 	}
 
 	if err := me.queries.MarkMessagesAsRead(ctx, repo.MarkMessagesAsReadParams{
@@ -207,7 +206,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 	if ok, err := qtx.CheckUserID(ctx, senderID); err != nil {
 		return fmt.Errorf("failed to check user id: %w", err)
 	} else if !ok {
-		return utils.NewError(utils.Unauthorized, nil)
+		return ErrUnauthorized
 	}
 
 	if ok, err := qtx.CheckChatPartnerID(ctx, repo.CheckChatPartnerIDParams{
@@ -216,7 +215,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 	}); err != nil {
 		return fmt.Errorf("failed to check partner id: %w", err)
 	} else if !ok {
-		return utils.NewError(utils.NotFound, "parnter not fount")
+		return ErrNotFound
 	}
 
 	// TODO: Make message writing async

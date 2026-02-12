@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/services"
-	"github.com/assaidy/blink/app/utils"
 	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -52,16 +51,11 @@ type RegisterRequest struct {
 func (me *ApiHandler) HandleRegister(c *fiber.Ctx) error {
 	var request RegisterRequest
 	if err := c.BodyParser(&request); err != nil {
-		return utils.NewError(utils.InvalidJson, err)
+		return NewApiError(ErrInvalidJSON, err)
 	}
 
-	if err := me.authService.Register(services.RegisterParams{
-		Name:     request.Name,
-		Username: request.Username,
-		Email:    request.Email,
-		Bio:      request.Bio,
-	}); err != nil {
-		return err
+	if err := me.authService.Register(request.Name, request.Username, request.Email, request.Bio); err != nil {
+		return serviceErrToApiErr(err)
 	}
 
 	return c.SendStatus(fiber.StatusCreated)
@@ -80,16 +74,12 @@ type RequestOtpResponse struct {
 func (me *ApiHandler) HandleRequestOtp(c *fiber.Ctx) error {
 	var request RequestOtpRequest
 	if err := c.BodyParser(&request); err != nil {
-		return utils.NewError(utils.InvalidJson, err)
+		return NewApiError(ErrInvalidJSON, err)
 	}
 
-	otpID, err := me.authService.SendOtp(services.SendOtpParams{
-		Channel:   request.Channel,
-		Identifer: request.Identifier,
-		Purpose:   request.Purpose,
-	})
+	otpID, err := me.authService.SendOtp(request.Channel, request.Identifier, request.Purpose)
 	if err != nil {
-		return err
+		return serviceErrToApiErr(err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(RequestOtpResponse{
@@ -105,19 +95,14 @@ type VerifyOtpRequest struct {
 func (me *ApiHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 	var request VerifyOtpRequest
 	if err := c.BodyParser(&request); err != nil {
-		return utils.NewError(utils.InvalidJson, err)
+		return NewApiError(ErrInvalidJSON, err)
 	}
 
 	platform, os := extractPlatformAndOSFromUserAgent(c.Get("User-Agent"))
 
-	session, err := me.authService.VerifyOtp(services.VerifyOtpParams{
-		OtpID:    request.OtpID,
-		Otp:      request.Otp,
-		Platform: platform,
-		OS:       os,
-	})
+	session, err := me.authService.VerifyOtp(request.OtpID, request.Otp, platform, os)
 	if err != nil {
-		return err
+		return serviceErrToApiErr(err)
 	}
 
 	if session != nil {
@@ -193,14 +178,14 @@ func (me *ApiHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 	var requestCursor GetChatsCursor
 	if qc := c.Query("cursor"); qc != "" {
 		if err := decodeCursor(qc, &requestCursor); err != nil {
-			return utils.NewError(utils.InvalidCursor, nil)
+			return NewApiError(ErrInvalidCursor, nil)
 		}
 	}
 
 	limit := 15
 	partners, err := me.chatService.GetChatPartners(getCurrentUserID(c), requestCursor.LastMessageIDWithLastPartner, limit)
 	if err != nil {
-		return err
+		return serviceErrToApiErr(err)
 	}
 
 	var encodedResponseCursor string
@@ -253,14 +238,14 @@ func (me *ApiHandler) HandleGetChatMessages(c *fiber.Ctx) error {
 	var requestCursor GetChatMessagesCursor
 	if qc := c.Query("cursor"); qc != "" {
 		if err := decodeCursor(qc, &requestCursor); err != nil {
-			return utils.NewError(utils.InvalidCursor, nil)
+			return NewApiError(ErrInvalidCursor, nil)
 		}
 	}
 
 	limit := 15
 	messages, err := me.chatService.GetChatMessages(getCurrentUserID(c), c.Params("partner_id"), requestCursor.LastMessageID, limit)
 	if err != nil {
-		return err
+		return serviceErrToApiErr(err)
 	}
 
 	var encodedResponseCursor string
@@ -321,14 +306,14 @@ func (me *ApiHandler) HandleSearchProfiles(c *fiber.Ctx) error {
 	var requestCursor SearchProfilesCursor
 	if cq := c.Query("cursor"); cq != "" {
 		if err := decodeCursor(cq, &requestCursor); err != nil {
-			return utils.NewError(utils.InvalidCursor, err)
+			return NewApiError(ErrInvalidCursor, err)
 		}
 	}
 
 	limit := 15
 	profiles, err := me.profileService.SearchProfiles(query, limit, requestCursor.LastUserID)
 	if err != nil {
-		return err
+		return serviceErrToApiErr(err)
 	}
 
 	var encodedResponseCursor string
@@ -415,16 +400,11 @@ type UpdateProfileRequest struct {
 func (me *ApiHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	var request UpdateProfileRequest
 	if err := c.BodyParser(&request); err != nil {
-		return utils.NewError(utils.InvalidJson, err)
+		return NewApiError(ErrInvalidJSON, err)
 	}
 
-	if err := me.profileService.UpdateProfile(getCurrentUserID(c), services.UpdateProfileParams{
-		Name:     request.Name,
-		Username: request.Username,
-		Email:    request.Email,
-		Bio:      request.Bio,
-	}); err != nil {
-		return err
+	if err := me.profileService.UpdateProfile(getCurrentUserID(c), request.Name, request.Username, request.Email, request.Bio); err != nil {
+		return serviceErrToApiErr(err)
 	}
 
 	return c.SendStatus(fiber.StatusOK)
@@ -443,7 +423,7 @@ func (me *ApiHandler) WithWebsocket(c *fiber.Ctx) error {
 	if websocket.IsWebSocketUpgrade(c) {
 		return c.Next()
 	}
-	return utils.NewError(utils.WebscoketUpgradeRequired, nil)
+	return NewApiError(ErrWebscoketUpgradeRequired, nil)
 }
 
 const (

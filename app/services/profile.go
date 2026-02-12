@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils"
 	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/go-ozzo/ozzo-validation/is"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -48,35 +47,40 @@ func (me *ProfileService) GetProfile(userID string) (Profile, error) {
 	user, err := me.queries.GetUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Profile{}, utils.NewError(utils.NotFound, "user not found")
+			return Profile{}, ErrNotFound
 		}
 		return Profile{}, fmt.Errorf("failed to get user by id: %w", err)
 	}
 	return user, nil
 }
 
-type UpdateProfileParams struct {
-	Name     string
-	Username string
-	Email    string
-	Bio      string
-}
+func validateProfileUpdate(name, username, email, bio string) (string, string, string, string, error) {
+	name = strings.TrimSpace(name)
+	username = strings.TrimSpace(username)
+	email = strings.ToLower(strings.TrimSpace(email))
+	bio = strings.TrimSpace(bio)
 
-func (me *UpdateProfileParams) cleanAndValidate() error {
-	me.Name = strings.TrimSpace(me.Name)
-	me.Username = strings.TrimSpace(me.Username)
-	me.Email = strings.ToLower(strings.TrimSpace(me.Email))
-	me.Bio = strings.TrimSpace(me.Bio)
+	type Params struct {
+		Name     string
+		Username string
+		Email    string
+		Bio      string
+	}
+	params := Params{Name: name, Username: username, Email: email, Bio: bio}
 
-	return validation.ValidateStruct(me,
-		validation.Field(&me.Name, validation.Required, validation.Length(2, 50)),
-		validation.Field(&me.Username, validation.Required, validation.Length(2, 50),
+	if err := validation.ValidateStruct(&params,
+		validation.Field(&params.Name, validation.Required, validation.Length(2, 50)),
+		validation.Field(&params.Username, validation.Required, validation.Length(2, 50),
 			validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed"),
 		),
 		// Max len 255 because is.Email doesn't check the length
-		validation.Field(&me.Email, validation.Required, is.Email, validation.Length(0, 255)),
-		validation.Field(&me.Bio, validation.Length(0, 255)),
-	)
+		validation.Field(&params.Email, validation.Required, is.Email, validation.Length(0, 255)),
+		validation.Field(&params.Bio, validation.Length(0, 255)),
+	); err != nil {
+		return "", "", "", "", fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
+	return name, username, email, bio, nil
 }
 
 const ProfileWasUpdatedEvent = "ProfileWasUpdatedEvent"
@@ -89,9 +93,10 @@ type ProfileWasUpdatedEventPayload struct {
 	Bio       string `json:"bio"`
 }
 
-func (me *ProfileService) UpdateProfile(userID string, params UpdateProfileParams) error {
-	if err := params.cleanAndValidate(); err != nil {
-		return utils.NewError(utils.InvalidData, err)
+func (me *ProfileService) UpdateProfile(userID, name, username, email, bio string) error {
+	name, username, email, bio, err := validateProfileUpdate(name, username, email, bio)
+	if err != nil {
+		return err
 	}
 
 	ctx := context.Background()
@@ -105,33 +110,33 @@ func (me *ProfileService) UpdateProfile(userID string, params UpdateProfileParam
 	user, err := qtx.GetUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return utils.NewError(utils.NotFound, "user not found")
+			return ErrNotFound
 		}
 		return fmt.Errorf("failed to get user by id: %w", err)
 	}
 
-	if user.Username != params.Username {
-		if ok, err := qtx.CheckUsername(ctx, params.Username); err != nil {
+	if user.Username != username {
+		if ok, err := qtx.CheckUsername(ctx, username); err != nil {
 			return fmt.Errorf("failed to check username: %w", err)
 		} else if ok {
-			return utils.NewError(utils.UsernameConflict, nil)
+			return ErrUsernameTaken
 		}
 	}
 
-	if user.Email != params.Email {
-		if ok, err := qtx.CheckEmail(ctx, params.Email); err != nil {
+	if user.Email != email {
+		if ok, err := qtx.CheckEmail(ctx, email); err != nil {
 			return fmt.Errorf("failed to check email: %w", err)
 		} else if ok {
-			return utils.NewError(utils.EmailConflict, nil)
+			return ErrEmailTaken
 		}
 	}
 
 	if err := qtx.UpdateUser(ctx, repo.UpdateUserParams{
 		ID:       userID,
-		Name:     params.Name,
-		Username: params.Username,
-		Email:    params.Email,
-		Bio:      params.Bio,
+		Name:     name,
+		Username: username,
+		Email:    email,
+		Bio:      bio,
 	}); err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
 	}
@@ -152,9 +157,9 @@ func (me *ProfileService) UpdateProfile(userID string, params UpdateProfileParam
 			ProfileWasUpdatedEventPayload{
 				UserID:    id,
 				PartnerID: userID,
-				Name:      params.Name,
-				Email:     params.Email,
-				Bio:       params.Bio,
+				Name:      name,
+				Email:     email,
+				Bio:       bio,
 			},
 		); err != nil {
 			return fmt.Errorf("failed to publish event %s: %w", ProfileWasUpdatedEvent, err)
@@ -176,7 +181,7 @@ func (me *ProfileService) DeleteProfile(userID string) error {
 	if ok, err := me.queries.CheckUserID(ctx, userID); err != nil {
 		return fmt.Errorf("failed to check user id: %w", err)
 	} else if !ok {
-		return utils.NewError(utils.Unauthorized, nil)
+		return ErrUnauthorized
 	}
 
 	if err := me.queries.DeleteUser(ctx, userID); err != nil {

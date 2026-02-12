@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/assaidy/blink/app/services"
-	"github.com/assaidy/blink/app/utils"
 	"github.com/assaidy/blink/app/web/components"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/fiber/v2"
@@ -42,12 +41,7 @@ func (me *HtmlHandler) HandleRegister(c *fiber.Ctx) error {
 	email := c.FormValue("email")
 	bio := c.FormValue("bio")
 
-	if err := me.authService.Register(services.RegisterParams{
-		Name:     name,
-		Username: username,
-		Email:    email,
-		Bio:      bio,
-	}); err != nil {
+	if err := me.authService.Register(name, username, email, bio); err != nil {
 		params := components.RegisterFormParams{
 			Name:     name,
 			Username: username,
@@ -55,24 +49,26 @@ func (me *HtmlHandler) HandleRegister(c *fiber.Ctx) error {
 			Bio:      bio,
 		}
 
-		var ue utils.Error
-		if errors.As(err, &ue) {
-			switch ue.Kind {
-			case utils.InvalidData:
-				if errs, ok := ue.Details.(validation.Errors); ok {
-					params.NameErr = errs["Name"]
-					params.UsernameErr = errs["Username"]
-					params.EmailErr = errs["Email"]
-					params.BioErr = errs["Bio"]
-				} else {
-					me.logger.Warn("expected validation error", "found", err)
-				}
-			case utils.UsernameConflict:
-				params.UsernameErr = "Username is taken"
-			case utils.EmailConflict:
-				params.EmailErr = "Email is taken"
+		if errors.Is(err, services.ErrValidation) {
+			var validationErrs validation.Errors
+			if errors.As(err, &validationErrs) {
+				params.NameErr = validationErrs["Name"]
+				params.UsernameErr = validationErrs["Username"]
+				params.EmailErr = validationErrs["Email"]
+				params.BioErr = validationErrs["Bio"]
+			} else {
+				me.logger.Warn("expected validation error", "found", err)
 			}
+			return render(c, components.RegisterForm(params))
+		}
 
+		if errors.Is(err, services.ErrUsernameTaken) {
+			params.UsernameErr = "Username is taken"
+			return render(c, components.RegisterForm(params))
+		}
+
+		if errors.Is(err, services.ErrEmailTaken) {
+			params.EmailErr = "Email is taken"
 			return render(c, components.RegisterForm(params))
 		}
 
@@ -89,27 +85,22 @@ func (me *HtmlHandler) HandleLoginPage(c *fiber.Ctx) error {
 func (me *HtmlHandler) HandleLogin(c *fiber.Ctx) error {
 	email := c.FormValue("email")
 
-	otpID, err := me.authService.SendOtp(services.SendOtpParams{
-		Channel:   "email",
-		Identifer: email,
-		Purpose:   "login",
-	})
+	otpID, err := me.authService.SendOtp("email", email, "login")
 	if err != nil {
 		params := components.LoginFormParams{Email: email}
 
-		var ue utils.Error
-		if errors.As(err, &ue) {
-			switch ue.Kind {
-			case utils.InvalidData:
-				if errs, ok := ue.Details.(validation.Errors); ok {
-					params.EmailErr = errs["Email"]
-				} else {
-					me.logger.Warn("expected validation error", "found", err)
-				}
-			case utils.EmailNotFound:
-				params.EmailErr = "Invalid email address"
+		if errors.Is(err, services.ErrValidation) {
+			var validationErrs validation.Errors
+			if errors.As(err, &validationErrs) {
+				params.EmailErr = validationErrs["Email"]
+			} else {
+				me.logger.Warn("expected validation error", "found", err)
 			}
+			return render(c, components.LoginForm(params))
+		}
 
+		if errors.Is(err, services.ErrEmailNotFound) {
+			params.EmailErr = "Invalid email address"
 			return render(c, components.LoginForm(params))
 		}
 
@@ -125,25 +116,15 @@ func (me *HtmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 
 	platform, os := extractPlatformAndOSFromUserAgent(c.Get("User-Agent"))
 
-	session, err := me.authService.VerifyOtp(services.VerifyOtpParams{
-		OtpID:    otpID,
-		Otp:      otp,
-		Platform: platform,
-		OS:       os,
-	})
+	session, err := me.authService.VerifyOtp(otpID, otp, platform, os)
 	if err != nil {
 		params := components.OtpFormParams{
 			OtpID: otpID,
 			Otp:   otp,
 		}
 
-		var ue utils.Error
-		if errors.As(err, &ue) {
-			switch ue.Kind {
-			case utils.InvalidOtp:
-				params.OtpErr = "Invalid code"
-			}
-
+		if errors.Is(err, services.ErrInvalidOTP) {
+			params.OtpErr = "Invalid code"
 			return render(c, components.OtpForm(params))
 		}
 
@@ -260,30 +241,27 @@ func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 		Bio:      bio,
 	}
 
-	if err := me.profileService.UpdateProfile(getCurrentUserID(c), services.UpdateProfileParams{
-		Name:     name,
-		Username: username,
-		Email:    email,
-		Bio:      bio,
-	}); err != nil {
-		var ue utils.Error
-		if errors.As(err, &ue) {
-			switch ue.Kind {
-			case utils.InvalidData:
-				if errs, ok := ue.Details.(validation.Errors); ok {
-					params.NameErr = errs["Name"]
-					params.UsernameErr = errs["Username"]
-					params.EmailErr = errs["Email"]
-					params.BioErr = errs["Bio"]
-				} else {
-					me.logger.Warn("expected validation error", "found", err)
-				}
-			case utils.UsernameConflict:
-				params.UsernameErr = "Username is taken"
-			case utils.EmailConflict:
-				params.EmailErr = "Email is taken"
+	if err := me.profileService.UpdateProfile(getCurrentUserID(c), name, username, email, bio); err != nil {
+		if errors.Is(err, services.ErrValidation) {
+			var validationErrs validation.Errors
+			if errors.As(err, &validationErrs) {
+				params.NameErr = validationErrs["Name"]
+				params.UsernameErr = validationErrs["Username"]
+				params.EmailErr = validationErrs["Email"]
+				params.BioErr = validationErrs["Bio"]
+			} else {
+				me.logger.Warn("expected validation error", "found", err)
 			}
+			return render(c, components.ProfileForm(params))
+		}
 
+		if errors.Is(err, services.ErrUsernameTaken) {
+			params.UsernameErr = "Username is taken"
+			return render(c, components.ProfileForm(params))
+		}
+
+		if errors.Is(err, services.ErrEmailTaken) {
+			params.EmailErr = "Email is taken"
 			return render(c, components.ProfileForm(params))
 		}
 
