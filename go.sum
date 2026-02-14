@@ -23,6 +23,10 @@ github.com/assaidy/workers v1.0.0 h1:mLb1TM1wrJPgPYApsF8DqEWLZGs69XQ9CgE6VUw5snc
 github.com/assaidy/workers v1.0.0/go.mod h1:zbdxcDQpHGcOe8Dlo+FoR7RwPlwyzgpBshOS76izkoE=
 github.com/assaidy/workers v1.0.1 h1:6039YCJF/1Nhx/UBMRP376GNPKfP1zRY3YDfhOH74wU=
 github.com/assaidy/workers v1.0.1/go.mod h1:zbdxcDQpHGcOe8Dlo+FoR7RwPlwyzgpBshOS76izkoE=
+github.com/assaidy/workers v1.0.2-0.20260213082652-394a713a7071 h1:pSqg1mCxGNNem4LQXwBsr1uLCAgXXxhM1z0XsrT5q8k=
+github.com/assaidy/workers v1.0.2-0.20260213082652-394a713a7071/go.mod h1:zbdxcDQpHGcOe8Dlo+FoR7RwPlwyzgpBshOS76izkoE=
+github.com/assaidy/workers v1.0.2 h1:hTdoWyYoVatzC4TTbzu1R5riyzTh88GTwonMW0EDxRo=
+github.com/assaidy/workers v1.0.2/go.mod h1:zbdxcDQpHGcOe8Dlo+FoR7RwPlwyzgpBshOS76izkoE=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

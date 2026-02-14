@@ -38,12 +38,7 @@ func NewAuthService(db *sql.DB, mailer email.Mailer) *AuthService {
 
 var usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
-func validateRegistration(name, username, email, bio string) (string, string, string, string, error) {
-	name = strings.TrimSpace(name)
-	username = strings.TrimSpace(username)
-	email = strings.ToLower(strings.TrimSpace(email))
-	bio = strings.TrimSpace(bio)
-
+func validateRegisterParams(name, username, email, bio string) error {
 	type Params struct {
 		Name     string
 		Username string
@@ -52,21 +47,21 @@ func validateRegistration(name, username, email, bio string) (string, string, st
 	}
 	params := Params{Name: name, Username: username, Email: email, Bio: bio}
 
-	if err := validation.ValidateStruct(&params,
+	return validation.ValidateStruct(&params,
 		validation.Field(&params.Name, validation.Required, validation.Length(2, 50)),
 		validation.Field(&params.Username, validation.Required, validation.Length(2, 50), validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed")),
 		validation.Field(&params.Email, validation.Required, is.Email, validation.Length(0, 255)), // max len 255 because is.Email doesn't check the length
 		validation.Field(&params.Bio, validation.Length(0, 255)),
-	); err != nil {
-		return "", "", "", "", fmt.Errorf("%w: %w", ErrValidation, err)
-	}
-
-	return name, username, email, bio, nil
+	)
 }
 
 func (me *AuthService) Register(name, username, email, bio string) error {
-	name, username, email, bio, err := validateRegistration(name, username, email, bio)
-	if err != nil {
+	name = strings.TrimSpace(name)
+	username = strings.TrimSpace(username)
+	email = strings.ToLower(strings.TrimSpace(email))
+	bio = strings.TrimSpace(bio)
+
+	if err := validateRegisterParams(name, username, email, bio); err != nil {
 		return err
 	}
 
@@ -107,11 +102,7 @@ func (me *AuthService) Register(name, username, email, bio string) error {
 	return nil
 }
 
-func validateSendOtp(channel, identifier, purpose string) (string, string, string, error) {
-	channel = strings.ToLower(strings.TrimSpace(channel))
-	identifier = strings.ToLower(strings.TrimSpace(identifier))
-	purpose = strings.ToLower(strings.TrimSpace(purpose))
-
+func validateSendOtpParams(channel, identifier, purpose string) error {
 	type Params struct {
 		Channel   string
 		Identifer string
@@ -119,7 +110,7 @@ func validateSendOtp(channel, identifier, purpose string) (string, string, strin
 	}
 	params := Params{Channel: channel, Identifer: identifier, Purpose: purpose}
 
-	if err := validation.ValidateStruct(&params,
+	return validation.ValidateStruct(&params,
 		validation.Field(&params.Channel, validation.Required, validation.In("email")),
 		validation.Field(&params.Identifer, validation.Required, validation.By(func(value any) error {
 			switch channel {
@@ -129,17 +120,16 @@ func validateSendOtp(channel, identifier, purpose string) (string, string, strin
 			return nil
 		})),
 		validation.Field(&params.Purpose, validation.Required, validation.In("login")),
-	); err != nil {
-		return "", "", "", fmt.Errorf("%w: %w", ErrValidation, err)
-	}
-
-	return channel, identifier, purpose, nil
+	)
 }
 
 // SendOtp sends an OTP and returns its ID
 func (me *AuthService) SendOtp(channel, identifier, purpose string) (string, error) {
-	channel, identifier, purpose, err := validateSendOtp(channel, identifier, purpose)
-	if err != nil {
+	channel = strings.ToLower(strings.TrimSpace(channel))
+	identifier = strings.ToLower(strings.TrimSpace(identifier))
+	purpose = strings.ToLower(strings.TrimSpace(purpose))
+
+	if err := validateSendOtpParams(channel, identifier, purpose); err != nil {
 		return "", err
 	}
 
@@ -219,10 +209,7 @@ type LoginSession struct {
 	ExpiresAt    time.Time
 }
 
-func validateVerifyOtp(otpID, otp, platform, os string) (string, string, string, string, error) {
-	platform = strings.TrimSpace(platform)
-	os = strings.TrimSpace(os)
-
+func validateVerifyOtpParams(otpID, otp, platform, os string) error {
 	type Params struct {
 		OtpID    string
 		Otp      string
@@ -231,22 +218,20 @@ func validateVerifyOtp(otpID, otp, platform, os string) (string, string, string,
 	}
 	params := Params{OtpID: otpID, Otp: otp, Platform: platform, OS: os}
 
-	if err := validation.ValidateStruct(&params,
+	return validation.ValidateStruct(&params,
 		validation.Field(&params.OtpID, validation.Required),
 		validation.Field(&params.Otp, validation.Required),
 		validation.Field(&params.Platform, validation.Required),
 		validation.Field(&params.OS, validation.Required),
-	); err != nil {
-		return "", "", "", "", fmt.Errorf("%w: %w", ErrValidation, err)
-	}
-
-	return otpID, otp, platform, os, nil
+	)
 }
 
 // VerifyOtp verifies OTP and creates a session if OTP was requested for login, otherwise returns a nil session
 func (me *AuthService) VerifyOtp(otpID, otp, platform, os string) (*LoginSession, error) {
-	otpID, otp, platform, os, err := validateVerifyOtp(otpID, otp, platform, os)
-	if err != nil {
+	platform = strings.TrimSpace(platform)
+	os = strings.TrimSpace(os)
+
+	if err := validateVerifyOtpParams(otpID, otp, platform, os); err != nil {
 		return nil, err
 	}
 

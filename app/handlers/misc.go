@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/services"
-	"github.com/assaidy/gg"
+	"github.com/assaidy/h"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/fiber/v2"
 )
@@ -285,7 +285,7 @@ type CursoredResponse[T any] struct {
 	Cursor string `json:"cursor,omitempty"`
 }
 
-func render(c *fiber.Ctx, component gg.Node) error {
+func render(c *fiber.Ctx, component h.Node) error {
 	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
 	return component.Render(c)
 }

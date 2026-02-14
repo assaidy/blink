@@ -13,7 +13,7 @@ type ProfileBlockParams struct {
 	Username string
 }
 
-func profileBlock(profile ProfileBlockParams) h.Element {
+func profileBlock(profile ProfileBlockParams) h.Node {
 	return h.Div(h.KV{"class": "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors"},
 		h.Div(h.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
 			getInitials(profile.Name),

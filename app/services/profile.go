@@ -54,12 +54,7 @@ func (me *ProfileService) GetProfile(userID string) (Profile, error) {
 	return user, nil
 }
 
-func validateProfileUpdate(name, username, email, bio string) (string, string, string, string, error) {
-	name = strings.TrimSpace(name)
-	username = strings.TrimSpace(username)
-	email = strings.ToLower(strings.TrimSpace(email))
-	bio = strings.TrimSpace(bio)
-
+func validateProfileUpdateParams(name, username, email, bio string) error {
 	type Params struct {
 		Name     string
 		Username string
@@ -68,7 +63,7 @@ func validateProfileUpdate(name, username, email, bio string) (string, string, s
 	}
 	params := Params{Name: name, Username: username, Email: email, Bio: bio}
 
-	if err := validation.ValidateStruct(&params,
+	return validation.ValidateStruct(&params,
 		validation.Field(&params.Name, validation.Required, validation.Length(2, 50)),
 		validation.Field(&params.Username, validation.Required, validation.Length(2, 50),
 			validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed"),
@@ -76,11 +71,7 @@ func validateProfileUpdate(name, username, email, bio string) (string, string, s
 		// Max len 255 because is.Email doesn't check the length
 		validation.Field(&params.Email, validation.Required, is.Email, validation.Length(0, 255)),
 		validation.Field(&params.Bio, validation.Length(0, 255)),
-	); err != nil {
-		return "", "", "", "", fmt.Errorf("%w: %w", ErrValidation, err)
-	}
-
-	return name, username, email, bio, nil
+	)
 }
 
 const ProfileWasUpdatedEvent = "ProfileWasUpdatedEvent"
@@ -94,8 +85,12 @@ type ProfileWasUpdatedEventPayload struct {
 }
 
 func (me *ProfileService) UpdateProfile(userID, name, username, email, bio string) error {
-	name, username, email, bio, err := validateProfileUpdate(name, username, email, bio)
-	if err != nil {
+	name = strings.TrimSpace(name)
+	username = strings.TrimSpace(username)
+	email = strings.ToLower(strings.TrimSpace(email))
+	bio = strings.TrimSpace(bio)
+
+	if err := validateProfileUpdateParams(name, username, email, bio); err != nil {
 		return err
 	}
 

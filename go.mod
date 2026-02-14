@@ -6,7 +6,7 @@ tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
 require (
 	github.com/assaidy/h v0.0.0-20260212223939-2351ee32e150
-	github.com/assaidy/workers v1.0.1
+	github.com/assaidy/workers v1.0.2
 	github.com/charmbracelet/log v0.4.2
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
