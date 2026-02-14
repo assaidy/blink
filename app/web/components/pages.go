@@ -1,7 +1,7 @@
 package components
 
 import (
-	"github.com/assaidy/h"
+	"github.com/assaidy/hyper"
 )
 
 func RegisterPage() h.Node {

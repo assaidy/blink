@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/assaidy/h"
+	"github.com/assaidy/hyper"
 )
 
 type ProfileBlockParams struct {

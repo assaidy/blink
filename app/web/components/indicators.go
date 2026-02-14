@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 
-	"github.com/assaidy/h"
+	"github.com/assaidy/hyper"
 )
 
 func spinner(id string) h.Node {
