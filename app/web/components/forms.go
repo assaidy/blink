@@ -154,16 +154,33 @@ func ProfileForm(params ProfileFormParams) h.Node {
 	)
 }
 
-func ChatInputForm() h.Node {
+type ChatInputFormParams struct {
+	PartnerID string
+}
+
+// TODO: Handle message retry when failing,
+// and add an indicator when sending message until
+// a confirmation message is recived `MessageWasSent`.
+func ChatInputForm(params ChatInputFormParams) h.Node {
 	return h.Form(h.KV{
 		"ws-send": true,
 		"hx-on::ws-config-send": `
 			const content = event.detail.parameters.content.trim();
-			if (content == "") event.preventDefault();
+			if (content == "") {
+				event.preventDefault();
+				return;
+			}
 			event.detail.parameters.content = content;
+		`,
+		"hx-on::ws-after-send": `
+			const textarea = event.detail.elt.querySelector('textarea[name="content"]');
+			textarea.value = '';
+			textarea.style.height = 'auto';
 		`,
 		"class": "flex items-center gap-2 px-3 py-2",
 	},
+		h.Input(h.KV{"type": "hidden", "name": "kind", "value": "SendMessage"}),
+		h.Input(h.KV{"type": "hidden", "name": "partnerID", "value": params.PartnerID}),
 		h.Textarea(h.KV{
 			"class":       "flex-1 bg-bg-tertiary text-fg-primary resize-none outline-none max-h-[120px] min-h-[44px] py-2.5 px-4 rounded-2xl leading-6 self-center overflow-y-auto",
 			"name":        "content",

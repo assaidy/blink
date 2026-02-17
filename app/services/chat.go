@@ -12,6 +12,8 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
+// TODO: Revise where we use CheckChatPartnerID() and replace it with CheckUserID() as needed.
+
 type ChatService struct {
 	db              *sql.DB
 	queries         *repo.Queries
@@ -204,15 +206,6 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 		return fmt.Errorf("failed to check user id: %w", err)
 	} else if !ok {
 		return ErrUnauthorized
-	}
-
-	if ok, err := qtx.CheckChatPartnerID(ctx, repo.CheckChatPartnerIDParams{
-		UserID:    senderID,
-		PartnerID: receiverID,
-	}); err != nil {
-		return fmt.Errorf("failed to check partner id: %w", err)
-	} else if !ok {
-		return ErrNotFound
 	}
 
 	// TODO: Make message writing async

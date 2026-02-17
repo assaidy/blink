@@ -426,6 +426,8 @@ const (
 	ProfileWasUpdated          = "ProfileWasUpdated"
 	ProfileWasDeleted          = "ProfileWasDeleted"
 	SendMessage                = "SendMessage"
+	MessageWasSent             = "MessageWasSent"
+	IncommingMessage           = "IncommingMessage"
 )
 
 type WebsocketMessage struct {
@@ -594,7 +596,7 @@ func (me *ApiHandler) messageWasSentEventHandler(userID string, c *websocket.Con
 			return nil
 		}
 		return c.WriteJSON(WebsocketMessage{
-			Kind:            ProfileWasDeleted,
+			Kind:            MessageWasSent,
 			PartnerID:       message.PartnerID,
 			MessageID:       message.MessageID,
 			ClientMessageID: message.ClientMessageID,
@@ -611,7 +613,7 @@ func (me *ApiHandler) incommingMessageEventHandler(userID string, c *websocket.C
 			return nil
 		}
 		return c.WriteJSON(WebsocketMessage{
-			Kind:      ProfileWasDeleted,
+			Kind:      IncommingMessage,
 			PartnerID: message.PartnerID,
 			MessageID: message.MessageID,
 			Content:   message.Content,

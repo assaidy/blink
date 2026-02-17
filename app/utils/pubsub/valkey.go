@@ -27,7 +27,7 @@ func (me ValkeyPubsub) Publish(ctx context.Context, event string, generator Mess
 }
 
 func (me ValkeyPubsub) Subscribe(ctx context.Context, event string, generator PayloadGenerator, handler PayloadHandler) {
-	cmd := me.client.B().Sunsubscribe().Channel(event).Build()
+	cmd := me.client.B().Subscribe().Channel(event).Build()
 	if err := me.client.Receive(ctx, cmd, func(msg valkey.PubSubMessage) {
 		payload, err := generator(msg.Message)
 		if err != nil {

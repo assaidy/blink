@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 
 	"github.com/assaidy/blink/app/services"
+	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/assaidy/blink/app/web/components"
 	h "github.com/assaidy/hyper"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -12,8 +14,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// TODO: Might put response html using hyper directly in the handlers.
+
 type HtmlHandler struct {
 	logger         *slog.Logger
+	pubsub         pubsub.Pubsub
 	authService    *services.AuthService
 	chatService    *services.ChatService
 	profileService *services.ProfileService
@@ -21,12 +26,14 @@ type HtmlHandler struct {
 
 func NewHtmlHandler(
 	logger *slog.Logger,
+	pubsub pubsub.Pubsub,
 	authService *services.AuthService,
 	chatService *services.ChatService,
 	profileService *services.ProfileService,
 ) *HtmlHandler {
 	return &HtmlHandler{
 		logger:         logger,
+		pubsub:         pubsub,
 		authService:    authService,
 		chatService:    chatService,
 		profileService: profileService,
@@ -394,8 +401,28 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	me.logger.Info("websocket connection", "user", userID, "session", sessionID)
 	defer me.logger.Info("websocket disconnection", "user", userID, "session", sessionID)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go me.pubsub.Subscribe(ctx,
+		services.MessageWasSentEvent,
+		pubsub.JsonPayloadGenerator[services.MessageWasSentEventPayload],
+		me.messageWasSentEventHandler(userID, c),
+	)
+	go me.pubsub.Subscribe(ctx,
+		services.IncommingMessageEvent,
+		pubsub.JsonPayloadGenerator[services.IncommingMessageEventPayload],
+		me.incommingMessageEventHandler(userID, c),
+	)
+
+	type Message struct {
+		Kind      string `json:"kind"`
+		PartnerID string `json:"partnerID"`
+		Content   string `json:"content"`
+	}
+
 	for {
-		var message fiber.Map
+		var message Message
 		if err := c.ReadJSON(&message); err != nil {
 			if websocket.IsUnexpectedCloseError(err) {
 				break
@@ -404,6 +431,76 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 			continue
 		}
 
-		// message["content"]
+		switch message.Kind {
+		case SendMessage:
+			// TODO: I don't handle client message id for now. I will assume messages are sent/recived in order.
+			if err := me.chatService.SendChatMessage(userID, message.PartnerID, message.Content, 0); err != nil {
+				me.logger.Error("failed to send message with chat serivce", "error", err)
+			}
+		}
+	}
+}
+
+func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.MessageWasSentEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		w, err := c.NextWriter(websocket.TextMessage)
+		if err != nil {
+			return err
+		}
+		defer w.Close()
+
+		return h.Render(w, h.Empty(
+			h.Div(h.KV{
+				"hx-swap-oob": "afterend:#new-message-inserter",
+			},
+				h.Div(h.KV{
+					"data-partner-id": message.PartnerID,
+				},
+					components.ChatMessage(components.ChatMessageParams{
+						ID:      message.MessageID,
+						Content: message.Content,
+						SentAt:  message.Timestamp,
+						FromMe:  true,
+					}),
+				),
+			),
+		))
+	}
+}
+
+func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	// WARN: This doesn't work until handling presense.
+	return func(payload any) error {
+		message := payload.(services.IncommingMessageEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		w, err := c.NextWriter(websocket.TextMessage)
+		if err != nil {
+			return err
+		}
+		defer w.Close()
+
+		return h.Render(w, h.Empty(
+			h.Div(h.KV{
+				"hx-swap-oob": "afterend:#new-message-inserter",
+			},
+				h.Div(h.KV{
+					"data-partner-id": message.PartnerID,
+				},
+					components.ChatMessage(components.ChatMessageParams{
+						ID:      message.MessageID,
+						Content: message.Content,
+						SentAt:  message.Timestamp,
+					}),
+				),
+			),
+		))
 	}
 }

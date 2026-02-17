@@ -142,6 +142,7 @@ var staticFS embed.FS
 func (me *App) registerHTMLRoutes() {
 	htmlHandler := handlers.NewHtmlHandler(
 		me.logger,
+		me.pubsub,
 		me.authService,
 		me.chatService,
 		me.profileService,
