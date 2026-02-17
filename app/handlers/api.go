@@ -419,13 +419,6 @@ func (me *ApiHandler) HandleDeleteProfile(c *fiber.Ctx) error {
 
 // ==================== WebSocket Handler ====================
 
-func (me *ApiHandler) WithWebsocket(c *fiber.Ctx) error {
-	if websocket.IsWebSocketUpgrade(c) {
-		return c.Next()
-	}
-	return NewApiError(ErrWebscoketUpgradeRequired, nil)
-}
-
 const (
 	ChatPartnerPresenceChanged = "ChatPartnerPresenceChanged"
 	ChatWasDeleted             = "ChatWasDeleted"

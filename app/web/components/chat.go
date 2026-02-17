@@ -44,15 +44,22 @@ func SearchResult(params SearchResultParams) h.Node {
 
 	return h.Div(h.KV{"class": "space-y-1"},
 		h.MapSlice(params.ProfileResults, func(profile ProfileBlockParams) h.Node {
-			return h.IfElse(profile.ID == lastID,
-				h.Div(h.KV{
-					"hx-get":     "/search/users?query=" + params.Query + "&cursor=" + lastID,
-					"hx-trigger": "intersect once",
-					"hx-swap":    "afterend",
-				},
+			return h.Div(h.KV{
+				"hx-get":     "/search/users/select/" + profile.ID,
+				"hx-trigger": "click",
+				"hx-target":  "#chat-container",
+				"hx-swap":    "innerHTML",
+			},
+				h.IfElse(profile.ID == lastID,
+					h.Div(h.KV{
+						"hx-get":     "/search/users?query=" + params.Query + "&cursor=" + lastID,
+						"hx-trigger": "intersect once",
+						"hx-swap":    "afterend",
+					},
+						profileBlock(profile),
+					),
 					profileBlock(profile),
 				),
-				profileBlock(profile),
 			)
 		}),
 	)
@@ -100,7 +107,6 @@ func PartnersList(params PartnersListParams) h.Node {
 							oldActive.classList.remove('bg-bg-tertiary', 'rounded-lg');
 							oldActive.classList.add('hover:bg-bg-tertiary/50', 'hover:rounded-lg')
 						}
-						console.log('setting active', this)
 						this.setAttribute('id', 'active-chat-partner');
 						this.classList.remove('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
 						this.classList.add('bg-bg-tertiary', 'rounded-lg')
@@ -130,7 +136,7 @@ func ChatContainer(params ChatContainerParams) h.Node {
 		),
 		h.Div(h.KV{
 			"id":    "messages-container",
-			"class": "flex-1 overflow-y-auto px-4 py-4 flex flex-col-reverse gap-3",
+			"class": "flex-1 overflow-y-auto px-6 sm:px-10 py-4 flex flex-col-reverse gap-3",
 		},
 			h.Div(h.KV{
 				"hx-get":              fmt.Sprintf("/chat/%s/messages", params.Partner.ID),
@@ -143,6 +149,7 @@ func ChatContainer(params ChatContainerParams) h.Node {
 				spinner("messages-indicator"),
 			),
 		),
+		ChatInputForm(),
 	)
 }
 
@@ -192,9 +199,11 @@ func chatMessage(msg ChatMessageParams) h.Node {
 				h.P(h.KV{"class": "break-words"}, msg.Content),
 			),
 			h.Div(h.KV{"class": "flex items-center gap-1 mt-1 px-1"},
+				// TODO: display the year in a sticky widget like telegram/whatsapp,
+				// and move this paragraph inside the message box
 				h.P(h.KV{"class": "text-xs text-fg-secondary"}, msg.SentAt.Format("Jan 2, 3:04 PM")),
 				h.If(msg.FromMe && msg.IsRead,
-					h.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue"><polyline points="20 6 9 17 4 12"></polyline></svg>`),
+					h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue"><polyline points="20 6 9 17 4 12"></polyline></svg>`),
 				),
 			),
 		),

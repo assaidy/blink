@@ -12,6 +12,7 @@ import (
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/hyper"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -236,6 +237,13 @@ func getCurrentSessionID(c *fiber.Ctx) string {
 
 func getCurrentUserID(c *fiber.Ctx) string {
 	return c.Locals(currentUserID).(string)
+}
+
+func WithWebsocket(c *fiber.Ctx) error {
+	if websocket.IsWebSocketUpgrade(c) {
+		return c.Next()
+	}
+	return NewApiError(ErrWebscoketUpgradeRequired, nil)
 }
 
 func WithRedirectUnauthorizedToLogin(c *fiber.Ctx) error {

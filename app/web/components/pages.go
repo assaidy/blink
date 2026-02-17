@@ -36,19 +36,24 @@ func LoginPage() h.Node {
 	)
 }
 
+type ChatPageParams struct {
+	User UserBlockParams
+}
+
 type UserBlockParams struct {
 	Name            string
 	Username        string
 	ProfileImageUrl string
 }
 
-type ChatPageParams struct {
-	User UserBlockParams
-}
-
 func ChatPage(params ChatPageParams) h.Node {
 	return rootLayout(
-		h.Div(h.KV{"class": "h-screen flex bg-bg-primary"},
+		h.Script(h.KV{"src": "/public/js/lib/htmx_ext_ws@2.0.4.js"}),
+		h.Div(h.KV{
+			"hx-ext":     "ws",
+			"ws-connect": "/ws",
+			"class":      "h-screen flex bg-bg-primary",
+		},
 			// Sidebar
 			h.Div(h.KV{"class": "w-80 bg-bg-secondary border-r border-bg-tertiary flex flex-col"},
 				// Sticky top row
@@ -75,7 +80,7 @@ func ChatPage(params ChatPageParams) h.Node {
 						"hx-swap":    "beforeend",
 						"class":      "flex items-center justify-center aspect-square h-full hover:bg-aqua/30 transition-colors cursor-pointer",
 					},
-						h.RawHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`),
+						h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`),
 					),
 				),
 				// Partners list container

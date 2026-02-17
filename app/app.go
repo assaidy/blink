@@ -129,15 +129,9 @@ func (me *App) registerApiRoutes() {
 		v1.Get("/chats/:partner_id", withSessionAndCsrfTokens, apiHandler.HandleGetChatMessages)
 		v1.Post("/chats/:partner_id/mark_as_read", withSessionAndCsrfTokens, apiHandler.HandleMarkMessagesAsRead)
 
-		v1.Get("/ws", withSessionAndCsrfTokens, apiHandler.WithWebsocket, websocket.New(
+		v1.Get("/ws", withSessionAndCsrfTokens, handlers.WithWebsocket, websocket.New(
 			apiHandler.HandleWebsocket,
-			websocket.Config{
-				RecoverHandler: func(c *websocket.Conn) {
-					if err := recover(); err != nil {
-						fmt.Fprintf(os.Stderr, "panic: %v\n\n%s\n", err, debug.Stack())
-					}
-				},
-			},
+			websocket.Config{RecoverHandler: websocketResolver},
 		))
 	}
 }
@@ -161,19 +155,34 @@ func (me *App) registerHTMLRoutes() {
 		PathPrefix: "web/public",
 	}))
 
+	me.router.Get("/", withSessionToken, htmlHandler.HandleChatPage)
 	me.router.Get("/register", htmlHandler.HandleRegisterPage)
-	me.router.Post("/register", htmlHandler.HandleRegister)
 	me.router.Get("/login", htmlHandler.HandleLoginPage)
+
+	me.router.Post("/register", htmlHandler.HandleRegister)
 	me.router.Post("/login", htmlHandler.HandleLogin)
 	me.router.Post("/verify_otp", htmlHandler.HandleVerifyOtp)
-	me.router.Get("/", withSessionToken, htmlHandler.HandleChatPage)
 	me.router.Get("/profile_modal", withSessionAndCsrfTokens, htmlHandler.HandleProfileModal)
 	me.router.Put("/profile", withSessionAndCsrfTokens, htmlHandler.HandleUpdateProfile)
 	me.router.Post("/logout", withSessionAndCsrfTokens, htmlHandler.HandleLogout)
 	me.router.Delete("/sessions/:session_id", withSessionAndCsrfTokens, htmlHandler.HandleDeleteSession)
 	me.router.Get("/search_modal", withSessionAndCsrfTokens, htmlHandler.HandleSearchModal)
 	me.router.Get("/search/users", withSessionAndCsrfTokens, htmlHandler.HandleSearchUsers)
+	me.router.Get("/search/users/select/:partner_id", withSessionAndCsrfTokens, htmlHandler.HandleSelectPartnerFromSearch)
 	me.router.Get("/partners", withSessionAndCsrfTokens, htmlHandler.HandleGetChatPartners)
 	me.router.Get("/chat/:partner_id", withSessionAndCsrfTokens, htmlHandler.HandleChatContainer)
 	me.router.Get("/chat/:partner_id/messages", withSessionAndCsrfTokens, htmlHandler.HandleChatMessages)
+	me.router.Get("/ws", withSessionToken, handlers.WithWebsocket, websocket.New(
+		// TODO: I couldn't send csrf token with hx-ws-ext so I will use withSessionToken for now.
+		// Also, Is it necessary to send csrf token with ws connection request?
+		htmlHandler.HandleWebsocket,
+		websocket.Config{RecoverHandler: websocketResolver},
+	))
+}
+
+func websocketResolver(c *websocket.Conn) {
+	// https://docs.gofiber.io/contrib/websocket/#note-with-recover-middleware
+	if err := recover(); err != nil {
+		fmt.Fprintf(os.Stderr, "panic: %v\n\n%s\n", err, debug.Stack())
+	}
 }

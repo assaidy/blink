@@ -107,11 +107,8 @@ type Message = repo.GetChatMessagesRow
 func (me *ChatService) GetChatMessages(userID, partnerID, lastMessageID string, limit int) ([]Message, error) {
 	ctx := context.Background()
 
-	if ok, err := me.queries.CheckChatPartnerID(ctx, repo.CheckChatPartnerIDParams{
-		UserID:    userID,
-		PartnerID: partnerID,
-	}); err != nil {
-		return nil, fmt.Errorf("failed to check partner id: %w", err)
+	if ok, err := me.queries.CheckUserID(ctx, partnerID); err != nil {
+		return nil, fmt.Errorf("failed to check user id: %w", err)
 	} else if !ok {
 		return nil, ErrNotFound
 	}

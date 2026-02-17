@@ -6,7 +6,9 @@ import (
 
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/web/components"
+	h "github.com/assaidy/hyper"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -318,6 +320,27 @@ func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 	}))
 }
 
+func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
+	partnerID := c.Params("partner_id")
+
+	partnerProfile, err := me.profileService.GetProfile(partnerID)
+	if err != nil {
+		return err
+	}
+
+	// FIX: We also need to update the selected partner in the sidebar.
+	return render(c, h.Empty(
+		h.Div(h.KV{"hx-swap-oob": "delete:#search-modal"}),
+		components.ChatContainer(components.ChatContainerParams{
+			Partner: components.ProfileBlockParams{
+				ID:       partnerID,
+				Name:     partnerProfile.Name,
+				Username: partnerProfile.Username,
+			},
+		}),
+	))
+}
+
 func (me *HtmlHandler) HandleChatContainer(c *fiber.Ctx) error {
 	partnerID := c.Params("partner_id")
 
@@ -361,4 +384,26 @@ func (me *HtmlHandler) HandleChatMessages(c *fiber.Ctx) error {
 		Messages:  messageItems,
 		HasMore:   len(messages) == limit,
 	}))
+}
+
+func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
+	defer c.Close()
+	userID := c.Locals(currentUserID).(string)
+	sessionID := c.Locals(currentSessionID).(string)
+
+	me.logger.Info("websocket connection", "user", userID, "session", sessionID)
+	defer me.logger.Info("websocket disconnection", "user", userID, "session", sessionID)
+
+	for {
+		var message fiber.Map
+		if err := c.ReadJSON(&message); err != nil {
+			if websocket.IsUnexpectedCloseError(err) {
+				break
+			}
+			me.logger.Error("failed to read json from ws", "user", userID, "session", sessionID)
+			continue
+		}
+
+		// message["content"]
+	}
 }
