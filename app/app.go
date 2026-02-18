@@ -146,6 +146,7 @@ func (me *App) registerHTMLRoutes() {
 		me.authService,
 		me.chatService,
 		me.profileService,
+		me.presenceService,
 	)
 	withSessionToken := handlers.WithSessionToken(me.authService)
 	withSessionAndCsrfTokens := handlers.WithSessionAndCsrfTokens(me.authService)

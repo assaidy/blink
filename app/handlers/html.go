@@ -17,11 +17,12 @@ import (
 // TODO: Might put response html using hyper directly in the handlers.
 
 type HtmlHandler struct {
-	logger         *slog.Logger
-	pubsub         pubsub.Pubsub
-	authService    *services.AuthService
-	chatService    *services.ChatService
-	profileService *services.ProfileService
+	logger          *slog.Logger
+	pubsub          pubsub.Pubsub
+	authService     *services.AuthService
+	chatService     *services.ChatService
+	profileService  *services.ProfileService
+	presenceService *services.PresenceService
 }
 
 func NewHtmlHandler(
@@ -30,13 +31,15 @@ func NewHtmlHandler(
 	authService *services.AuthService,
 	chatService *services.ChatService,
 	profileService *services.ProfileService,
+	presenceService *services.PresenceService,
 ) *HtmlHandler {
 	return &HtmlHandler{
-		logger:         logger,
-		pubsub:         pubsub,
-		authService:    authService,
-		chatService:    chatService,
-		profileService: profileService,
+		logger:          logger,
+		pubsub:          pubsub,
+		authService:     authService,
+		chatService:     chatService,
+		profileService:  profileService,
+		presenceService: presenceService,
 	}
 }
 
@@ -403,6 +406,8 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	go me.presenceService.StartHeartbeat(ctx, userID, sessionID)
 
 	go me.pubsub.Subscribe(ctx,
 		services.MessageWasSentEvent,
