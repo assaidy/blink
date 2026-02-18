@@ -479,7 +479,6 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 }
 
 func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
-	// WARN: This doesn't work until handling presense.
 	return func(payload any) error {
 		message := payload.(services.IncommingMessageEventPayload)
 		if message.UserID != userID {
