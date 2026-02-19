@@ -78,7 +78,10 @@ func PartnersList(params PartnersListParams) h.Node {
 
 	lastID := params.Partners[len(params.Partners)-1].ID
 
-	return h.Div(h.KV{"class": "space-y-1"},
+	return h.Div(h.KV{
+		"id":    "partners-list",
+		"class": "space-y-1",
+	},
 		h.MapSlice(params.Partners, func(partner ProfileBlockParams) h.Node {
 			attrs := h.IfElse(partner.ID == lastID && params.LastMessageWithLastPartnerID != "", h.KV{
 				"hx-get":       "/partners?cursor=" + params.LastMessageWithLastPartnerID,
@@ -89,33 +92,42 @@ func PartnersList(params PartnersListParams) h.Node {
 				"hx-disinherit": "hx-indicator",
 			}, nil)
 
-			return h.Div(attrs,
-				h.Div(h.KV{
-					"hx-get":     "/chat/" + partner.ID,
-					"hx-trigger": "click",
-					"hx-target":  "#chat-container",
-					"hx-swap":    "innerHTML",
-					// Cancel the request if clicking the active partner
-					"hx-on::config-request": `
-						const oldActive = document.getElementById('active-chat-partner');
-						if (oldActive) {
-							if (oldActive == this) {
-								event.preventDefault();
-								return;
-							}
-							oldActive.removeAttribute('id');
-							oldActive.classList.remove('bg-bg-tertiary', 'rounded-lg');
-							oldActive.classList.add('hover:bg-bg-tertiary/50', 'hover:rounded-lg')
-						}
-						this.setAttribute('id', 'active-chat-partner');
-						this.classList.remove('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
-						this.classList.add('bg-bg-tertiary', 'rounded-lg')
-					`,
-				},
-					profileBlock(partner),
-				),
-			)
+			return h.Div(attrs, PartnersListItem(partner))
 		}),
+	)
+}
+
+func PartnersListItem(partner ProfileBlockParams) h.Node {
+	return h.Div(h.KV{
+		"id":         "partner-" + partner.ID,
+		"hx-get":     "/chat/" + partner.ID,
+		"hx-trigger": "click",
+		"hx-target":  "#chat-container",
+		"hx-swap":    "innerHTML",
+		"hx-on::config-request": `
+			if (window.currentActivePartnerId === "` + partner.ID + `") {
+				// Cancel the request if clicking the active partner
+				event.preventDefault();
+				return;
+			}
+			const oldActiveId = window.currentActivePartnerId;
+			if (oldActiveId) {
+				const oldActive = document.getElementById('partner-' + oldActiveId);
+				if (oldActive) {
+					oldActive.classList.remove('bg-bg-tertiary', 'rounded-lg');
+					oldActive.classList.add('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
+				}
+			}
+			window.currentActivePartnerId = "` + partner.ID + `";
+			this.classList.remove('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
+			this.classList.add('bg-bg-tertiary', 'rounded-lg');
+		`,
+		"hx-on::oob-before-swap": `
+			event.preventDefault(); // Don't swap; the oob swap works here as a signal
+			document.getElementById("partners-list")?.prepend(this);
+		`,
+	},
+		profileBlock(partner),
 	)
 }
 
@@ -140,12 +152,13 @@ func ChatContainer(params ChatContainerParams) h.Node {
 		},
 			h.Div(h.KV{
 				"id": "new-message-inserter",
-				"hx-on::oob-before-swap": fmt.Sprintf(`
-					const partnerID = event.detail.fragment.querySelector('[data-partner-id]').dataset.partnerId;
-					if (partnerID !== "%s") {
+				"hx-on::oob-before-swap": `
+					// don't insert the new message if it doesn't come from the active partner
+					if (window.currentActivePartnerId !== "` + params.Partner.ID + `") {
 						event.preventDefault();
+						return;
 					}
-				`, params.Partner.ID),
+				`,
 			}),
 			h.Div(h.KV{
 				"hx-get":              fmt.Sprintf("/chat/%s/messages", params.Partner.ID),

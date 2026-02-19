@@ -460,12 +460,8 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 		defer w.Close()
 
 		return h.Render(w, h.Empty(
-			h.Div(h.KV{
-				"hx-swap-oob": "afterend:#new-message-inserter",
-			},
-				h.Div(h.KV{
-					"data-partner-id": message.PartnerID,
-				},
+			h.Div(h.KV{"hx-swap-oob": "afterend:#new-message-inserter"},
+				h.Div(h.KV{"data-partner-id": message.PartnerID},
 					components.ChatMessage(components.ChatMessageParams{
 						ID:      message.MessageID,
 						Content: message.Content,
@@ -474,6 +470,8 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 					}),
 				),
 			),
+
+			h.Div(h.KV{"hx-swap-oob": "delete:#partner-" + message.PartnerID}),
 		))
 	}
 }
@@ -492,12 +490,8 @@ func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 		defer w.Close()
 
 		return h.Render(w, h.Empty(
-			h.Div(h.KV{
-				"hx-swap-oob": "afterend:#new-message-inserter",
-			},
-				h.Div(h.KV{
-					"data-partner-id": message.PartnerID,
-				},
+			h.Div(h.KV{"hx-swap-oob": "afterend:#new-message-inserter"},
+				h.Div(h.KV{"data-partner-id": message.PartnerID},
 					components.ChatMessage(components.ChatMessageParams{
 						ID:      message.MessageID,
 						Content: message.Content,
@@ -505,6 +499,8 @@ func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 					}),
 				),
 			),
+
+			h.Div(h.KV{"hx-swap-oob": "delete:#partner-" + message.PartnerID}),
 		))
 	}
 }
