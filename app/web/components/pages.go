@@ -50,9 +50,9 @@ func ChatPage(params ChatPageParams) h.Node {
 	return rootLayout(
 		h.Script(h.KV{"src": "/public/js/lib/htmx_ext_ws@2.0.4.js"}),
 		h.Div(h.KV{
+			"class":      "h-screen flex bg-bg-primary",
 			"hx-ext":     "ws",
 			"ws-connect": "/ws",
-			"class":      "h-screen flex bg-bg-primary",
 		},
 			// Sidebar
 			h.Div(h.KV{"class": "w-80 bg-bg-secondary border-r border-bg-tertiary flex flex-col"},

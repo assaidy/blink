@@ -338,9 +338,9 @@ func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 		return err
 	}
 
-	// FIX: We also need to update the selected partner in the sidebar.
 	return render(c, h.Empty(
 		h.Div(h.KV{"hx-swap-oob": "delete:#search-modal"}),
+
 		components.ChatContainer(components.ChatContainerParams{
 			Partner: components.ProfileBlockParams{
 				ID:       partnerID,
@@ -459,20 +459,19 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 		}
 		defer w.Close()
 
-		return h.Render(w, h.Empty(
-			h.Div(h.KV{"hx-swap-oob": "afterend:#new-message-inserter"},
-				h.Div(h.KV{"data-partner-id": message.PartnerID},
-					components.ChatMessage(components.ChatMessageParams{
-						ID:      message.MessageID,
-						Content: message.Content,
-						SentAt:  message.Timestamp,
-						FromMe:  true,
-					}),
-				),
-			),
+		profile, err := me.profileService.GetProfile(message.PartnerID)
+		if err != nil {
+			return err
+		}
 
-			h.Div(h.KV{"hx-swap-oob": "delete:#partner-" + message.PartnerID}),
-		))
+		return h.Render(w, components.NewMessageResponse(components.NewMessageParams{
+			PartnerID:        message.PartnerID,
+			PartnerName:      profile.Name,
+			PartnerUsername:  profile.Username,
+			MessageID:        message.MessageID,
+			MessageContent:   message.Content,
+			MessageTimestamp: message.Timestamp,
+		}))
 	}
 }
 
@@ -489,18 +488,18 @@ func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 		}
 		defer w.Close()
 
-		return h.Render(w, h.Empty(
-			h.Div(h.KV{"hx-swap-oob": "afterend:#new-message-inserter"},
-				h.Div(h.KV{"data-partner-id": message.PartnerID},
-					components.ChatMessage(components.ChatMessageParams{
-						ID:      message.MessageID,
-						Content: message.Content,
-						SentAt:  message.Timestamp,
-					}),
-				),
-			),
+		profile, err := me.profileService.GetProfile(message.PartnerID)
+		if err != nil {
+			return err
+		}
 
-			h.Div(h.KV{"hx-swap-oob": "delete:#partner-" + message.PartnerID}),
-		))
+		return h.Render(w, components.NewMessageResponse(components.NewMessageParams{
+			PartnerID:        message.PartnerID,
+			PartnerName:      profile.Name,
+			PartnerUsername:  profile.Username,
+			MessageID:        message.MessageID,
+			MessageContent:   message.Content,
+			MessageTimestamp: message.Timestamp,
+		}))
 	}
 }

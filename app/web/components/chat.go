@@ -100,31 +100,23 @@ func PartnersList(params PartnersListParams) h.Node {
 func PartnersListItem(partner ProfileBlockParams) h.Node {
 	return h.Div(h.KV{
 		"id":         "partner-" + partner.ID,
+		"class":      "cursor-pointer transition-colors",
 		"hx-get":     "/chat/" + partner.ID,
 		"hx-trigger": "click",
 		"hx-target":  "#chat-container",
 		"hx-swap":    "innerHTML",
+		// Cancel the request if clicking the active partner
 		"hx-on::config-request": `
 			if (window.currentActivePartnerId === "` + partner.ID + `") {
-				// Cancel the request if clicking the active partner
 				event.preventDefault();
 				return;
 			}
-			const oldActiveId = window.currentActivePartnerId;
-			if (oldActiveId) {
-				const oldActive = document.getElementById('partner-' + oldActiveId);
-				if (oldActive) {
-					oldActive.classList.remove('bg-bg-tertiary', 'rounded-lg');
-					oldActive.classList.add('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
-				}
-			}
-			window.currentActivePartnerId = "` + partner.ID + `";
-			this.classList.remove('hover:bg-bg-tertiary/50', 'hover:rounded-lg');
-			this.classList.add('bg-bg-tertiary', 'rounded-lg');
 		`,
-		"hx-on::oob-before-swap": `
-			event.preventDefault(); // Don't swap; the oob swap works here as a signal
-			document.getElementById("partners-list")?.prepend(this);
+		// Re-applies data-active attribute.
+		// This prevents losing the active styles for newly instered element if it was the active
+		// as the old one which has the attribute is deleted by the oob-swap response.
+		"hx-on::load": `
+			document.getElementById("partner-"+window.currentActivePartnerId)?.setAttribute("data-active", "");
 		`,
 	},
 		profileBlock(partner),
@@ -136,7 +128,14 @@ type ChatContainerParams struct {
 }
 
 func ChatContainer(params ChatContainerParams) h.Node {
-	return h.Div(h.KV{"class": "flex-1 flex flex-col bg-bg-primary h-full"},
+	return h.Div(h.KV{
+		"class": "flex-1 flex flex-col bg-bg-primary h-full",
+		"hx-on::load": `
+			window.currentActivePartnerId = "` + params.Partner.ID + `";
+		  document.querySelector("#partners-list [data-active]")?.removeAttribute("data-active");
+		  document.getElementById("partner-" + "` + params.Partner.ID + `").setAttribute("data-active", "");
+		`,
+	},
 		h.Div(h.KV{"class": "px-4 py-3 bg-bg-secondary border-b border-bg-tertiary flex items-center gap-3"},
 			h.Div(h.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
 				getInitials(params.Partner.Name),
@@ -228,6 +227,39 @@ func ChatMessage(msg ChatMessageParams) h.Node {
 					h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue"><polyline points="20 6 9 17 4 12"></polyline></svg>`),
 				),
 			),
+		),
+	)
+}
+
+type NewMessageParams struct {
+	PartnerID        string
+	PartnerName      string
+	PartnerUsername  string
+	MessageID        string
+	MessageContent   string
+	MessageTimestamp time.Time
+}
+
+func NewMessageResponse(params NewMessageParams) h.Node {
+	return h.Empty(
+		h.Div(h.KV{"hx-swap-oob": "afterend:#new-message-inserter"},
+			h.Div(h.KV{"data-partner-id": params.PartnerID},
+				ChatMessage(ChatMessageParams{
+					ID:      params.MessageID,
+					Content: params.MessageContent,
+					SentAt:  params.MessageTimestamp,
+				}),
+			),
+		),
+
+		h.Div(h.KV{"id": "partner-" + params.PartnerID, "hx-swap-oob": "delete"}),
+
+		h.Div(h.KV{"id": "partners-list", "hx-swap-oob": "afterbegin"},
+			PartnersListItem(ProfileBlockParams{
+				ID:       params.PartnerID,
+				Name:     params.PartnerName,
+				Username: params.PartnerUsername,
+			}),
 		),
 	)
 }

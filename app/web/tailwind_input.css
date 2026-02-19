@@ -8,7 +8,7 @@
   --color-fg-primary: #3c3836;
   --color-fg-secondary: #665c54;
   --color-fg-tertiary: #7c6f64;
-  
+
   /* Accent colors */
   --color-red: #cc241d;
   --color-green: #98971a;
@@ -29,4 +29,8 @@
     --color-fg-secondary: #d5c4a1;
     --color-fg-tertiary: #bdae93;
   }
+}
+
+#partners-list [data-active] {
+  @apply bg-bg-tertiary rounded-lg;
 }
