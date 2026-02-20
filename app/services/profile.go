@@ -66,8 +66,7 @@ func validateProfileUpdateParams(name, username, email, bio string) error {
 	return validation.ValidateStruct(&params,
 		validation.Field(&params.Name, validation.Required, validation.Length(2, 50)),
 		validation.Field(&params.Username, validation.Required, validation.Length(2, 50),
-			validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed"),
-		),
+			validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed")),
 		// Max len 255 because is.Email doesn't check the length
 		validation.Field(&params.Email, validation.Required, is.Email, validation.Length(0, 255)),
 		validation.Field(&params.Bio, validation.Length(0, 255)),
@@ -78,8 +77,9 @@ const ProfileWasUpdatedEvent = "ProfileWasUpdatedEvent"
 
 type ProfileWasUpdatedEventPayload struct {
 	UserID    string `json:"userID"`
-	PartnerID string `json:"partnerID"`
+	PartnerID string `json:"partnerID"` // Empty when notifying self
 	Name      string `json:"name"`
+	Username  string `json:"username"`
 	Email     string `json:"email"`
 	Bio       string `json:"bio"`
 }
@@ -91,7 +91,7 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 	bio = strings.TrimSpace(bio)
 
 	if err := validateProfileUpdateParams(name, username, email, bio); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", ErrValidation, err)
 	}
 
 	ctx := context.Background()
@@ -140,6 +140,20 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
+	if err := me.pubsub.Publish(ctx,
+		ProfileWasUpdatedEvent,
+		pubsub.JsonMessageGenerator,
+		ProfileWasUpdatedEventPayload{
+			UserID:   userID,
+			Name:     name,
+			Username: username,
+			Email:    email,
+			Bio:      bio,
+		},
+	); err != nil {
+		return fmt.Errorf("failed to publish event %s: %w", ProfileWasUpdatedEvent, err)
+	}
+
 	partnerIDs, err := me.queries.GetAllChatPartnerIDs(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to get chat partner IDs: %w", err)
@@ -153,6 +167,7 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 				UserID:    id,
 				PartnerID: userID,
 				Name:      name,
+				Username:  username,
 				Email:     email,
 				Bio:       bio,
 			},

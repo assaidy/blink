@@ -40,12 +40,6 @@ type ChatPageParams struct {
 	User UserBlockParams
 }
 
-type UserBlockParams struct {
-	Name            string
-	Username        string
-	ProfileImageUrl string
-}
-
 func ChatPage(params ChatPageParams) h.Node {
 	return rootLayout(
 		h.Script(h.KV{"src": "/public/js/lib/htmx_ext_ws@2.0.4.js"}),
@@ -57,28 +51,14 @@ func ChatPage(params ChatPageParams) h.Node {
 			// Sidebar
 			h.Div(h.KV{"class": "w-80 bg-bg-secondary border-r border-bg-tertiary flex flex-col"},
 				// Sticky top row
-				h.Div(h.KV{"class": "sticky top-0 z-10 bg-aqua/10 border-b border-bg-primary flex items-center"},
-					h.Div(h.KV{
-						"hx-get":     "/profile_modal",
-						"hx-trigger": "click",
-						"hx-target":  "body",
-						"hx-swap":    "beforeend",
-						"class":      "flex-1 flex items-center gap-3 cursor-pointer hover:bg-aqua/20 transition-colors px-4 py-3",
-					},
-						h.Div(h.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold flex-shrink-0"},
-							getInitials(params.User.Name),
-						),
-						h.Div(h.KV{"class": "flex-1 min-w-0"},
-							h.P(h.KV{"class": "text-fg-primary font-medium truncate"}, params.User.Name),
-							h.P(h.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+params.User.Username),
-						),
-					),
+				h.Div(h.KV{"class": "sticky top-0 z-10 h-16 bg-aqua/10 border-b border-bg-primary flex items-center"},
+					UserBlock(params.User),
 					h.Button(h.KV{
 						"hx-get":     "/search_modal",
 						"hx-trigger": "click",
 						"hx-target":  "body",
 						"hx-swap":    "beforeend",
-						"class":      "flex items-center justify-center aspect-square h-full hover:bg-aqua/30 transition-colors cursor-pointer",
+						"class":      "flex items-center justify-center w-16 h-16 flex-shrink-0 hover:bg-aqua/30 transition-colors cursor-pointer",
 					},
 						h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`),
 					),
@@ -109,6 +89,31 @@ func ChatPage(params ChatPageParams) h.Node {
 					h.P(h.KV{"class": "text-fg-secondary text-lg"}, "Select a chat to start messaging"),
 				),
 			),
+		),
+	)
+}
+
+type UserBlockParams struct {
+	Name            string
+	Username        string
+	ProfileImageUrl string
+}
+
+func UserBlock(params UserBlockParams) h.Node {
+	return h.Div(h.KV{
+		"id":         "user-block",
+		"hx-get":     "/profile_modal",
+		"hx-trigger": "click",
+		"hx-target":  "body",
+		"hx-swap":    "beforeend",
+		"class":      "w-64 h-16 flex-shrink-0 flex items-center gap-3 cursor-pointer hover:bg-aqua/20 transition-colors px-4",
+	},
+		h.Div(h.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold flex-shrink-0"},
+			getInitials(params.Name),
+		),
+		h.Div(h.KV{"class": "flex-1 min-w-0"},
+			h.P(h.KV{"class": "text-fg-primary font-medium truncate"}, params.Name),
+			h.P(h.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+params.Username),
 		),
 	)
 }

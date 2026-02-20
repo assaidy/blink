@@ -49,8 +49,10 @@ func validateRegisterParams(name, username, email, bio string) error {
 
 	return validation.ValidateStruct(&params,
 		validation.Field(&params.Name, validation.Required, validation.Length(2, 50)),
-		validation.Field(&params.Username, validation.Required, validation.Length(2, 50), validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed")),
-		validation.Field(&params.Email, validation.Required, is.Email, validation.Length(0, 255)), // max len 255 because is.Email doesn't check the length
+		validation.Field(&params.Username, validation.Required, validation.Length(2, 50),
+			validation.Match(usernameRegex).Error("only letters, numbers, and _ are allowed")),
+		// max len 255 because is.Email doesn't check the length
+		validation.Field(&params.Email, validation.Required, is.Email, validation.Length(0, 255)),
 		validation.Field(&params.Bio, validation.Length(0, 255)),
 	)
 }
@@ -62,7 +64,7 @@ func (me *AuthService) Register(name, username, email, bio string) error {
 	bio = strings.TrimSpace(bio)
 
 	if err := validateRegisterParams(name, username, email, bio); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", ErrValidation, err)
 	}
 
 	ctx := context.Background()
@@ -130,7 +132,7 @@ func (me *AuthService) SendOtp(channel, identifier, purpose string) (string, err
 	purpose = strings.ToLower(strings.TrimSpace(purpose))
 
 	if err := validateSendOtpParams(channel, identifier, purpose); err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %w", ErrValidation, err)
 	}
 
 	ctx := context.Background()
@@ -232,7 +234,7 @@ func (me *AuthService) VerifyOtp(otpID, otp, platform, os string) (*LoginSession
 	os = strings.TrimSpace(os)
 
 	if err := validateVerifyOtpParams(otpID, otp, platform, os); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrValidation, err)
 	}
 
 	ctx := context.Background()

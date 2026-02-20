@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/utils/pubsub"
@@ -239,7 +240,6 @@ func (me *HtmlHandler) HandleProfileModal(c *fiber.Ctx) error {
 	return render(c, components.ProfileModal(params))
 }
 
-// FIX: Return an OOB component to update the user block at the top of the sidebar
 func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	name := c.FormValue("name")
 	username := c.FormValue("username")
@@ -419,6 +419,11 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 		pubsub.JsonPayloadGenerator[services.IncommingMessageEventPayload],
 		me.incommingMessageEventHandler(userID, c),
 	)
+	go me.pubsub.Subscribe(ctx,
+		services.ProfileWasUpdatedEvent,
+		pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
+		me.profileWasUpdatedEventHandler(userID, c),
+	)
 
 	type Message struct {
 		Kind      string `json:"kind"`
@@ -464,13 +469,14 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 			return err
 		}
 
-		return h.Render(w, components.NewMessageResponse(components.NewMessageParams{
+		return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
 			PartnerID:        message.PartnerID,
 			PartnerName:      profile.Name,
 			PartnerUsername:  profile.Username,
 			MessageID:        message.MessageID,
 			MessageContent:   message.Content,
 			MessageTimestamp: message.Timestamp,
+			MessageIsFromMe:  true,
 		}))
 	}
 }
@@ -493,7 +499,7 @@ func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 			return err
 		}
 
-		return h.Render(w, components.NewMessageResponse(components.NewMessageParams{
+		return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
 			PartnerID:        message.PartnerID,
 			PartnerName:      profile.Name,
 			PartnerUsername:  profile.Username,
@@ -501,5 +507,84 @@ func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 			MessageContent:   message.Content,
 			MessageTimestamp: message.Timestamp,
 		}))
+	}
+}
+
+type newChatMessageResponseParams struct {
+	PartnerID        string
+	PartnerName      string
+	PartnerUsername  string
+	MessageID        string
+	MessageContent   string
+	MessageTimestamp time.Time
+	MessageIsFromMe  bool
+}
+
+func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
+	return h.Empty(
+		h.Div(h.KV{"hx-swap-oob": "afterend:#new-message-inserter"},
+			h.Div(h.KV{"data-partner-id": params.PartnerID},
+				components.ChatMessage(components.ChatMessageParams{
+					ID:      params.MessageID,
+					Content: params.MessageContent,
+					SentAt:  params.MessageTimestamp,
+					FromMe:  params.MessageIsFromMe,
+				}),
+			),
+		),
+
+		h.Div(h.KV{"hx-swap-oob": "delete:#partner-" + params.PartnerID}),
+
+		h.Div(h.KV{"hx-swap-oob": "afterbegin:#partners-list"},
+			components.PartnersListItem(components.ProfileBlockParams{
+				ID:       params.PartnerID,
+				Name:     params.PartnerName,
+				Username: params.PartnerUsername,
+			}),
+		),
+	)
+}
+
+func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.ProfileWasUpdatedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		w, err := c.NextWriter(websocket.TextMessage)
+		if err != nil {
+			return err
+		}
+		defer w.Close()
+
+		// notify user sessions
+		if message.PartnerID == "" {
+			return h.Render(w, h.Div(h.KV{"hx-swap-oob": "outerHTML:#user-block"},
+				components.UserBlock(components.UserBlockParams{
+					Name:     message.Name,
+					Username: message.Username,
+				}),
+			))
+		}
+
+		// notify partners sessions
+		return h.Render(w, h.Empty(
+			h.Div(h.KV{"hx-swap-oob": "outerHTML:#partner-" + message.PartnerID},
+				components.PartnersListItem(components.ProfileBlockParams{
+					ID:       message.PartnerID,
+					Name:     message.Name,
+					Username: message.Username,
+				}),
+			),
+
+			h.Div(h.KV{"hx-swap-oob": "outerHTML:#chat-container-header-" + message.PartnerID},
+				components.ChatContainerHeader(components.ProfileBlockParams{
+					ID:       message.PartnerID,
+					Name:     message.Name,
+					Username: message.Username,
+				}),
+			),
+		))
 	}
 }

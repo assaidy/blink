@@ -136,15 +136,7 @@ func ChatContainer(params ChatContainerParams) h.Node {
 		  document.getElementById("partner-" + "` + params.Partner.ID + `").setAttribute("data-active", "");
 		`,
 	},
-		h.Div(h.KV{"class": "px-4 py-3 bg-bg-secondary border-b border-bg-tertiary flex items-center gap-3"},
-			h.Div(h.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
-				getInitials(params.Partner.Name),
-			),
-			h.Div(h.KV{"class": "flex-1 min-w-0"},
-				h.P(h.KV{"class": "text-fg-primary font-medium truncate"}, params.Partner.Name),
-				h.P(h.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+params.Partner.Username),
-			),
-		),
+		ChatContainerHeader(params.Partner),
 		h.Div(h.KV{
 			"id":    "messages-container",
 			"class": "flex-1 overflow-y-auto px-6 sm:px-10 py-4 flex flex-col-reverse gap-3",
@@ -171,6 +163,21 @@ func ChatContainer(params ChatContainerParams) h.Node {
 			),
 		),
 		ChatInputForm(ChatInputFormParams{PartnerID: params.Partner.ID}),
+	)
+}
+
+func ChatContainerHeader(partner ProfileBlockParams) h.Node {
+	return h.Div(h.KV{
+		"id":    "chat-container-header-" + partner.ID,
+		"class": "h-16 px-4 bg-bg-secondary border-b border-bg-tertiary flex items-center gap-3",
+	},
+		h.Div(h.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
+			getInitials(partner.Name),
+		),
+		h.Div(h.KV{"class": "flex-1 min-w-0"},
+			h.P(h.KV{"class": "text-fg-primary font-medium truncate"}, partner.Name),
+			h.P(h.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+partner.Username),
+		),
 	)
 }
 
@@ -217,7 +224,7 @@ func ChatMessage(msg ChatMessageParams) h.Node {
 	return h.Div(h.KV{"class": "flex w-full " + h.IfElse(msg.FromMe, "justify-end", "justify-start")},
 		h.Div(h.KV{"class": "flex flex-col " + h.IfElse(msg.FromMe, "items-end", "items-start") + " max-w-[70%]"},
 			h.Div(h.KV{"class": "px-4 py-2 " + h.IfElse(msg.FromMe, "bg-blue text-bg-primary rounded-l-2xl rounded-tr-2xl", "bg-bg-tertiary text-fg-primary rounded-r-2xl rounded-tl-2xl")},
-				h.P(h.KV{"class": "break-words"}, msg.Content),
+				h.P(h.KV{"class": "whitespace-pre-wrap"}, msg.Content),
 			),
 			h.Div(h.KV{"class": "flex items-center gap-1 mt-1 px-1"},
 				// TODO: display the year in a sticky widget like telegram/whatsapp,
@@ -227,39 +234,6 @@ func ChatMessage(msg ChatMessageParams) h.Node {
 					h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue"><polyline points="20 6 9 17 4 12"></polyline></svg>`),
 				),
 			),
-		),
-	)
-}
-
-type NewMessageParams struct {
-	PartnerID        string
-	PartnerName      string
-	PartnerUsername  string
-	MessageID        string
-	MessageContent   string
-	MessageTimestamp time.Time
-}
-
-func NewMessageResponse(params NewMessageParams) h.Node {
-	return h.Empty(
-		h.Div(h.KV{"hx-swap-oob": "afterend:#new-message-inserter"},
-			h.Div(h.KV{"data-partner-id": params.PartnerID},
-				ChatMessage(ChatMessageParams{
-					ID:      params.MessageID,
-					Content: params.MessageContent,
-					SentAt:  params.MessageTimestamp,
-				}),
-			),
-		),
-
-		h.Div(h.KV{"id": "partner-" + params.PartnerID, "hx-swap-oob": "delete"}),
-
-		h.Div(h.KV{"id": "partners-list", "hx-swap-oob": "afterbegin"},
-			PartnersListItem(ProfileBlockParams{
-				ID:       params.PartnerID,
-				Name:     params.PartnerName,
-				Username: params.PartnerUsername,
-			}),
 		),
 	)
 }
