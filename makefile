@@ -20,10 +20,10 @@ watch:
 								-w ./app/web/components/  -e go \
 								-- tailwindcss --minify -i ./app/web/tailwind_input.css -o ./app/web/public/css/style.css &
 	@$(WATCH_CMD) -w ./app/db/ -e sql -- go tool sqlc generate &
-	@$(WATCH_CMD) --restart \
-								-w ./app/            -e go    \
-								-w ./cmd/api/        -e go    \
-								-w ./app/web/public/ -e js,js \
+	@$(WATCH_CMD) -r --stop-timeout=0        \
+								-w ./app/            -e go \
+								-w ./cmd/api/        -e go \
+								-w ./app/web/public/       \
 								-- "go build -o ./bin/api ./cmd/api/ && ./bin/api"
 
 clean:
