@@ -191,6 +191,7 @@ func (me *HtmlHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 			ID:       p.ID,
 			Name:     p.Name,
 			Username: p.Username,
+			IsOnline: p.IsOnline,
 		})
 	}
 
@@ -316,10 +317,13 @@ func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 
 	profileItems := make([]components.ProfileBlockParams, 0, len(profiles))
 	for _, p := range profiles {
+		isOnline, _ := me.presenceService.IsUserOnline(c.Context(), p.ID)
+
 		profileItems = append(profileItems, components.ProfileBlockParams{
 			ID:       p.ID,
 			Name:     p.Name,
 			Username: p.Username,
+			IsOnline: isOnline,
 		})
 	}
 
@@ -338,6 +342,11 @@ func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 		return err
 	}
 
+	isOnline, err := me.presenceService.IsUserOnline(c.Context(), partnerID)
+	if err != nil {
+		return err
+	}
+
 	return render(c, h.Empty(
 		h.Div(h.KV{"hx-swap-oob": "delete:#search-modal"}),
 
@@ -346,6 +355,7 @@ func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 				ID:       partnerID,
 				Name:     partnerProfile.Name,
 				Username: partnerProfile.Username,
+				IsOnline: isOnline,
 			},
 		}),
 	))
@@ -359,11 +369,17 @@ func (me *HtmlHandler) HandleChatContainer(c *fiber.Ctx) error {
 		return err
 	}
 
+	isOnline, err := me.presenceService.IsUserOnline(c.Context(), partnerID)
+	if err != nil {
+		return err
+	}
+
 	return render(c, components.ChatContainer(components.ChatContainerParams{
 		Partner: components.ProfileBlockParams{
 			ID:       partnerProfile.ID,
 			Name:     partnerProfile.Name,
 			Username: partnerProfile.Username,
+			IsOnline: isOnline,
 		},
 	}))
 }
@@ -424,6 +440,11 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 		pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
 		me.profileWasUpdatedEventHandler(userID, c),
 	)
+	go me.pubsub.Subscribe(ctx,
+		services.ChatPartnerPresenceEvent,
+		pubsub.JsonPayloadGenerator[services.ChatPartnerPresenceEventPayload],
+		me.chatPartnerPresenceEventHandler(userID, c),
+	)
 
 	type Message struct {
 		Kind      string `json:"kind"`
@@ -469,10 +490,16 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 			return err
 		}
 
+		isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
+		if err != nil {
+			return err
+		}
+
 		return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
 			PartnerID:        message.PartnerID,
 			PartnerName:      profile.Name,
 			PartnerUsername:  profile.Username,
+			PartnerIsOnline:  isOnline,
 			MessageID:        message.MessageID,
 			MessageContent:   message.Content,
 			MessageTimestamp: message.Timestamp,
@@ -499,10 +526,16 @@ func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 			return err
 		}
 
+		isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
+		if err != nil {
+			return err
+		}
+
 		return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
 			PartnerID:        message.PartnerID,
 			PartnerName:      profile.Name,
 			PartnerUsername:  profile.Username,
+			PartnerIsOnline:  isOnline,
 			MessageID:        message.MessageID,
 			MessageContent:   message.Content,
 			MessageTimestamp: message.Timestamp,
@@ -514,6 +547,7 @@ type newChatMessageResponseParams struct {
 	PartnerID        string
 	PartnerName      string
 	PartnerUsername  string
+	PartnerIsOnline  bool
 	MessageID        string
 	MessageContent   string
 	MessageTimestamp time.Time
@@ -540,6 +574,7 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 				ID:       params.PartnerID,
 				Name:     params.PartnerName,
 				Username: params.PartnerUsername,
+				IsOnline: params.PartnerIsOnline,
 			}),
 		),
 	)
@@ -558,7 +593,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 		}
 		defer w.Close()
 
-		// notify user sessions
+		// It's a notfication to the user
 		if message.PartnerID == "" {
 			return h.Render(w, h.Div(h.KV{"hx-swap-oob": "outerHTML:#user-block"},
 				components.UserBlock(components.UserBlockParams{
@@ -568,13 +603,19 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 			))
 		}
 
-		// notify partners sessions
+		// It's a notfication to the partner
+		isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
+		if err != nil {
+			return err
+		}
+
 		return h.Render(w, h.Empty(
 			h.Div(h.KV{"hx-swap-oob": "outerHTML:#partner-" + message.PartnerID},
 				components.PartnersListItem(components.ProfileBlockParams{
 					ID:       message.PartnerID,
 					Name:     message.Name,
 					Username: message.Username,
+					IsOnline: isOnline,
 				}),
 			),
 
@@ -583,7 +624,33 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 					ID:       message.PartnerID,
 					Name:     message.Name,
 					Username: message.Username,
+					IsOnline: isOnline,
 				}),
+			),
+		))
+	}
+}
+
+func (me *HtmlHandler) chatPartnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.ChatPartnerPresenceEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		w, err := c.NextWriter(websocket.TextMessage)
+		if err != nil {
+			return err
+		}
+		defer w.Close()
+
+		return h.Render(w, h.Empty(
+			h.Div(h.KV{"hx-swap-oob": "outerHTML:#profile-block-presence-indicator-" + message.PartnerID},
+				components.ProfileBlockPresenceIndicator(message.PartnerID, message.IsOnline),
+			),
+
+			h.Div(h.KV{"hx-swap-oob": "outerHTML:#chat-container-presence-indicator-" + message.PartnerID},
+				components.ChatContainerPresenceIndicator(message.PartnerID, message.IsOnline),
 			),
 		))
 	}

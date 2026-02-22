@@ -51,8 +51,8 @@ func (me *PresenceService) StartHeartbeat(ctx context.Context, userID, sessionID
 	ticker := time.NewTicker(presenceHeartbeatTick)
 	defer ticker.Stop()
 
-	me.notifyPartnersIfPresenceChanged(ctx, userID, true)
-	defer me.notifyPartnersIfPresenceChanged(ctx, userID, false)
+	me.notifyPartnersIfPresenceChanged(context.Background(), userID, wentOnline)
+	defer me.notifyPartnersIfPresenceChanged(context.Background(), userID, wentOffline)
 
 	key := presenceKey(userID)
 
@@ -71,33 +71,53 @@ func (me *PresenceService) StartHeartbeat(ctx context.Context, userID, sessionID
 			}
 
 		case <-ctx.Done():
-			<-time.After(presenceHeartbeatTick)
+			if err := me.cache.Do(context.Background(),
+				me.cache.B().
+					Zrem().
+					Key(presenceKey(userID)).
+					Member(sessionID).
+					Build(),
+			).Error(); err != nil {
+				me.logger.Error("failed to remove session from presence", "error", err)
+			}
 			return
 		}
 	}
 }
 
-// If online is true, the user went online; if false, the user went offline
-func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, userID string, online bool) {
-	if ok, err := me.IsUserOnline(ctx, userID); err != nil {
-		me.logger.Error("failed to get check if user online", "error", err)
-	} else if !ok {
-		partnerIDs, err := me.queries.GetAllChatPartnerIDs(ctx, userID)
-		if err != nil {
-			me.logger.Error("failed to get chat partner IDs", "error", err)
-		}
+type presenceChange = bool
 
-		for _, id := range partnerIDs {
-			if me.pubsub.Publish(ctx,
-				ChatPartnerPresenceEvent,
-				pubsub.JsonMessageGenerator,
-				ChatPartnerPresenceEventPayload{
-					UserID:    id,
-					PartnerID: userID,
-					IsOnline:  online,
-				}); err != nil {
-				me.logger.Error("failed to publish event", "error", err)
-			}
+const (
+	wentOnline  presenceChange = true
+	wentOffline presenceChange = false
+)
+
+func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, userID string, change presenceChange) {
+	if ok, err := me.IsUserOnline(ctx, userID); err != nil {
+		me.logger.Error("failed to check if user is online", "error", err)
+		return
+	} else if ok {
+		// User is currently online (has other active sessions).
+		// No need to notify partners - they already see the user as online.
+		return
+	}
+
+	partnerIDs, err := me.queries.GetAllChatPartnerIDs(ctx, userID)
+	if err != nil {
+		me.logger.Error("failed to get chat partner IDs", "error", err)
+		return
+	}
+
+	for _, id := range partnerIDs {
+		if me.pubsub.Publish(ctx,
+			ChatPartnerPresenceEvent,
+			pubsub.JsonMessageGenerator,
+			ChatPartnerPresenceEventPayload{
+				UserID:    id,
+				PartnerID: userID,
+				IsOnline:  change,
+			}); err != nil {
+			me.logger.Error("failed to publish event", "error", err)
 		}
 	}
 }

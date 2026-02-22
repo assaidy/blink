@@ -11,12 +11,30 @@ type ProfileBlockParams struct {
 	ID       string
 	Name     string
 	Username string
+	IsOnline bool
+}
+
+func ProfileBlockPresenceIndicator(partnerID string, isOnline bool) h.Node {
+	return h.Div(h.KV{
+		"id": "profile-block-presence-indicator-" + partnerID,
+		"class": "absolute bottom-0 right-0 w-3.5 h-3.5 bg-green rounded-full border-2 border-bg-primary " +
+			h.IfElse(!isOnline, "hidden", ""),
+	})
+}
+
+func ChatContainerPresenceIndicator(partnerID string, isOnline bool) h.Node {
+	return h.Div(h.KV{
+		"id": "chat-container-presence-indicator-" + partnerID,
+		"class": "absolute bottom-0 right-0 w-3.5 h-3.5 bg-green rounded-full border-2 border-bg-primary " +
+			h.IfElse(!isOnline, "hidden", ""),
+	})
 }
 
 func profileBlock(profile ProfileBlockParams) h.Node {
 	return h.Div(h.KV{"class": "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors"},
-		h.Div(h.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
+		h.Div(h.KV{"class": "relative w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
 			getInitials(profile.Name),
+			ProfileBlockPresenceIndicator(profile.ID, profile.IsOnline),
 		),
 		h.Div(h.KV{"class": "flex-1 min-w-0"},
 			h.P(h.KV{"class": "text-fg-primary font-medium truncate"}, profile.Name),
@@ -171,8 +189,9 @@ func ChatContainerHeader(partner ProfileBlockParams) h.Node {
 		"id":    "chat-container-header-" + partner.ID,
 		"class": "h-16 px-4 bg-bg-secondary border-b border-bg-tertiary flex items-center gap-3",
 	},
-		h.Div(h.KV{"class": "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
+		h.Div(h.KV{"class": "relative w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
 			getInitials(partner.Name),
+			ChatContainerPresenceIndicator(partner.ID, partner.IsOnline),
 		),
 		h.Div(h.KV{"class": "flex-1 min-w-0"},
 			h.P(h.KV{"class": "text-fg-primary font-medium truncate"}, partner.Name),
