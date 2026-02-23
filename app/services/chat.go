@@ -262,3 +262,10 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 
 	return nil
 }
+
+type UnreadCount = repo.GetUnreadCountsForUserRow
+
+func (me *ChatService) GetUnreadCounts(ctx context.Context, userID string) ([]UnreadCount, error) {
+	unreadCounts, err := me.queries.GetUnreadCountsForUser(ctx, userID)
+	return unreadCounts, err
+}

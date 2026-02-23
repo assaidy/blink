@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -185,9 +186,9 @@ func (me *HtmlHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 		return err
 	}
 
-	partnerBlocks := make([]components.PartnerBlockParamsn, 0, len(partners))
+	partnerBlocks := make([]components.PartnerBlockParams, 0, len(partners))
 	for _, p := range partners {
-		partnerBlocks = append(partnerBlocks, components.PartnerBlockParamsn{
+		partnerBlocks = append(partnerBlocks, components.PartnerBlockParams{
 			ID:       p.ID,
 			Name:     p.Name,
 			Username: p.Username,
@@ -348,7 +349,7 @@ func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 		h.Div(h.KV{"hx-swap-oob": "delete:#search-modal"}),
 
 		components.ChatContainer(components.ChatContainerParams{
-			Partner: components.PartnerBlockParamsn{
+			Partner: components.PartnerBlockParams{
 				ID:       partnerID,
 				Name:     partnerProfile.Name,
 				Username: partnerProfile.Username,
@@ -372,7 +373,7 @@ func (me *HtmlHandler) HandleChatContainer(c *fiber.Ctx) error {
 	}
 
 	return render(c, components.ChatContainer(components.ChatContainerParams{
-		Partner: components.PartnerBlockParamsn{
+		Partner: components.PartnerBlockParams{
 			ID:       partnerProfile.ID,
 			Name:     partnerProfile.Name,
 			Username: partnerProfile.Username,
@@ -443,6 +444,8 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 		me.chatPartnerPresenceEventHandler(userID, c),
 	)
 
+	me.sendUnreadMessageCounts(userID, c)
+
 	type Message struct {
 		Kind      string `json:"kind"`
 		PartnerID string `json:"partnerID"`
@@ -467,6 +470,33 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 			}
 		}
 	}
+}
+
+func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn) error {
+	w, err := c.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return fmt.Errorf("failed to get next writer for ws conn: %w", err)
+	}
+	defer w.Close()
+
+	unreadCounts, err := me.chatService.GetUnreadCounts(context.Background(), userID)
+	if err != nil {
+		return fmt.Errorf("failed to get unread counts: %w", err)
+	}
+
+	if len(unreadCounts) > 0 {
+		return h.Render(w, h.Empty(
+			h.Div(h.KV{"hx-swap-oob": "innerHTML:#unread-manager-anchor"},
+				h.MapSlice(unreadCounts, func(uc services.UnreadCount) h.Node {
+					return h.Script(h.RawText(
+						fmt.Sprintf(`window.unreadManager.set("%s", %d);`, uc.PartnerID, uc.Count),
+					))
+				}),
+			),
+		))
+	}
+
+	return nil
 }
 
 func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
@@ -564,10 +594,18 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 			),
 		),
 
+		h.If(!params.MessageIsFromMe,
+			h.Div(h.KV{"hx-swap-oob": "innerHTML:#unread-manager-anchor"},
+				h.Script(h.RawText(`
+            window.unreadManager.add("`+params.PartnerID+`", 1);
+        `)),
+			),
+		),
+
 		h.Div(h.KV{"hx-swap-oob": "delete:#partner-" + params.PartnerID}),
 
 		h.Div(h.KV{"hx-swap-oob": "afterbegin:#partners-list"},
-			components.PartnersListItem(components.PartnerBlockParamsn{
+			components.PartnersListItem(components.PartnerBlockParams{
 				ID:       params.PartnerID,
 				Name:     params.PartnerName,
 				Username: params.PartnerUsername,
@@ -608,7 +646,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 
 		return h.Render(w, h.Empty(
 			h.Div(h.KV{"hx-swap-oob": "outerHTML:#partner-" + message.PartnerID},
-				components.PartnersListItem(components.PartnerBlockParamsn{
+				components.PartnersListItem(components.PartnerBlockParams{
 					ID:       message.PartnerID,
 					Name:     message.Name,
 					Username: message.Username,
@@ -617,7 +655,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 			),
 
 			h.Div(h.KV{"hx-swap-oob": "outerHTML:#chat-container-header-" + message.PartnerID},
-				components.ChatContainerHeader(components.PartnerBlockParamsn{
+				components.ChatContainerHeader(components.PartnerBlockParams{
 					ID:       message.PartnerID,
 					Name:     message.Name,
 					Username: message.Username,

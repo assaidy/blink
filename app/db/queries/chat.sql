@@ -79,3 +79,11 @@ select distinct
   (case when sender_id = @user_id::varchar then receiver_id else sender_id end)::varchar as id
 from chat_messages
 where sender_id = @user_id::varchar or receiver_id = @user_id::varchar;
+
+-- name: GetUnreadCountsForUser :many
+select
+  sender_id::varchar as partner_id,
+  count(*)
+from chat_messages
+where receiver_id = @user_id::varchar and is_read = false
+group by sender_id;

@@ -211,6 +211,43 @@ func (q *Queries) GetChats(ctx context.Context, arg GetChatsParams) ([]GetChatsR
 	return items, nil
 }
 
+const getUnreadCountsForUser = `-- name: GetUnreadCountsForUser :many
+select
+  sender_id::varchar as partner_id,
+  count(*)
+from chat_messages
+where receiver_id = $1::varchar and is_read = false
+group by sender_id
+`
+
+type GetUnreadCountsForUserRow struct {
+	PartnerID string
+	Count     int64
+}
+
+func (q *Queries) GetUnreadCountsForUser(ctx context.Context, userID string) ([]GetUnreadCountsForUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUnreadCountsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetUnreadCountsForUserRow{}
+	for rows.Next() {
+		var i GetUnreadCountsForUserRow
+		if err := rows.Scan(&i.PartnerID, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertChatMessage = `-- name: InsertChatMessage :exec
 insert into chat_messages (id, sender_id, receiver_id, content, sent_at)
 values ($1, $4::varchar, $5::varchar, $2, $3)

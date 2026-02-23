@@ -177,6 +177,44 @@ type ChatPageParams struct {
 
 func ChatPage(params ChatPageParams) h.Node {
 	return rootLayout(
+		h.Div(h.KV{"id": "unread-manager-anchor"}),
+		h.Script(h.RawText(`
+				window.unreadManager = new class {
+            constructor() {
+							this.counts = {};
+            }
+            set(partnerID, delta) {
+							this.counts[partnerID] = delta;
+							setTimeout(() => {
+								this.updateBadge(partnerID);
+							}, 100);
+            }
+            add(partnerID, delta) {
+							this.counts[partnerID] = (this.counts[partnerID] || 0) + delta;
+							// setTimeout(() => {
+							// 	this.updateBadge(partnerID);
+							// }, 100);
+            }
+            sub(partnerID, delta) {
+							this.counts[partnerID] = Math.max(0, (this.counts[partnerID] || 0) - delta);
+							// setTimeout(() => {
+							// 	this.updateBadge(partnerID);
+							// }, 100);
+            }
+						updateBadge(partnerID) {
+							const badge = document.getElementById('unread-count-badge-' + partnerID);
+							if (!badge) return;
+							const count = this.counts[partnerID] || 0;
+							if (count > 0) {
+								badge.textContent = count > 99 ? '99+' : count;
+								badge.classList.remove('hidden');
+							} else {
+								badge.textContent = '';
+								badge.classList.add('hidden');
+							}
+						}
+        };
+		`)),
 		h.Script(h.KV{"src": "/public/js/lib/htmx_ext_ws@2.0.4.js"}),
 		h.Div(h.KV{
 			"class":      "h-screen flex bg-bg-primary",
@@ -598,14 +636,17 @@ func searchResultItem(params SearchResultItemParams) h.Node {
 }
 
 type PartnersListParams struct {
-	Partners []PartnerBlockParamsn
+	Partners []PartnerBlockParams
 	// This is the cursor. Empty when no more partners
 	LastMessageWithLastPartnerID string
 }
 
 func PartnersList(params PartnersListParams) h.Node {
 	if len(params.Partners) == 0 {
-		return h.Empty()
+		return h.Div(h.KV{
+			"id":    "partners-list",
+			"class": "space-y-1",
+		})
 	}
 
 	lastID := params.Partners[len(params.Partners)-1].ID
@@ -614,7 +655,7 @@ func PartnersList(params PartnersListParams) h.Node {
 		"id":    "partners-list",
 		"class": "space-y-1",
 	},
-		h.MapSlice(params.Partners, func(partner PartnerBlockParamsn) h.Node {
+		h.MapSlice(params.Partners, func(partner PartnerBlockParams) h.Node {
 			attrs := h.IfElse(partner.ID == lastID && params.LastMessageWithLastPartnerID != "", h.KV{
 				"hx-get":       "/partners?cursor=" + params.LastMessageWithLastPartnerID,
 				"hx-trigger":   "intersect once",
@@ -629,49 +670,57 @@ func PartnersList(params PartnersListParams) h.Node {
 	)
 }
 
-func PartnersListItem(partner PartnerBlockParamsn) h.Node {
+func PartnersListItem(params PartnerBlockParams) h.Node {
 	return h.Div(h.KV{
-		"id":         "partner-" + partner.ID,
+		"id":         "partner-" + params.ID,
 		"class":      "cursor-pointer transition-colors",
-		"hx-get":     "/chat/" + partner.ID,
+		"hx-get":     "/chat/" + params.ID,
 		"hx-trigger": "click",
 		"hx-target":  "#chat-container",
 		"hx-swap":    "innerHTML",
 		// Cancel the request if clicking the active partner
 		"hx-on::config-request": `
-			if (window.currentActivePartnerId === "` + partner.ID + `") {
+			if (window.currentActivePartnerId === "` + params.ID + `") {
 				event.preventDefault();
 				return;
 			}
 		`,
-		// Re-applies data-active attribute.
-		// This prevents losing the active styles for newly instered element if it was the active
-		// as the old one which has the attribute is deleted by the oob-swap response.
 		"hx-on::load": `
+			// Re-applies data-active attribute.
+			// This prevents losing the active styles for newly instered element if it was the active
+			// as the old one which has the attribute is deleted by the oob-swap response.
 			document.getElementById("partner-"+window.currentActivePartnerId)?.setAttribute("data-active", "");
+
+			window.unreadManager.updateBadge("` + params.ID + `");
 		`,
 	},
-		partnerBlock(partner),
+		partnerBlock(params),
 	)
 }
 
-type PartnerBlockParamsn struct {
+type PartnerBlockParams struct {
 	ID       string
 	Name     string
 	Username string
 	IsOnline bool
 }
 
-func partnerBlock(profile PartnerBlockParamsn) h.Node {
-	return h.Div(h.KV{"class": "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors"},
+func partnerBlock(params PartnerBlockParams) h.Node {
+	return h.Div(h.KV{
+		"class": "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors",
+	},
 		h.Div(h.KV{"class": "relative w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
-			getInitials(profile.Name),
-			PartnerBlockPresenceIndicator(profile.ID, profile.IsOnline),
+			getInitials(params.Name),
+			PartnerBlockPresenceIndicator(params.ID, params.IsOnline),
 		),
 		h.Div(h.KV{"class": "flex-1 min-w-0"},
-			h.P(h.KV{"class": "text-fg-primary font-medium truncate"}, profile.Name),
-			h.P(h.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+profile.Username),
+			h.P(h.KV{"class": "text-fg-primary font-medium truncate"}, params.Name),
+			h.P(h.KV{"class": "text-fg-secondary text-sm truncate"}, "@"+params.Username),
 		),
+		h.Span(h.KV{
+			"id":    "unread-count-badge-" + params.ID,
+			"class": "flex-shrink-0 min-w-[20px] h-5 px-1.5 bg-blue text-bg-primary text-xs font-bold rounded-full flex items-center justify-center hidden",
+		}),
 	)
 }
 
@@ -684,7 +733,7 @@ func PartnerBlockPresenceIndicator(partnerID string, isOnline bool) h.Node {
 }
 
 type ChatContainerParams struct {
-	Partner PartnerBlockParamsn
+	Partner PartnerBlockParams
 }
 
 func ChatContainer(params ChatContainerParams) h.Node {
@@ -693,7 +742,7 @@ func ChatContainer(params ChatContainerParams) h.Node {
 		"hx-on::load": `
 			window.currentActivePartnerId = "` + params.Partner.ID + `";
 		  document.querySelector("#partners-list [data-active]")?.removeAttribute("data-active");
-		  document.getElementById("partner-" + "` + params.Partner.ID + `").setAttribute("data-active", "");
+		  document.getElementById("partner-" + "` + params.Partner.ID + `")?.setAttribute("data-active", "");
 		`,
 	},
 		ChatContainerHeader(params.Partner),
@@ -726,7 +775,7 @@ func ChatContainer(params ChatContainerParams) h.Node {
 	)
 }
 
-func ChatContainerHeader(partner PartnerBlockParamsn) h.Node {
+func ChatContainerHeader(partner PartnerBlockParams) h.Node {
 	return h.Div(h.KV{
 		"id":    "chat-container-header-" + partner.ID,
 		"class": "h-16 px-4 bg-bg-secondary border-b border-bg-tertiary flex items-center gap-3",
