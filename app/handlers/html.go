@@ -185,9 +185,9 @@ func (me *HtmlHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 		return err
 	}
 
-	partnerBlocks := make([]components.ProfileBlockParams, 0, len(partners))
+	partnerBlocks := make([]components.PartnerBlockParamsn, 0, len(partners))
 	for _, p := range partners {
-		partnerBlocks = append(partnerBlocks, components.ProfileBlockParams{
+		partnerBlocks = append(partnerBlocks, components.PartnerBlockParamsn{
 			ID:       p.ID,
 			Name:     p.Name,
 			Username: p.Username,
@@ -315,22 +315,19 @@ func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 		return err
 	}
 
-	profileItems := make([]components.ProfileBlockParams, 0, len(profiles))
+	profileItems := make([]components.SearchResultItemParams, 0, len(profiles))
 	for _, p := range profiles {
-		isOnline, _ := me.presenceService.IsUserOnline(c.Context(), p.ID)
-
-		profileItems = append(profileItems, components.ProfileBlockParams{
+		profileItems = append(profileItems, components.SearchResultItemParams{
 			ID:       p.ID,
 			Name:     p.Name,
 			Username: p.Username,
-			IsOnline: isOnline,
 		})
 	}
 
 	return render(c, components.SearchResult(components.SearchResultParams{
-		Query:          query,
-		HasMore:        len(profiles) == limit,
-		ProfileResults: profileItems,
+		Query:   query,
+		HasMore: len(profiles) == limit,
+		Items:   profileItems,
 	}))
 }
 
@@ -351,7 +348,7 @@ func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 		h.Div(h.KV{"hx-swap-oob": "delete:#search-modal"}),
 
 		components.ChatContainer(components.ChatContainerParams{
-			Partner: components.ProfileBlockParams{
+			Partner: components.PartnerBlockParamsn{
 				ID:       partnerID,
 				Name:     partnerProfile.Name,
 				Username: partnerProfile.Username,
@@ -375,7 +372,7 @@ func (me *HtmlHandler) HandleChatContainer(c *fiber.Ctx) error {
 	}
 
 	return render(c, components.ChatContainer(components.ChatContainerParams{
-		Partner: components.ProfileBlockParams{
+		Partner: components.PartnerBlockParamsn{
 			ID:       partnerProfile.ID,
 			Name:     partnerProfile.Name,
 			Username: partnerProfile.Username,
@@ -570,7 +567,7 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 		h.Div(h.KV{"hx-swap-oob": "delete:#partner-" + params.PartnerID}),
 
 		h.Div(h.KV{"hx-swap-oob": "afterbegin:#partners-list"},
-			components.PartnersListItem(components.ProfileBlockParams{
+			components.PartnersListItem(components.PartnerBlockParamsn{
 				ID:       params.PartnerID,
 				Name:     params.PartnerName,
 				Username: params.PartnerUsername,
@@ -611,7 +608,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 
 		return h.Render(w, h.Empty(
 			h.Div(h.KV{"hx-swap-oob": "outerHTML:#partner-" + message.PartnerID},
-				components.PartnersListItem(components.ProfileBlockParams{
+				components.PartnersListItem(components.PartnerBlockParamsn{
 					ID:       message.PartnerID,
 					Name:     message.Name,
 					Username: message.Username,
@@ -620,7 +617,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 			),
 
 			h.Div(h.KV{"hx-swap-oob": "outerHTML:#chat-container-header-" + message.PartnerID},
-				components.ChatContainerHeader(components.ProfileBlockParams{
+				components.ChatContainerHeader(components.PartnerBlockParamsn{
 					ID:       message.PartnerID,
 					Name:     message.Name,
 					Username: message.Username,
@@ -646,7 +643,7 @@ func (me *HtmlHandler) chatPartnerPresenceEventHandler(userID string, c *websock
 
 		return h.Render(w, h.Empty(
 			h.Div(h.KV{"hx-swap-oob": "outerHTML:#profile-block-presence-indicator-" + message.PartnerID},
-				components.ProfileBlockPresenceIndicator(message.PartnerID, message.IsOnline),
+				components.PartnerBlockPresenceIndicator(message.PartnerID, message.IsOnline),
 			),
 
 			h.Div(h.KV{"hx-swap-oob": "outerHTML:#chat-container-presence-indicator-" + message.PartnerID},
