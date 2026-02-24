@@ -131,9 +131,10 @@ func (me *ChatService) GetChatMessages(userID, partnerID, lastMessageID string, 
 const MessagesWereReadEvent = "MessagesWereReadEvent"
 
 type MessagesWereReadEventPayload struct {
-	UserID        string `json:"userID"`
-	PartnerID     string `json:"partnerID"`
-	UptoMessageID string `json:"uptoMessageID"`
+	UserID         string   `json:"userID"`
+	PartnerID      string   `json:"partnerID"`
+	UptoMessageID  string   `json:"uptoMessageID"`
+	ReadMessageIDs []string `json:"ReadMessageIDs"`
 }
 
 func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID string) error {
@@ -148,20 +149,24 @@ func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID strin
 		return ErrNotFound
 	}
 
-	if err := me.queries.MarkMessagesAsRead(ctx, repo.MarkMessagesAsReadParams{
+	markedMessageIDs, err := me.queries.MarkMessagesAsRead(ctx, repo.MarkMessagesAsReadParams{
 		UserID:        userID,
 		PartnerID:     partnerID,
 		UptoMessageID: uptoMessageID,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("failed to mark messages as read")
 	}
 
-	if err := me.pubsub.Publish(ctx, MessagesWereReadEvent, pubsub.JsonMessageGenerator, MessagesWereReadEventPayload{
-		UserID:        userID,
-		PartnerID:     partnerID,
-		UptoMessageID: uptoMessageID,
-	}); err != nil {
-		return fmt.Errorf("failed to publish event %s: %w", MessagesWereReadEvent, err)
+	if len(markedMessageIDs) > 0 {
+		if err := me.pubsub.Publish(ctx, MessagesWereReadEvent, pubsub.JsonMessageGenerator, MessagesWereReadEventPayload{
+			UserID:         userID,
+			PartnerID:      partnerID,
+			UptoMessageID:  uptoMessageID,
+			ReadMessageIDs: markedMessageIDs,
+		}); err != nil {
+			return fmt.Errorf("failed to publish event %s: %w", MessagesWereReadEvent, err)
+		}
 	}
 
 	return nil

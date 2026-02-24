@@ -443,6 +443,11 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 		pubsub.JsonPayloadGenerator[services.ChatPartnerPresenceEventPayload],
 		me.chatPartnerPresenceEventHandler(userID, c),
 	)
+	go me.pubsub.Subscribe(ctx,
+		services.MessagesWereReadEvent,
+		pubsub.JsonPayloadGenerator[services.MessagesWereReadEventPayload],
+		me.messagesWereReadEventHandler(userID, c),
+	)
 
 	me.sendUnreadMessageCounts(userID, c)
 
@@ -586,10 +591,11 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 		h.Div(h.KV{"hx-swap-oob": "afterend:#new-message-inserter"},
 			h.Div(h.KV{"data-partner-id": params.PartnerID},
 				components.ChatMessage(components.ChatMessageParams{
-					ID:      params.MessageID,
-					Content: params.MessageContent,
-					SentAt:  params.MessageTimestamp,
-					FromMe:  params.MessageIsFromMe,
+					ID:        params.MessageID,
+					Content:   params.MessageContent,
+					SentAt:    params.MessageTimestamp,
+					FromMe:    params.MessageIsFromMe,
+					PartnerID: params.PartnerID,
 				}),
 			),
 		),
@@ -687,6 +693,41 @@ func (me *HtmlHandler) chatPartnerPresenceEventHandler(userID string, c *websock
 			h.Div(h.KV{"hx-swap-oob": "outerHTML:#chat-container-presence-indicator-" + message.PartnerID},
 				components.ChatContainerPresenceIndicator(message.PartnerID, message.IsOnline),
 			),
+		))
+	}
+}
+
+func (me *HtmlHandler) messagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.MessagesWereReadEventPayload)
+		if message.UserID != userID && message.PartnerID != userID {
+			return nil
+		}
+
+		w, err := c.NextWriter(websocket.TextMessage)
+		if err != nil {
+			return err
+		}
+		defer w.Close()
+
+		// It's a notfication to the user who read them
+		if message.UserID == userID {
+			return h.Render(w, h.Empty(
+				h.Div(h.KV{"hx-swap-oob": "innerHTML:#unread-manager-anchor"},
+					h.Script(h.RawText(
+						fmt.Sprintf(`window.unreadManager.sub("%s", %d);`, message.PartnerID, len(message.ReadMessageIDs)),
+					)),
+				),
+			))
+		}
+
+		// It's a notfication to the partner whose messaegs were read
+		return h.Render(w, h.Empty(
+			h.MapSlice(message.ReadMessageIDs, func(id string) h.Node {
+				return h.Div(h.KV{"hx-swap-oob": "outerHTML:#unread-message-indicator-" + id},
+					components.ReadMessageIndicator(),
+				)
+			}),
 		))
 	}
 }

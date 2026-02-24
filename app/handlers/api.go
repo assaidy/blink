@@ -564,7 +564,7 @@ func (me *ApiHandler) profileWasUpdatedEventHandler(userID string, c *websocket.
 		if message.UserID != userID && message.PartnerID != userID {
 			return nil
 		}
-		// FIX: match the html handler
+		// FIX: match the html handler. check all api/event handlers
 		return c.WriteJSON(WebsocketMessage{
 			Kind:      ProfileWasUpdated,
 			UserID:    message.UserID,

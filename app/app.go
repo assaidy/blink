@@ -174,6 +174,7 @@ func (me *App) registerHTMLRoutes() {
 	me.router.Get("/partners", withSessionAndCsrfTokens, htmlHandler.HandleGetChatPartners)
 	me.router.Get("/chat/:partner_id", withSessionAndCsrfTokens, htmlHandler.HandleChatContainer)
 	me.router.Get("/chat/:partner_id/messages", withSessionAndCsrfTokens, htmlHandler.HandleChatMessages)
+
 	me.router.Get("/ws", withSessionToken, handlers.WithWebsocket, websocket.New(
 		// TODO: I couldn't send csrf token with hx-ws-ext so I will use withSessionToken for now.
 		// Also, Is it necessary to send csrf token with ws connection request?

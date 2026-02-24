@@ -43,11 +43,13 @@ where ((sender_id = @user_id::varchar and receiver_id = @partner_id::varchar) or
 order by id desc
 limit $1;
 
--- name: MarkMessagesAsRead :exec
+-- name: MarkMessagesAsRead :many
 update chat_messages 
 set is_read = true
 where (receiver_id = @user_id::varchar and sender_id = @partner_id::varchar) and
-      (@upto_message_id::varchar = '' or id <= @upto_message_id::varchar);
+      (@upto_message_id::varchar = '' or id <= @upto_message_id::varchar) and
+      is_read = false
+returning id;
 
 -- name: MarkChatAsDeleted :exec
 update chat_messages

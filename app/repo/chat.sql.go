@@ -289,11 +289,13 @@ func (q *Queries) MarkChatAsDeleted(ctx context.Context, arg MarkChatAsDeletedPa
 	return err
 }
 
-const markMessagesAsRead = `-- name: MarkMessagesAsRead :exec
+const markMessagesAsRead = `-- name: MarkMessagesAsRead :many
 update chat_messages 
 set is_read = true
 where (receiver_id = $1::varchar and sender_id = $2::varchar) and
-      ($3::varchar = '' or id <= $3::varchar)
+      ($3::varchar = '' or id <= $3::varchar) and
+      is_read = false
+returning id
 `
 
 type MarkMessagesAsReadParams struct {
@@ -302,7 +304,25 @@ type MarkMessagesAsReadParams struct {
 	UptoMessageID string
 }
 
-func (q *Queries) MarkMessagesAsRead(ctx context.Context, arg MarkMessagesAsReadParams) error {
-	_, err := q.db.ExecContext(ctx, markMessagesAsRead, arg.UserID, arg.PartnerID, arg.UptoMessageID)
-	return err
+func (q *Queries) MarkMessagesAsRead(ctx context.Context, arg MarkMessagesAsReadParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, markMessagesAsRead, arg.UserID, arg.PartnerID, arg.UptoMessageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

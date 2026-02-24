@@ -191,15 +191,11 @@ func ChatPage(params ChatPageParams) h.Node {
             }
             add(partnerID, delta) {
 							this.counts[partnerID] = (this.counts[partnerID] || 0) + delta;
-							// setTimeout(() => {
-							// 	this.updateBadge(partnerID);
-							// }, 100);
+							// this.updateBadge(partnerID);
             }
             sub(partnerID, delta) {
 							this.counts[partnerID] = Math.max(0, (this.counts[partnerID] || 0) - delta);
-							// setTimeout(() => {
-							// 	this.updateBadge(partnerID);
-							// }, 100);
+							this.updateBadge(partnerID);
             }
 						updateBadge(partnerID) {
 							const badge = document.getElementById('unread-count-badge-' + partnerID);
@@ -813,6 +809,7 @@ func ChatMessagesList(params ChatMessagesListParams) h.Node {
 	cursorMessageID := params.Messages[len(params.Messages)-1].ID
 
 	return h.MapSlice(params.Messages, func(msg ChatMessageParams) h.Node {
+		msg.PartnerID = params.PartnerID
 		return h.Div(
 			h.IfElse(params.HasMore && msg.ID == cursorMessageID,
 				h.KV{
@@ -831,29 +828,49 @@ func ChatMessagesList(params ChatMessagesListParams) h.Node {
 }
 
 type ChatMessageParams struct {
-	ID      string
-	Content string
-	SentAt  time.Time
-	IsRead  bool
-	FromMe  bool
+	ID        string
+	PartnerID string
+	Content   string
+	SentAt    time.Time
+	IsRead    bool
+	FromMe    bool
 }
 
-func ChatMessage(msg ChatMessageParams) h.Node {
-	return h.Div(h.KV{"class": "flex w-full " + h.IfElse(msg.FromMe, "justify-end", "justify-start")},
-		h.Div(h.KV{"class": "flex flex-col " + h.IfElse(msg.FromMe, "items-end", "items-start") + " max-w-[70%]"},
-			h.Div(h.KV{"class": "px-4 py-2 " + h.IfElse(msg.FromMe, "bg-blue text-bg-primary rounded-l-2xl rounded-tr-2xl", "bg-bg-tertiary text-fg-primary rounded-r-2xl rounded-tl-2xl")},
-				h.P(h.KV{"class": "whitespace-pre-wrap"}, msg.Content),
-			),
-			h.Div(h.KV{"class": "flex items-center gap-1 mt-1 px-1"},
-				// TODO: display the year in a sticky widget like telegram/whatsapp,
-				// and move this paragraph inside the message box
-				h.P(h.KV{"class": "text-xs text-fg-secondary"}, msg.SentAt.Format("Jan 2, 3:04 PM")),
-				h.If(msg.FromMe && msg.IsRead,
-					h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue"><polyline points="20 6 9 17 4 12"></polyline></svg>`),
+func ChatMessage(params ChatMessageParams) h.Node {
+	return h.Div(
+		h.IfElse(!params.FromMe && !params.IsRead,
+			h.KV{
+				"hx-post":    "/api/v1/chats/" + params.PartnerID + "/mark_as_read?upto_message_id=" + params.ID,
+				"hx-trigger": "intersect once",
+				"hx-swap":    "none",
+			},
+			nil,
+		),
+		h.Div(h.KV{"class": "flex w-full " + h.IfElse(params.FromMe, "justify-end", "justify-start")},
+			h.Div(h.KV{"class": "flex flex-col " + h.IfElse(params.FromMe, "items-end", "items-start") + " max-w-[70%]"},
+				h.Div(h.KV{"class": "px-4 py-2 " + h.IfElse(params.FromMe, "bg-blue text-bg-primary rounded-l-2xl rounded-tr-2xl", "bg-bg-tertiary text-fg-primary rounded-r-2xl rounded-tl-2xl")},
+					h.P(h.KV{"class": "whitespace-pre-wrap"}, params.Content),
+					h.Div(h.KV{"class": "flex items-center gap-1 mt-1 justify-end"},
+						h.P(h.KV{"class": "text-xs " + h.IfElse(params.FromMe, "text-bg-primary/70", "text-fg-secondary")}, params.SentAt.Format("Jan 2, 3:04 PM")),
+						h.If(params.FromMe,
+							h.IfElse(params.IsRead, ReadMessageIndicator(), unreadMessageIndicator(params.ID)),
+						),
+					),
 				),
 			),
 		),
 	)
+}
+
+func ReadMessageIndicator() h.Node {
+	return h.Span(h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary"><polyline points="16 6 8 14 4 10"></polyline><polyline points="22 6 14 14 10 10"></polyline></svg>`))
+}
+
+func unreadMessageIndicator(messageID string) h.Node {
+	return h.Span(h.RawText(fmt.Sprintf(`
+		<svg id="unread-message-indicator-%s" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+		messageID,
+	)))
 }
 
 type ChatInputFormParams struct {
