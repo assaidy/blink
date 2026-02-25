@@ -166,13 +166,14 @@ func (me *App) registerHTMLRoutes() {
 	me.router.Post("/verify_otp", htmlHandler.HandleVerifyOtp)
 	me.router.Get("/profile_modal", withSessionAndCsrfTokens, htmlHandler.HandleProfileModal)
 	me.router.Put("/profile", withSessionAndCsrfTokens, htmlHandler.HandleUpdateProfile)
+	me.router.Delete("/profile", withSessionAndCsrfTokens, htmlHandler.HandleDeleteProfile)
 	me.router.Post("/logout", withSessionAndCsrfTokens, htmlHandler.HandleLogout)
 	me.router.Delete("/sessions/:session_id", withSessionAndCsrfTokens, htmlHandler.HandleDeleteSession)
 	me.router.Get("/search_modal", withSessionAndCsrfTokens, htmlHandler.HandleSearchModal)
 	me.router.Get("/search/users", withSessionAndCsrfTokens, htmlHandler.HandleSearchUsers)
 	me.router.Get("/search/users/select/:partner_id", withSessionAndCsrfTokens, htmlHandler.HandleSelectPartnerFromSearch)
 	me.router.Get("/partners", withSessionAndCsrfTokens, htmlHandler.HandleGetChatPartners)
-	me.router.Get("/chat/:partner_id", withSessionAndCsrfTokens, htmlHandler.HandleChatContainer)
+	me.router.Get("/chat/:partner_id", withSessionAndCsrfTokens, htmlHandler.HandleSelectPartnerFromPartnersList)
 	me.router.Get("/chat/:partner_id/messages", withSessionAndCsrfTokens, htmlHandler.HandleChatMessages)
 
 	me.router.Get("/ws", withSessionToken, handlers.WithWebsocket, websocket.New(

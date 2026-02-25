@@ -250,16 +250,19 @@ func ChatPage(params ChatPageParams) h.Node {
 					),
 				),
 			),
-			// Current chat area (placeholder)
 			h.Div(h.KV{
 				h.AttrId:    "chat-container",
 				h.AttrClass: "flex-1 flex flex-col bg-bg-primary",
 			},
-				h.Div(h.KV{h.AttrClass: "flex-1 flex items-center justify-center"},
-					h.P(h.KV{h.AttrClass: "text-fg-secondary text-lg"}, "Select a chat to start messaging"),
-				),
+				ChatContainerPlaceholder(),
 			),
 		),
+	)
+}
+
+func ChatContainerPlaceholder() h.Node {
+	return h.Div(h.KV{h.AttrClass: "flex-1 flex items-center justify-center"},
+		h.P(h.KV{h.AttrClass: "text-fg-secondary text-lg"}, "Select a chat to start messaging"),
 	)
 }
 
@@ -417,6 +420,16 @@ func ProfileTab(params ProfileTabParams) h.Node {
 					h.P(h.KV{h.AttrClass: "text-yellow-600"}, "Email not verified"),
 				),
 			),
+		),
+		h.Div(h.KV{h.AttrClass: "border-t border-bg-tertiary my-6"}),
+		h.Button(h.KV{
+			hx.AttrDelete:  "/profile",
+			hx.AttrSwap:    hx.SwapNone,
+			hx.AttrConfirm: "Are you sure you wish to delete your account? This action cannot be undone.",
+			h.AttrClass:    "w-full px-4 py-2 rounded-lg !bg-red-600 hover:!bg-red-700 text-white font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer",
+		},
+			h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`),
+			"Delete Account",
 		),
 	)
 }
@@ -864,12 +877,12 @@ func ChatMessage(params ChatMessageParams) h.Node {
 }
 
 func ReadMessageIndicator() h.Node {
-	return h.Span(h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary"><polyline points="16 6 8 14 4 10"></polyline><polyline points="22 6 14 14 10 10"></polyline></svg>`))
+	return h.Span(h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary"><polyline points="16 6 8 14 4 10"></polyline><polyline points="22 6 14 14 10 10"></polyline></svg>`))
 }
 
 func unreadMessageIndicator(messageID string) h.Node {
 	return h.Span(h.RawText(fmt.Sprintf(`
-		<svg id="unread-message-indicator-%s" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+		<svg id="unread-message-indicator-%s" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
 		messageID,
 	)))
 }

@@ -414,6 +414,7 @@ func (me *ApiHandler) HandleDeleteProfile(c *fiber.Ctx) error {
 	if err := me.profileService.DeleteProfile(getCurrentUserID(c)); err != nil {
 		return err
 	}
+	c.ClearCookie("session_token", "csrf_token")
 	return c.SendStatus(fiber.StatusOK)
 }
 
@@ -479,8 +480,8 @@ func (me *ApiHandler) HandleWebsocket(c *websocket.Conn) {
 		me.profileWasUpdatedEventHandler(userID, c),
 	)
 	go me.pubsub.Subscribe(ctx,
-		services.ProfileWasDeletedEvent,
-		pubsub.JsonPayloadGenerator[services.ProfileWasDeletedEventPayload],
+		services.PartnerProfileWasDeletedEvent,
+		pubsub.JsonPayloadGenerator[services.PartnerProfileWasDeletedEventPayload],
 		me.profileWasDeletedEventHandler(userID, c),
 	)
 	go me.pubsub.Subscribe(ctx,
@@ -578,7 +579,7 @@ func (me *ApiHandler) profileWasUpdatedEventHandler(userID string, c *websocket.
 
 func (me *ApiHandler) profileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
-		message := payload.(services.ProfileWasDeletedEventPayload)
+		message := payload.(services.PartnerProfileWasDeletedEventPayload)
 		if message.UserID != userID && message.PartnerID != userID {
 			return nil
 		}

@@ -286,6 +286,14 @@ func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	return render(c, components.ProfileForm(params))
 }
 
+func (me *HtmlHandler) HandleDeleteProfile(c *fiber.Ctx) error {
+	if err := me.profileService.DeleteProfile(getCurrentUserID(c)); err != nil {
+		return err
+	}
+	c.ClearCookie("session_token", "csrf_token")
+	return redirect(c, "/")
+}
+
 func (me *HtmlHandler) HandleLogout(c *fiber.Ctx) error {
 	if err := me.authService.DeleteSession(getCurrentUserID(c), getCurrentSessionID(c)); err != nil {
 		return err
@@ -360,7 +368,7 @@ func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 	))
 }
 
-func (me *HtmlHandler) HandleChatContainer(c *fiber.Ctx) error {
+func (me *HtmlHandler) HandleSelectPartnerFromPartnersList(c *fiber.Ctx) error {
 	partnerID := c.Params("partner_id")
 
 	partnerProfile, err := me.profileService.GetProfile(partnerID)
@@ -425,6 +433,16 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	go me.presenceService.StartHeartbeat(ctx, userID, sessionID)
 
 	go me.pubsub.Subscribe(ctx,
+		services.ProfileWasUpdatedEvent,
+		pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
+		me.profileWasUpdatedEventHandler(userID, c),
+	)
+	go me.pubsub.Subscribe(ctx,
+		services.PartnerProfileWasDeletedEvent,
+		pubsub.JsonPayloadGenerator[services.PartnerProfileWasDeletedEventPayload],
+		me.profileWasDeletedEventHandler(userID, c),
+	)
+	go me.pubsub.Subscribe(ctx,
 		services.MessageWasSentEvent,
 		pubsub.JsonPayloadGenerator[services.MessageWasSentEventPayload],
 		me.messageWasSentEventHandler(userID, c),
@@ -433,11 +451,6 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 		services.IncommingMessageEvent,
 		pubsub.JsonPayloadGenerator[services.IncommingMessageEventPayload],
 		me.incommingMessageEventHandler(userID, c),
-	)
-	go me.pubsub.Subscribe(ctx,
-		services.ProfileWasUpdatedEvent,
-		pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
-		me.profileWasUpdatedEventHandler(userID, c),
 	)
 	go me.pubsub.Subscribe(ctx,
 		services.ChatPartnerPresenceEvent,
@@ -622,6 +635,7 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 	)
 }
 
+// TODO: Use separate events for user and parnter
 func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.ProfileWasUpdatedEventPayload)
@@ -670,6 +684,30 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 				}),
 			),
 		))
+	}
+}
+
+func (me *HtmlHandler) profileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.PartnerProfileWasDeletedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		w, err := c.NextWriter(websocket.TextMessage)
+		if err != nil {
+			return err
+		}
+		defer w.Close()
+
+		return h.Render(w, h.Empty(
+			h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapDelete}),
+
+			h.Div(h.KV{h.AttrId: "chat-container", hx.AttrSwapOob: hx.SwapInnerHtml},
+				components.ChatContainerPlaceholder(),
+			),
+		))
+
 	}
 }
 

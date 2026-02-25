@@ -179,9 +179,9 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 	return nil
 }
 
-const ProfileWasDeletedEvent = "ProfileWasDeletedEvent"
+const PartnerProfileWasDeletedEvent = "ProfileWasDeletedEvent"
 
-type ProfileWasDeletedEventPayload struct {
+type PartnerProfileWasDeletedEventPayload struct {
 	UserID    string `json:"userID"`
 	PartnerID string `json:"partnerID"`
 }
@@ -194,25 +194,25 @@ func (me *ProfileService) DeleteProfile(userID string) error {
 		return ErrUnauthorized
 	}
 
-	if err := me.queries.DeleteUser(ctx, userID); err != nil {
-		return fmt.Errorf("failed to remove user: %w", err)
-	}
-
 	partnerIDs, err := me.queries.GetAllChatPartnerIDs(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to get chat partner IDs: %w", err)
 	}
 
+	if err := me.queries.DeleteUser(ctx, userID); err != nil {
+		return fmt.Errorf("failed to remove user: %w", err)
+	}
+
 	for _, id := range partnerIDs {
 		if err := me.pubsub.Publish(ctx,
-			ProfileWasDeletedEvent,
+			PartnerProfileWasDeletedEvent,
 			pubsub.JsonMessageGenerator,
-			ProfileWasDeletedEventPayload{
+			PartnerProfileWasDeletedEventPayload{
 				UserID:    id,
 				PartnerID: userID,
 			},
 		); err != nil {
-			return fmt.Errorf("failed to publish event %s: %w", ProfileWasDeletedEvent, err)
+			return fmt.Errorf("failed to publish event %s: %w", PartnerProfileWasDeletedEvent, err)
 		}
 	}
 
