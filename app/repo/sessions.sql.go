@@ -34,6 +34,22 @@ func (q *Queries) BatchDeleteExpriredSessions(ctx context.Context) error {
 	return err
 }
 
+const checkCsrfTokenForSession = `-- name: CheckCsrfTokenForSession :one
+select exists (select 1 from sessions where id = $2 and csrf_token = $1 for update)
+`
+
+type CheckCsrfTokenForSessionParams struct {
+	CsrfToken string
+	SessionID string
+}
+
+func (q *Queries) CheckCsrfTokenForSession(ctx context.Context, arg CheckCsrfTokenForSessionParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkCsrfTokenForSession, arg.CsrfToken, arg.SessionID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const checkSessionForUser = `-- name: CheckSessionForUser :one
 select exists (select 1 from sessions where id = $1 and user_id = $2 for update)
 `

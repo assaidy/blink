@@ -308,25 +308,22 @@ func (me *AuthService) ValidateSessionToken(sessionToken string) (sessionID, use
 	return session.ID, session.UserID, nil
 }
 
-func (me *AuthService) ValidateSessionAndCsrfTokens(sessionToken, csrfToken string) (sessionID, userID string, error error) {
-	if sessionToken == "" || csrfToken == "" {
-		return "", "", ErrUnauthorized
+func (me *AuthService) ValidateCsrfToken(sessionID, csrfToken string) error {
+	if csrfToken == "" {
+		return ErrUnauthorized
 	}
 
 	ctx := context.Background()
-	session, err := me.queries.GetSessionById(ctx, strings.Split(sessionToken, "_")[0])
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", ErrUnauthorized
-		}
-		return "", "", fmt.Errorf("failed to get session by id: %w", err)
+	if ok, err := me.queries.CheckCsrfTokenForSession(ctx, repo.CheckCsrfTokenForSessionParams{
+		SessionID: sessionID,
+		CsrfToken: csrfToken,
+	}); err != nil {
+		return fmt.Errorf("failed to check csrf token: %w", err)
+	} else if !ok {
+		return ErrUnauthorized
 	}
 
-	if session.Token != sessionToken || session.CsrfToken != csrfToken || !time.Now().Before(session.ExpiresAt) {
-		return "", "", ErrUnauthorized
-	}
-
-	return session.ID, session.UserID, nil
+	return nil
 }
 
 func (me *AuthService) DeleteSession(userID, sessionID string) error {

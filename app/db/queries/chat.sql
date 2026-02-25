@@ -80,7 +80,8 @@ end $$;
 select distinct
   (case when sender_id = @user_id::varchar then receiver_id else sender_id end)::varchar as id
 from chat_messages
-where sender_id = @user_id::varchar or receiver_id = @user_id::varchar;
+where (sender_id is not null and receiver_id is not null) and
+      (sender_id = @user_id::varchar or receiver_id = @user_id::varchar);
 
 -- name: GetUnreadCountsForUser :many
 select

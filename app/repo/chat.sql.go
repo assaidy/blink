@@ -59,7 +59,8 @@ const getAllChatPartnerIDs = `-- name: GetAllChatPartnerIDs :many
 select distinct
   (case when sender_id = $1::varchar then receiver_id else sender_id end)::varchar as id
 from chat_messages
-where sender_id = $1::varchar or receiver_id = $1::varchar
+where (sender_id is not null and receiver_id is not null) and
+      (sender_id = $1::varchar or receiver_id = $1::varchar)
 `
 
 func (q *Queries) GetAllChatPartnerIDs(ctx context.Context, userID string) ([]string, error) {

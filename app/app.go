@@ -107,29 +107,31 @@ func (me *App) registerApiRoutes() {
 		me.presenceService,
 		me.pubsub,
 	)
-	withSessionAndCsrfTokens := handlers.WithSessionAndCsrfTokens(me.authService)
+	withSessionTokenCookie := handlers.WithSessionTokenCookie(me.authService)
+	withCsrfTokenHeader := handlers.WithCsrfTokenHeader(me.authService)
+	withCsrfTokenQuery := handlers.WithCsrfTokenQuery(me.authService)
 
 	v1 := me.router.Group("/api/v1")
 	{
 		v1.Post("/auth/register", apiHandler.HandleRegister)
 		v1.Post("/auth/otp/request", apiHandler.HandleRequestOtp)
 		v1.Post("/auth/otp/verify", apiHandler.HandleVerifyOtp)
-		v1.Post("/auth/logout", withSessionAndCsrfTokens, apiHandler.HandleLogout)
-		v1.Post("/auth/sessions/:session_id", withSessionAndCsrfTokens, apiHandler.HandleDeleteSession)
-		v1.Get("/auth/sessions", withSessionAndCsrfTokens, apiHandler.HandleGetActiveSessions)
+		v1.Post("/auth/logout", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleLogout)
+		v1.Post("/auth/sessions/:session_id", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleDeleteSession)
+		v1.Get("/auth/sessions", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetActiveSessions)
 
-		v1.Get("/profiles", withSessionAndCsrfTokens, apiHandler.HandleSearchProfiles)
-		v1.Get("/profiles/others/:user_id", withSessionAndCsrfTokens, apiHandler.HandleGetProfile)
-		v1.Get("/profiles/me", withSessionAndCsrfTokens, apiHandler.HandleGetMyProfile)
-		v1.Put("/profiles", withSessionAndCsrfTokens, apiHandler.HandleUpdateProfile)
-		v1.Delete("/profiles", withSessionAndCsrfTokens, apiHandler.HandleDeleteProfile)
+		v1.Get("/profiles", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleSearchProfiles)
+		v1.Get("/profiles/others/:user_id", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetProfile)
+		v1.Get("/profiles/me", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetMyProfile)
+		v1.Put("/profiles", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleUpdateProfile)
+		v1.Delete("/profiles", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleDeleteProfile)
 
-		v1.Get("/chats", withSessionAndCsrfTokens, apiHandler.HandleGetChatPartners)
-		v1.Delete("/chats/:partner_id", withSessionAndCsrfTokens, apiHandler.HandleDeleteChat)
-		v1.Get("/chats/:partner_id", withSessionAndCsrfTokens, apiHandler.HandleGetChatMessages)
-		v1.Post("/chats/:partner_id/mark_as_read", withSessionAndCsrfTokens, apiHandler.HandleMarkMessagesAsRead)
+		v1.Get("/chats", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetChatPartners)
+		v1.Delete("/chats/:partner_id", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleDeleteChat)
+		v1.Get("/chats/:partner_id", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetChatMessages)
+		v1.Post("/chats/:partner_id/mark_as_read", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleMarkMessagesAsRead)
 
-		v1.Get("/ws", withSessionAndCsrfTokens, handlers.WithWebsocket, websocket.New(
+		v1.Get("/ws", withSessionTokenCookie, withCsrfTokenQuery, handlers.WithWebsocket, websocket.New(
 			apiHandler.HandleWebsocket,
 			websocket.Config{RecoverHandler: websocketResolver},
 		))
@@ -148,8 +150,9 @@ func (me *App) registerHTMLRoutes() {
 		me.profileService,
 		me.presenceService,
 	)
-	withSessionToken := handlers.WithSessionToken(me.authService)
-	withSessionAndCsrfTokens := handlers.WithSessionAndCsrfTokens(me.authService)
+	withSessionTokenCookie := handlers.WithSessionTokenCookie(me.authService)
+	withCsrfTokenHeader := handlers.WithCsrfTokenHeader(me.authService)
+	withCsrfTokenQuery := handlers.WithCsrfTokenQuery(me.authService)
 
 	me.router.Use(handlers.WithRedirectUnauthorizedToLogin)
 	me.router.Use("/public", handlers.WithForbiddenAsInvalidEndpoint, filesystem.New(filesystem.Config{
@@ -157,28 +160,26 @@ func (me *App) registerHTMLRoutes() {
 		PathPrefix: "web/public",
 	}))
 
-	me.router.Get("/", withSessionToken, htmlHandler.HandleChatPage)
+	me.router.Get("/", withSessionTokenCookie, htmlHandler.HandleChatPage)
 	me.router.Get("/register", htmlHandler.HandleRegisterPage)
 	me.router.Get("/login", htmlHandler.HandleLoginPage)
 
 	me.router.Post("/register", htmlHandler.HandleRegister)
 	me.router.Post("/login", htmlHandler.HandleLogin)
 	me.router.Post("/verify_otp", htmlHandler.HandleVerifyOtp)
-	me.router.Get("/profile_modal", withSessionAndCsrfTokens, htmlHandler.HandleProfileModal)
-	me.router.Put("/profile", withSessionAndCsrfTokens, htmlHandler.HandleUpdateProfile)
-	me.router.Delete("/profile", withSessionAndCsrfTokens, htmlHandler.HandleDeleteProfile)
-	me.router.Post("/logout", withSessionAndCsrfTokens, htmlHandler.HandleLogout)
-	me.router.Delete("/sessions/:session_id", withSessionAndCsrfTokens, htmlHandler.HandleDeleteSession)
-	me.router.Get("/search_modal", withSessionAndCsrfTokens, htmlHandler.HandleSearchModal)
-	me.router.Get("/search/users", withSessionAndCsrfTokens, htmlHandler.HandleSearchUsers)
-	me.router.Get("/search/users/select/:partner_id", withSessionAndCsrfTokens, htmlHandler.HandleSelectPartnerFromSearch)
-	me.router.Get("/partners", withSessionAndCsrfTokens, htmlHandler.HandleGetChatPartners)
-	me.router.Get("/chat/:partner_id", withSessionAndCsrfTokens, htmlHandler.HandleSelectPartnerFromPartnersList)
-	me.router.Get("/chat/:partner_id/messages", withSessionAndCsrfTokens, htmlHandler.HandleChatMessages)
+	me.router.Get("/profile_modal", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleProfileModal)
+	me.router.Put("/profile", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleUpdateProfile)
+	me.router.Delete("/profile", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleDeleteProfile)
+	me.router.Post("/logout", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleLogout)
+	me.router.Delete("/sessions/:session_id", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleDeleteSession)
+	me.router.Get("/search_modal", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleSearchModal)
+	me.router.Get("/search/users", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleSearchUsers)
+	me.router.Get("/search/users/select/:partner_id", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleSelectPartnerFromSearch)
+	me.router.Get("/partners", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleGetChatPartners)
+	me.router.Get("/chat/:partner_id", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleSelectPartnerFromPartnersList)
+	me.router.Get("/chat/:partner_id/messages", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleChatMessages)
 
-	me.router.Get("/ws", withSessionToken, handlers.WithWebsocket, websocket.New(
-		// TODO: I couldn't send csrf token with hx-ws-ext so I will use withSessionToken for now.
-		// Also, Is it necessary to send csrf token with ws connection request?
+	me.router.Get("/ws", withSessionTokenCookie, withCsrfTokenQuery, handlers.WithWebsocket, websocket.New(
 		htmlHandler.HandleWebsocket,
 		websocket.Config{RecoverHandler: websocketResolver},
 	))

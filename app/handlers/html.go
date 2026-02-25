@@ -17,8 +17,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// TODO: Might put response html using hyper directly in the handlers.
-
 type HtmlHandler struct {
 	logger          *slog.Logger
 	pubsub          pubsub.Pubsub

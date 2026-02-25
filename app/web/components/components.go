@@ -18,17 +18,21 @@ func rootLayout(children ...any) h.Node {
 				h.Title("blink"),
 				h.Meta(h.KV{h.AttrCharset: "UTF-8"}),
 				h.Meta(h.KV{h.AttrName: "viewport", h.AttrContent: "width=device-width, initial-scale=1.0"}),
-				hx.Script(),
-				h.Script(h.KV{h.AttrSrc: "/public/js/script.js", h.AttrDefer: true}),
 				h.Link(h.KV{h.AttrRel: "stylesheet", h.AttrHref: "/public/css/style.css"}),
+				hx.Script(),
+				h.Script(h.RawText(`
+					const $cookie = (name) => {
+						return document.cookie
+							.split('; ')
+							.find(row => row.startsWith(name+"="))
+							?.split('=')[1]
+							?.trim() || '';
+					}
+				`)),
 			),
 			h.Body(h.KV{
 				hx.AttrOn(hx.EventConfigRequest): `
-					event.detail.headers['X-CSRF-Token'] = document.cookie
-						.split('; ')
-						.find(row => row.startsWith('csrf_token='))
-						?.split('=')[1]
-						?.trim() || '';
+					event.detail.headers['X-CSRF-Token'] = $cookie("csrf_token");
 				`,
 				h.AttrClass: "bg-bg-primary text-fg-primary",
 			},
@@ -178,7 +182,14 @@ type ChatPageParams struct {
 
 func ChatPage(params ChatPageParams) h.Node {
 	return rootLayout(
-		h.Div(h.KV{h.AttrId: "unread-manager-anchor"}),
+		h.Script(h.KV{h.AttrSrc: "/public/js/lib/htmx_ext_ws@2.0.4.js"}),
+		h.Script(h.RawText(`
+			htmx.createWebSocket = (url) => {
+				const csrfToken = $cookie("csrf_token");
+				const fullUrl = csrfToken ? url+"?csrf_token="+csrfToken : url;
+				return new WebSocket(fullUrl);
+			};
+		`)),
 		h.Script(h.RawText(`
 				window.unreadManager = new class {
             constructor() {
@@ -212,7 +223,8 @@ func ChatPage(params ChatPageParams) h.Node {
 						}
         };
 		`)),
-		h.Script(h.KV{h.AttrSrc: "/public/js/lib/htmx_ext_ws@2.0.4.js"}),
+		h.Div(h.KV{h.AttrId: "unread-manager-anchor"}),
+		// Actual page content
 		h.Div(h.KV{
 			h.AttrClass:  "h-screen flex bg-bg-primary",
 			hx.AttrExt:   "ws",

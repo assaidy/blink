@@ -200,7 +200,7 @@ func WithLogging(logger *slog.Logger) fiber.Handler {
 	}
 }
 
-func WithSessionToken(authService *services.AuthService) fiber.Handler {
+func WithSessionTokenCookie(authService *services.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		sessionID, userID, err := authService.ValidateSessionToken(c.Cookies("session_token"))
 		if err != nil {
@@ -213,15 +213,24 @@ func WithSessionToken(authService *services.AuthService) fiber.Handler {
 	}
 }
 
-func WithSessionAndCsrfTokens(authService *services.AuthService) fiber.Handler {
+// WARN: Must be used after passing through [WithSessionTokenCookie]
+func WithCsrfTokenHeader(authService *services.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		sessionID, userID, err := authService.ValidateSessionAndCsrfTokens(c.Cookies("session_token"), c.Get("X-CSRF-Token"))
-		if err != nil {
+		if err := authService.ValidateCsrfToken(getCurrentSessionID(c), c.Get("X-CSRF-Token")); err != nil {
 			return serviceErrToApiErr(err)
 		}
 
-		c.Locals(currentSessionID, sessionID)
-		c.Locals(currentUserID, userID)
+		return c.Next()
+	}
+}
+
+// WARN: Must be used after passing through [WithSessionTokenCookie]
+func WithCsrfTokenQuery(authService *services.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		if err := authService.ValidateCsrfToken(getCurrentSessionID(c), c.Query("csrf_token")); err != nil {
+			return serviceErrToApiErr(err)
+		}
+
 		return c.Next()
 	}
 }
