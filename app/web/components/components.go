@@ -487,7 +487,6 @@ func ProfileForm(params ProfileFormParams) h.Node {
 			),
 			h.If(params.BioErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, params.BioErr)),
 		),
-		// TODO: Add disabled & spinner to other forms
 		h.Button(h.KV{h.AttrClass: "w-full rounded-lg bg-blue hover:bg-blue/80 disabled:hover:bg-blue disabled:opacity-50 disabled:cursor-not-allowed text-bg-primary font-semibold py-3 px-4 cursor-pointer transition-colors mt-2 flex items-center justify-center gap-2"},
 			"Save", spinner("spinner"),
 		),

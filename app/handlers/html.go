@@ -481,7 +481,7 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 
 		switch message.Kind {
 		case SendMessage:
-			// TODO: I don't handle client message id for now. I will assume messages are sent/recived in order.
+			// NOTE: I didn't need to use client messag id. It might be useful for the api handler.
 			if err := me.chatService.SendChatMessage(userID, message.PartnerID, message.Content, 0); err != nil {
 				me.logger.Error("failed to send message with chat serivce", "error", err)
 			}

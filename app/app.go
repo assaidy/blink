@@ -23,6 +23,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	recovermw "github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/valkey-io/valkey-go"
@@ -155,6 +156,7 @@ func (me *App) registerHTMLRoutes() {
 	withCsrfTokenQuery := handlers.WithCsrfTokenQuery(me.authService)
 
 	me.router.Use(handlers.WithRedirectUnauthorizedToLogin)
+	me.router.Use(compress.New(compress.Config{Level: compress.LevelBestSpeed}))
 	me.router.Use("/public", handlers.WithForbiddenAsInvalidEndpoint, filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
 		PathPrefix: "web/public",

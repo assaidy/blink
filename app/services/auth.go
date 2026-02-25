@@ -182,7 +182,6 @@ func (me *AuthService) SendOtp(channel, identifier, purpose string) (string, err
 	return otpID, nil
 }
 
-// TODO: Use an advanced library e.g. https://github.com/pquerna/otp
 func generateRandomOtp() (string, error) {
 	// Generate a number between 0 and 899,999
 	n, err := rand.Int(rand.Reader, big.NewInt(900_000))
