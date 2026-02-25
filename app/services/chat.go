@@ -12,8 +12,6 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-// TODO: Revise where we use CheckChatPartnerID() and replace it with CheckUserID() as needed.
-
 type ChatService struct {
 	db              *sql.DB
 	queries         *repo.Queries
