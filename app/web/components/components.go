@@ -74,22 +74,22 @@ func RegisterForm(params ...RegisterFormParams) h.Node {
 	return h.Form(h.KV{hx.AttrPost: "/register", hx.AttrSwap: hx.SwapOuterHtml, h.AttrClass: "space-y-5"},
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "name", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Full Name"),
-			h.Input(h.KV{h.AttrType: "text", h.AttrID: "name", h.AttrName: "name", h.AttrRequired: true, h.AttrValue: p.Name, h.AttrPlaceholder: "Enter your full name", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
+			h.Input(h.KV{h.AttrType: "text", h.AttrId: "name", h.AttrName: "name", h.AttrRequired: true, h.AttrValue: p.Name, h.AttrPlaceholder: "Enter your full name", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
 			h.If(p.NameErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, p.NameErr)),
 		),
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "username", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Username"),
-			h.Input(h.KV{h.AttrType: "text", h.AttrID: "username", h.AttrName: "username", h.AttrValue: p.Username, h.AttrPlaceholder: "Choose a username", h.AttrRequired: true, h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
+			h.Input(h.KV{h.AttrType: "text", h.AttrId: "username", h.AttrName: "username", h.AttrValue: p.Username, h.AttrPlaceholder: "Choose a username", h.AttrRequired: true, h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
 			h.If(p.UsernameErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, p.UsernameErr)),
 		),
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "email", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Email Address"),
-			h.Input(h.KV{h.AttrType: "email", h.AttrID: "email", h.AttrName: "email", h.AttrValue: p.Email, h.AttrRequired: true, h.AttrPlaceholder: "you@example.com", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
+			h.Input(h.KV{h.AttrType: "email", h.AttrId: "email", h.AttrName: "email", h.AttrValue: p.Email, h.AttrRequired: true, h.AttrPlaceholder: "you@example.com", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
 			h.If(p.EmailErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, p.EmailErr)),
 		),
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "bio", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Bio"),
-			h.Textarea(h.KV{h.AttrID: "bio", h.AttrName: "bio", h.AttrPlaceholder: "Tell us about yourself...", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors min-h-24 resize-none"},
+			h.Textarea(h.KV{h.AttrId: "bio", h.AttrName: "bio", h.AttrPlaceholder: "Tell us about yourself...", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors min-h-24 resize-none"},
 				p.Bio,
 			),
 			h.If(p.BioErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, p.BioErr)),
@@ -130,7 +130,7 @@ func LoginForm(params ...LoginFormParams) h.Node {
 	return h.Form(h.KV{hx.AttrPost: "/login", hx.AttrSwap: hx.SwapOuterHtml, h.AttrClass: "space-y-5"},
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "email", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Email Address"),
-			h.Input(h.KV{h.AttrType: "email", h.AttrID: "email", h.AttrName: "email", h.AttrValue: p.Email, h.AttrRequired: true, h.AttrPlaceholder: "you@example.com", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
+			h.Input(h.KV{h.AttrType: "email", h.AttrId: "email", h.AttrName: "email", h.AttrValue: p.Email, h.AttrRequired: true, h.AttrPlaceholder: "you@example.com", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
 			h.If(p.EmailErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, p.EmailErr)),
 		),
 		h.Button(h.KV{h.AttrClass: "w-full rounded-lg bg-blue hover:bg-blue/80 text-bg-primary font-semibold py-3 px-4 cursor-pointer transition-colors mt-2"},
@@ -153,7 +153,7 @@ func OtpForm(params OtpFormParams) h.Node {
 			h.P(h.KV{h.AttrClass: "text-fg-secondary text-sm mb-2"}, "We've sent a 6-digit code to your email address. Please enter it below to verify your identity."),
 			h.Input(h.KV{
 				h.AttrType:         "text",
-				h.AttrID:           "otp",
+				h.AttrId:           "otp",
 				h.AttrName:         "otp",
 				h.AttrValue:        params.Otp,
 				h.AttrRequired:     true,
@@ -178,7 +178,7 @@ type ChatPageParams struct {
 
 func ChatPage(params ChatPageParams) h.Node {
 	return rootLayout(
-		h.Div(h.KV{h.AttrID: "unread-manager-anchor"}),
+		h.Div(h.KV{h.AttrId: "unread-manager-anchor"}),
 		h.Script(h.RawText(`
 				window.unreadManager = new class {
             constructor() {
@@ -235,7 +235,7 @@ func ChatPage(params ChatPageParams) h.Node {
 				),
 				// Partners list container
 				h.Div(h.KV{
-					h.AttrID:    "partners-container",
+					h.AttrId:    "partners-container",
 					h.AttrClass: "flex-1 overflow-y-auto px-2 py-2",
 				},
 					h.Div(h.KV{
@@ -252,7 +252,7 @@ func ChatPage(params ChatPageParams) h.Node {
 			),
 			// Current chat area (placeholder)
 			h.Div(h.KV{
-				h.AttrID:    "chat-container",
+				h.AttrId:    "chat-container",
 				h.AttrClass: "flex-1 flex flex-col bg-bg-primary",
 			},
 				h.Div(h.KV{h.AttrClass: "flex-1 flex items-center justify-center"},
@@ -279,7 +279,7 @@ type UserBlockParams struct {
 
 func UserBlock(params UserBlockParams) h.Node {
 	return h.Div(h.KV{
-		h.AttrID:       "user-block",
+		h.AttrId:       "user-block",
 		hx.AttrGet:     "/profile_modal",
 		hx.AttrTrigger: "click",
 		hx.AttrTarget:  "body",
@@ -330,7 +330,7 @@ func ProfileModal(params ProfileModalParams) h.Node {
 	sessionsIcon := h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`)
 
 	return h.Div(h.KV{
-		h.AttrID:                "profile-modal",
+		h.AttrId:                "profile-modal",
 		h.AttrClass:             "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 outline-none",
 		hx.AttrOn(h.EventClick): "if (event.target === this) this.remove()",
 	},
@@ -375,7 +375,7 @@ func ProfileModal(params ProfileModalParams) h.Node {
 					),
 				),
 				// Content
-				h.Div(h.KV{h.AttrID: "tab-content", h.AttrClass: "flex-1 p-8 overflow-y-auto"},
+				h.Div(h.KV{h.AttrId: "tab-content", h.AttrClass: "flex-1 p-8 overflow-y-auto"},
 					h.IfElse(params.ActiveTab == TabProfile,
 						ProfileTab(params.ProfileTabParams),
 						SessionsTab(params.SessionsTabParams),
@@ -442,22 +442,22 @@ func ProfileForm(params ProfileFormParams) h.Node {
 	},
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "name", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Full Name"),
-			h.Input(h.KV{h.AttrType: "text", h.AttrID: "name", h.AttrName: "name", h.AttrRequired: true, h.AttrValue: params.Name, h.AttrPlaceholder: "Enter your full name", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
+			h.Input(h.KV{h.AttrType: "text", h.AttrId: "name", h.AttrName: "name", h.AttrRequired: true, h.AttrValue: params.Name, h.AttrPlaceholder: "Enter your full name", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
 			h.If(params.NameErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, params.NameErr)),
 		),
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "username", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Username"),
-			h.Input(h.KV{h.AttrType: "text", h.AttrID: "username", h.AttrName: "username", h.AttrValue: params.Username, h.AttrPlaceholder: "Choose a username", h.AttrRequired: true, h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
+			h.Input(h.KV{h.AttrType: "text", h.AttrId: "username", h.AttrName: "username", h.AttrValue: params.Username, h.AttrPlaceholder: "Choose a username", h.AttrRequired: true, h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
 			h.If(params.UsernameErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, params.UsernameErr)),
 		),
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "email", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Email Address"),
-			h.Input(h.KV{h.AttrType: "email", h.AttrID: "email", h.AttrName: "email", h.AttrValue: params.Email, h.AttrRequired: true, h.AttrPlaceholder: "you@example.com", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
+			h.Input(h.KV{h.AttrType: "email", h.AttrId: "email", h.AttrName: "email", h.AttrValue: params.Email, h.AttrRequired: true, h.AttrPlaceholder: "you@example.com", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
 			h.If(params.EmailErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, params.EmailErr)),
 		),
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "bio", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Bio"),
-			h.Textarea(h.KV{h.AttrID: "bio", h.AttrName: "bio", h.AttrPlaceholder: "Tell us about yourself...", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors min-h-24 resize-none"},
+			h.Textarea(h.KV{h.AttrId: "bio", h.AttrName: "bio", h.AttrPlaceholder: "Tell us about yourself...", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors min-h-24 resize-none"},
 				params.Bio,
 			),
 			h.If(params.BioErr != nil, h.P(h.KV{h.AttrClass: "text-red-500 text-sm mt-1"}, params.BioErr)),
@@ -488,14 +488,14 @@ func SessionsTab(params SessionsTabParams) h.Node {
 		params.Sessions[0], params.Sessions[index] = params.Sessions[index], params.Sessions[0]
 	}
 
-	return h.Div(h.KV{h.AttrID: "sessions-tab", h.AttrClass: "space-y-3"},
+	return h.Div(h.KV{h.AttrId: "sessions-tab", h.AttrClass: "space-y-3"},
 		h.MapSlice(params.Sessions, func(session Session) h.Node {
 			elementID := fmt.Sprintf("session-%s", session.ID)
 			isCurrent := params.CurrentSessionID == session.ID
 			spinnerID := fmt.Sprintf("spinner-%s", session.ID)
 
 			return h.Div(h.KV{
-				h.AttrID:    elementID,
+				h.AttrId:    elementID,
 				h.AttrClass: "flex items-center justify-between p-4 rounded-xl border-2 " + h.IfElse(isCurrent, "border-blue bg-blue/5", "border-bg-tertiary bg-bg-tertiary/30"),
 			},
 				// Left side: Session info
@@ -538,7 +538,7 @@ func SessionsTab(params SessionsTabParams) h.Node {
 
 func SearchModal() h.Node {
 	return h.Div(h.KV{
-		h.AttrID:                "search-modal",
+		h.AttrId:                "search-modal",
 		h.AttrClass:             "fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20 outline-none",
 		hx.AttrOn(h.EventClick): "if (event.target === this) this.remove()",
 	},
@@ -567,7 +567,7 @@ func SearchModal() h.Node {
 				),
 			),
 			// Content area with results
-			h.Div(h.KV{h.AttrID: "search-results", h.AttrClass: "flex-1 p-4 overflow-y-auto max-h-96"},
+			h.Div(h.KV{h.AttrId: "search-results", h.AttrClass: "flex-1 p-4 overflow-y-auto max-h-96"},
 				h.P(h.KV{h.AttrClass: "text-fg-secondary text-center py-3"}, "Search for users by name or username"),
 			),
 		),
@@ -641,7 +641,7 @@ type PartnersListParams struct {
 func PartnersList(params PartnersListParams) h.Node {
 	if len(params.Partners) == 0 {
 		return h.Div(h.KV{
-			h.AttrID:    "partners-list",
+			h.AttrId:    "partners-list",
 			h.AttrClass: "space-y-1",
 		})
 	}
@@ -649,7 +649,7 @@ func PartnersList(params PartnersListParams) h.Node {
 	lastID := params.Partners[len(params.Partners)-1].ID
 
 	return h.Div(h.KV{
-		h.AttrID:    "partners-list",
+		h.AttrId:    "partners-list",
 		h.AttrClass: "space-y-1",
 	},
 		h.MapSlice(params.Partners, func(partner PartnerBlockParams) h.Node {
@@ -669,7 +669,7 @@ func PartnersList(params PartnersListParams) h.Node {
 
 func PartnersListItem(params PartnerBlockParams) h.Node {
 	return h.Div(h.KV{
-		h.AttrID:       "partner-" + params.ID,
+		h.AttrId:       "partner-" + params.ID,
 		h.AttrClass:    "cursor-pointer transition-colors",
 		hx.AttrGet:     "/chat/" + params.ID,
 		hx.AttrTrigger: "click",
@@ -715,7 +715,7 @@ func partnerBlock(params PartnerBlockParams) h.Node {
 			h.P(h.KV{h.AttrClass: "text-fg-secondary text-sm truncate"}, "@"+params.Username),
 		),
 		h.Span(h.KV{
-			h.AttrID:    "unread-count-badge-" + params.ID,
+			h.AttrId:    "unread-count-badge-" + params.ID,
 			h.AttrClass: "flex-shrink-0 min-w-[20px] h-5 px-1.5 bg-blue text-bg-primary text-xs font-bold rounded-full flex items-center justify-center hidden",
 		}),
 	)
@@ -723,7 +723,7 @@ func partnerBlock(params PartnerBlockParams) h.Node {
 
 func PartnerBlockPresenceIndicator(partnerID string, isOnline bool) h.Node {
 	return h.Div(h.KV{
-		h.AttrID: "profile-block-presence-indicator-" + partnerID,
+		h.AttrId: "profile-block-presence-indicator-" + partnerID,
 		h.AttrClass: "absolute bottom-0 right-0 w-3.5 h-3.5 bg-green rounded-full border-2 border-bg-primary " +
 			h.IfElse(!isOnline, "hidden", ""),
 	})
@@ -744,11 +744,11 @@ func ChatContainer(params ChatContainerParams) h.Node {
 	},
 		ChatContainerHeader(params.Partner),
 		h.Div(h.KV{
-			h.AttrID:    "messages-container",
+			h.AttrId:    "messages-container",
 			h.AttrClass: "flex-1 overflow-y-auto px-6 sm:px-10 py-4 flex flex-col-reverse gap-3",
 		},
 			h.Div(h.KV{
-				h.AttrID: "new-message-inserter",
+				h.AttrId: "new-message-inserter",
 				hx.AttrOn(hx.EventOobBeforeSwap): `
 					// don't insert the new message if it doesn't come from the active partner
 					if (window.currentActivePartnerId !== "` + params.Partner.ID + `") {
@@ -774,7 +774,7 @@ func ChatContainer(params ChatContainerParams) h.Node {
 
 func ChatContainerHeader(partner PartnerBlockParams) h.Node {
 	return h.Div(h.KV{
-		h.AttrID:    "chat-container-header-" + partner.ID,
+		h.AttrId:    "chat-container-header-" + partner.ID,
 		h.AttrClass: "h-16 px-4 bg-bg-secondary border-b border-bg-tertiary flex items-center gap-3",
 	},
 		h.Div(h.KV{h.AttrClass: "relative w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
@@ -790,7 +790,7 @@ func ChatContainerHeader(partner PartnerBlockParams) h.Node {
 
 func ChatContainerPresenceIndicator(partnerID string, isOnline bool) h.Node {
 	return h.Div(h.KV{
-		h.AttrID: "chat-container-presence-indicator-" + partnerID,
+		h.AttrId: "chat-container-presence-indicator-" + partnerID,
 		h.AttrClass: "absolute bottom-0 right-0 w-3.5 h-3.5 bg-green rounded-full border-2 border-bg-primary " +
 			h.IfElse(!isOnline, "hidden", ""),
 	})
@@ -919,7 +919,7 @@ func ChatInputForm(params ChatInputFormParams) h.Node {
 			`,
 		}),
 		h.Button(h.KV{
-			h.AttrID:    "send-btn",
+			h.AttrId:    "send-btn",
 			h.AttrType:  "submit",
 			h.AttrClass: "w-12 h-12 rounded-full bg-bg-primary hover:bg-bg-tertiary flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors",
 		},

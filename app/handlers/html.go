@@ -347,7 +347,7 @@ func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 	}
 
 	return render(c, h.Empty(
-		h.Div(h.KV{h.AttrID: "search-modal", hx.AttrSwapOob: hx.SwapDelete}),
+		h.Div(h.KV{h.AttrId: "search-modal", hx.AttrSwapOob: hx.SwapDelete}),
 
 		components.ChatContainer(components.ChatContainerParams{
 			Partner: components.PartnerBlockParams{
@@ -492,7 +492,7 @@ func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn)
 
 	if len(unreadCounts) > 0 {
 		return h.Render(w, h.Empty(
-			h.Div(h.KV{h.AttrID: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
+			h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
 				h.MapSlice(unreadCounts, func(uc services.UnreadCount) h.Node {
 					return h.Script(h.RawText(
 						fmt.Sprintf(`window.unreadManager.set("%s", %d);`, uc.PartnerID, uc.Count),
@@ -589,7 +589,7 @@ type newChatMessageResponseParams struct {
 
 func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 	return h.Empty(
-		h.Div(h.KV{h.AttrID: "new-message-inserter", hx.AttrSwapOob: hx.SwapAfterEnd},
+		h.Div(h.KV{h.AttrId: "new-message-inserter", hx.AttrSwapOob: hx.SwapAfterEnd},
 			h.Div(h.KV{"data-partner-id": params.PartnerID},
 				components.ChatMessage(components.ChatMessageParams{
 					ID:        params.MessageID,
@@ -602,16 +602,16 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 		),
 
 		h.If(!params.MessageIsFromMe,
-			h.Div(h.KV{h.AttrID: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
+			h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
 				h.Script(h.RawText(`
             window.unreadManager.add("`+params.PartnerID+`", 1);
         `)),
 			),
 		),
 
-		h.Div(h.KV{h.AttrID: "partner-" + params.PartnerID, hx.AttrSwapOob: hx.SwapDelete}),
+		h.Div(h.KV{h.AttrId: "partner-" + params.PartnerID, hx.AttrSwapOob: hx.SwapDelete}),
 
-		h.Div(h.KV{h.AttrID: "partners-list", hx.AttrSwapOob: hx.SwapAfterBegin},
+		h.Div(h.KV{h.AttrId: "partners-list", hx.AttrSwapOob: hx.SwapAfterBegin},
 			components.PartnersListItem(components.PartnerBlockParams{
 				ID:       params.PartnerID,
 				Name:     params.PartnerName,
@@ -637,7 +637,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 
 		// It's a notfication to the user
 		if message.PartnerID == "" {
-			return h.Render(w, h.Div(h.KV{h.AttrID: "user-block", hx.AttrSwapOob: hx.SwapOuterHtml},
+			return h.Render(w, h.Div(h.KV{h.AttrId: "user-block", hx.AttrSwapOob: hx.SwapOuterHtml},
 				components.UserBlock(components.UserBlockParams{
 					Name:     message.Name,
 					Username: message.Username,
@@ -652,7 +652,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 		}
 
 		return h.Render(w, h.Empty(
-			h.Div(h.KV{h.AttrID: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
+			h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
 				components.PartnersListItem(components.PartnerBlockParams{
 					ID:       message.PartnerID,
 					Name:     message.Name,
@@ -661,7 +661,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 				}),
 			),
 
-			h.Div(h.KV{h.AttrID: "chat-container-header-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
+			h.Div(h.KV{h.AttrId: "chat-container-header-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
 				components.ChatContainerHeader(components.PartnerBlockParams{
 					ID:       message.PartnerID,
 					Name:     message.Name,
@@ -687,11 +687,11 @@ func (me *HtmlHandler) chatPartnerPresenceEventHandler(userID string, c *websock
 		defer w.Close()
 
 		return h.Render(w, h.Empty(
-			h.Div(h.KV{h.AttrID: "profile-block-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
+			h.Div(h.KV{h.AttrId: "profile-block-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
 				components.PartnerBlockPresenceIndicator(message.PartnerID, message.IsOnline),
 			),
 
-			h.Div(h.KV{h.AttrID: "chat-container-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
+			h.Div(h.KV{h.AttrId: "chat-container-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
 				components.ChatContainerPresenceIndicator(message.PartnerID, message.IsOnline),
 			),
 		))
@@ -714,7 +714,7 @@ func (me *HtmlHandler) messagesWereReadEventHandler(userID string, c *websocket.
 		// It's a notfication to the user who read them
 		if message.UserID == userID {
 			return h.Render(w, h.Empty(
-				h.Div(h.KV{h.AttrID: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
+				h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
 					h.Script(h.RawText(
 						fmt.Sprintf(`window.unreadManager.sub("%s", %d);`, message.PartnerID, len(message.ReadMessageIDs)),
 					)),
@@ -725,7 +725,7 @@ func (me *HtmlHandler) messagesWereReadEventHandler(userID string, c *websocket.
 		// It's a notfication to the partner whose messaegs were read
 		return h.Render(w, h.Empty(
 			h.MapSlice(message.ReadMessageIDs, func(id string) h.Node {
-				return h.Div(h.KV{h.AttrID: "unread-message-indicator-" + id, hx.AttrSwapOob: hx.SwapOuterHtml},
+				return h.Div(h.KV{h.AttrId: "unread-message-indicator-" + id, hx.AttrSwapOob: hx.SwapOuterHtml},
 					components.ReadMessageIndicator(),
 				)
 			}),
