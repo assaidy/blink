@@ -561,8 +561,6 @@ func (me *HtmlHandler) handleSendMessage(userID string, c *websocket.Conn, messa
 		me.logger.Error("failed to send pending message component", "error", err)
 	}
 
-	time.Sleep(5 * time.Second)
-
 	if err := me.chatService.SendChatMessage(userID, message.PartnerID, message.Content, message.ClientMessageID); err != nil {
 		me.logger.Error("failed to send message with chat serivce", "error", err)
 	}
