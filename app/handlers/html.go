@@ -26,6 +26,7 @@ type HtmlHandler struct {
 	chatService     *services.ChatService
 	profileService  *services.ProfileService
 	presenceService *services.PresenceService
+	wsWriteMu       sync.Mutex
 }
 
 func NewHtmlHandler(
@@ -505,18 +506,26 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	}
 }
 
-func withWebsocketWriter(c *websocket.Conn, f func(w io.WriteCloser) error) error {
+func (me *HtmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteCloser) error) error {
+	// Mutex is required because NextWriter closes any existing writer, causing a race
+	// condition when multiple goroutines (e.g., pubsub handlers) call it concurrently.
+	me.wsWriteMu.Lock()
+	defer me.wsWriteMu.Unlock()
+
 	w, err := c.NextWriter(websocket.TextMessage)
 	if err != nil {
 		return fmt.Errorf("failed to get next writer for ws conn: %w", err)
 	}
-	defer w.Close()
 
-	return f(w)
+	if err := f(w); err != nil {
+		return err
+	}
+
+	return w.Close() // Flush
 }
 
 func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn) error {
-	return withWebsocketWriter(c, func(w io.WriteCloser) error {
+	return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 		unreadCounts, err := me.chatService.GetUnreadCounts(context.Background(), userID)
 		if err != nil {
 			return fmt.Errorf("failed to get unread counts: %w", err)
@@ -545,7 +554,7 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 			return nil
 		}
 
-		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			profile, err := me.profileService.GetProfile(message.PartnerID)
 			if err != nil {
 				return err
@@ -577,7 +586,7 @@ func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 			return nil
 		}
 
-		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			profile, err := me.profileService.GetProfile(message.PartnerID)
 			if err != nil {
 				return err
@@ -655,7 +664,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 			return nil
 		}
 
-		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			// It's a notfication to the user
 			if message.PartnerID == "" {
 				return h.Render(w, h.Div(h.KV{h.AttrId: "user-block", hx.AttrSwapOob: hx.SwapOuterHtml},
@@ -702,7 +711,7 @@ func (me *HtmlHandler) profileWasDeletedEventHandler(userID string, c *websocket
 			return nil
 		}
 
-		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return h.Render(w, h.Empty(
 				h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapDelete}),
 
@@ -721,7 +730,7 @@ func (me *HtmlHandler) chatPartnerPresenceEventHandler(userID string, c *websock
 			return nil
 		}
 
-		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return h.Render(w, h.Empty(
 				h.Div(h.KV{h.AttrId: "profile-block-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
 					components.PartnerBlockPresenceIndicator(message.PartnerID, message.IsOnline),
@@ -742,7 +751,7 @@ func (me *HtmlHandler) messagesWereReadEventHandler(userID string, c *websocket.
 			return nil
 		}
 
-		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			// It's a notfication to the user who read them
 			if message.UserID == userID {
 				return h.Render(w, h.Empty(
