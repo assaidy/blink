@@ -781,7 +781,7 @@ func ChatContainer(params ChatContainerParams) h.Node {
 			h.AttrClass: "flex-1 overflow-y-auto px-6 sm:px-10 py-4 flex flex-col-reverse gap-3",
 		},
 			h.Div(h.KV{
-				h.AttrId: "new-message-inserter",
+				h.AttrId: "new-message-inserter-" + params.Partner.ID,
 				hx.AttrOn(hx.EventOobBeforeSwap): `
 					// don't insert the new message if it doesn't come from the active partner
 					if (window.currentActivePartnerId !== "` + params.Partner.ID + `") {

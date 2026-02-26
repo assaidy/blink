@@ -547,7 +547,7 @@ func (me *HtmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteC
 func (me *HtmlHandler) handleSendMessage(userID string, c *websocket.Conn, message WebsocketMessage) {
 	if err := me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 		return h.Render(w,
-			h.Div(h.KV{h.AttrId: "new-message-inserter", hx.AttrSwapOob: hx.SwapAfterEnd},
+			h.Div(h.KV{h.AttrId: "new-message-inserter-" + message.PartnerID, hx.AttrSwapOob: hx.SwapAfterEnd},
 				components.ChatMessage(components.ChatMessageParams{
 					ClientMessageID: message.ClientMessageID,
 					PartnerID:       message.PartnerID,
@@ -672,7 +672,7 @@ type newChatMessageResponseParams struct {
 
 func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 	return h.Empty(
-		h.Div(h.KV{h.AttrId: "new-message-inserter", hx.AttrSwapOob: hx.SwapAfterEnd},
+		h.Div(h.KV{h.AttrId: "new-message-inserter-" + params.PartnerID, hx.AttrSwapOob: hx.SwapAfterEnd},
 			h.Div(h.KV{"data-partner-id": params.PartnerID},
 				components.ChatMessage(components.ChatMessageParams{
 					ID:        params.MessageID,
