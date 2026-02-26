@@ -460,9 +460,9 @@ func (me *ApiHandler) HandleWebsocket(c *websocket.Conn) {
 	go me.presenceService.StartHeartbeat(ctx, userID, sessionID)
 
 	go me.pubsub.Subscribe(ctx,
-		services.ChatPartnerPresenceEvent,
-		pubsub.JsonPayloadGenerator[services.ChatPartnerPresenceEventPayload],
-		me.chatPartnerPresenceEventHandler(userID, c),
+		services.PartnerPresenceEvent,
+		pubsub.JsonPayloadGenerator[services.PartnerPresenceEventPayload],
+		me.partnerPresenceEventHandler(userID, c),
 	)
 	go me.pubsub.Subscribe(ctx,
 		services.ChatWasDeletedEvent,
@@ -474,11 +474,11 @@ func (me *ApiHandler) HandleWebsocket(c *websocket.Conn) {
 		pubsub.JsonPayloadGenerator[services.MessagesWereReadEventPayload],
 		me.messagesWereReadEventHandler(userID, c),
 	)
-	go me.pubsub.Subscribe(ctx,
-		services.ProfileWasUpdatedEvent,
-		pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
-		me.profileWasUpdatedEventHandler(userID, c),
-	)
+	// go me.pubsub.Subscribe(ctx,
+	// 	services.ProfileWasUpdatedEvent,
+	// 	pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
+	// 	me.profileWasUpdatedEventHandler(userID, c),
+	// )
 	go me.pubsub.Subscribe(ctx,
 		services.PartnerProfileWasDeletedEvent,
 		pubsub.JsonPayloadGenerator[services.PartnerProfileWasDeletedEventPayload],
@@ -516,9 +516,9 @@ func (me *ApiHandler) HandleWebsocket(c *websocket.Conn) {
 	}
 }
 
-func (me *ApiHandler) chatPartnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *ApiHandler) partnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
-		message := payload.(services.ChatPartnerPresenceEventPayload)
+		message := payload.(services.PartnerPresenceEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
@@ -559,23 +559,23 @@ func (me *ApiHandler) messagesWereReadEventHandler(userID string, c *websocket.C
 	}
 }
 
-func (me *ApiHandler) profileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
-	return func(payload any) error {
-		message := payload.(services.ProfileWasUpdatedEventPayload)
-		if message.UserID != userID && message.PartnerID != userID {
-			return nil
-		}
-		// FIX: match the html handler. check all api/event handlers
-		return c.WriteJSON(WebsocketMessage{
-			Kind:      ProfileWasUpdated,
-			UserID:    message.UserID,
-			PartnerID: message.PartnerID,
-			Name:      message.Name,
-			Email:     message.Email,
-			Bio:       message.Bio,
-		})
-	}
-}
+// func (me *ApiHandler) profileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+// 	return func(payload any) error {
+// 		message := payload.(services.ProfileWasUpdatedEventPayload)
+// 		if message.UserID != userID && message.PartnerID != userID {
+// 			return nil
+// 		}
+// 		// FIX: match the html handler. check all api/event handlers
+// 		return c.WriteJSON(WebsocketMessage{
+// 			Kind:      ProfileWasUpdated,
+// 			UserID:    message.UserID,
+// 			PartnerID: message.PartnerID,
+// 			Name:      message.Name,
+// 			Email:     message.Email,
+// 			Bio:       message.Bio,
+// 		})
+// 	}
+// }
 
 func (me *ApiHandler) profileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {

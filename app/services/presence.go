@@ -35,13 +35,13 @@ func presenceKey(userID string) string {
 }
 
 const (
-	ChatPartnerPresenceEvent = "ChatPartnerPresence"
+	PartnerPresenceEvent = "ChatPartnerPresence"
 
 	presenceHeartbeatTick = 2 * time.Second
 	offlineTimeout        = 5 * time.Second
 )
 
-type ChatPartnerPresenceEventPayload struct {
+type PartnerPresenceEventPayload struct {
 	UserID    string `json:"userID"`
 	PartnerID string `json:"partnerID"`
 	IsOnline  bool   `json:"isOnline"`
@@ -110,9 +110,9 @@ func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, 
 
 	for _, id := range partnerIDs {
 		if me.pubsub.Publish(ctx,
-			ChatPartnerPresenceEvent,
+			PartnerPresenceEvent,
 			pubsub.JsonMessageGenerator,
-			ChatPartnerPresenceEventPayload{
+			PartnerPresenceEventPayload{
 				UserID:    id,
 				PartnerID: userID,
 				IsOnline:  change,

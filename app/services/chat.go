@@ -96,7 +96,7 @@ func (me *ChatService) DeleteChat(userID, partnerID string) error {
 		UserID:    userID,
 		PartnerID: partnerID,
 	}); err != nil {
-		return fmt.Errorf("failed to publish event %s: %w", ChatPartnerPresenceEvent, err)
+		return fmt.Errorf("failed to publish event %s: %w", PartnerPresenceEvent, err)
 	}
 
 	return nil

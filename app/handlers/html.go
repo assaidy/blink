@@ -428,26 +428,43 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	me.logger.Info("websocket connection", "user", userID, "session", sessionID)
 	defer me.logger.Info("websocket disconnection", "user", userID, "session", sessionID)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	// NOTE: defering wg.Wait() before defering cancel() is critical.
+	// If not the wg.Wait() will be called before cancel(),
+	// and block this go routine i.e. never close ws connection/subscribers.
 	var wg sync.WaitGroup
 	defer wg.Wait()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	wg.Go(func() { me.presenceService.StartHeartbeat(ctx, userID, sessionID) })
 
 	wg.Go(func() {
 		me.pubsub.Subscribe(ctx,
-			services.ProfileWasUpdatedEvent,
-			pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
-			me.profileWasUpdatedEventHandler(userID, c),
+			services.PartnerPresenceEvent,
+			pubsub.JsonPayloadGenerator[services.PartnerPresenceEventPayload],
+			me.partnerPresenceEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.UserProfileWasUpdatedEvent,
+			pubsub.JsonPayloadGenerator[services.UserProfileWasUpdatedEventPayload],
+			me.userProfileWasUpdatedEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.PartnerProfileWasUpdatedEvent,
+			pubsub.JsonPayloadGenerator[services.PartnerProfileWasUpdatedEventPayload],
+			me.partnerProfileWasUpdatedEventHandler(userID, c),
 		)
 	})
 	wg.Go(func() {
 		me.pubsub.Subscribe(ctx,
 			services.PartnerProfileWasDeletedEvent,
 			pubsub.JsonPayloadGenerator[services.PartnerProfileWasDeletedEventPayload],
-			me.profileWasDeletedEventHandler(userID, c),
+			me.partnerProfileWasDeletedEventHandler(userID, c),
 		)
 	})
 	wg.Go(func() {
@@ -459,23 +476,16 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	})
 	wg.Go(func() {
 		me.pubsub.Subscribe(ctx,
-			services.IncommingMessageEvent,
-			pubsub.JsonPayloadGenerator[services.IncommingMessageEventPayload],
-			me.incommingMessageEventHandler(userID, c),
-		)
-	})
-	wg.Go(func() {
-		me.pubsub.Subscribe(ctx,
-			services.ChatPartnerPresenceEvent,
-			pubsub.JsonPayloadGenerator[services.ChatPartnerPresenceEventPayload],
-			me.chatPartnerPresenceEventHandler(userID, c),
-		)
-	})
-	wg.Go(func() {
-		me.pubsub.Subscribe(ctx,
 			services.MessagesWereReadEvent,
 			pubsub.JsonPayloadGenerator[services.MessagesWereReadEventPayload],
 			me.messagesWereReadEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.IncommingMessageEvent,
+			pubsub.JsonPayloadGenerator[services.IncommingMessageEventPayload],
+			me.incommingMessageEventHandler(userID, c),
 		)
 	})
 
@@ -516,12 +526,9 @@ func (me *HtmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteC
 	if err != nil {
 		return fmt.Errorf("failed to get next writer for ws conn: %w", err)
 	}
+	defer w.Close() // Flush
 
-	if err := f(w); err != nil {
-		return err
-	}
-
-	return w.Close() // Flush
+	return f(w)
 }
 
 func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn) error {
@@ -656,31 +663,37 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 	)
 }
 
-// TODO: Use separate events for user and parnter
-func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *HtmlHandler) userProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
-		message := payload.(services.ProfileWasUpdatedEventPayload)
+		message := payload.(services.UserProfileWasUpdatedEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			// It's a notfication to the user
-			if message.PartnerID == "" {
-				return h.Render(w, h.Div(h.KV{h.AttrId: "user-block", hx.AttrSwapOob: hx.SwapOuterHtml},
-					components.UserBlock(components.UserBlockParams{
-						Name:     message.Name,
-						Username: message.Username,
-					}),
-				))
-			}
+			return h.Render(w, h.Div(h.KV{h.AttrId: "user-block", hx.AttrSwapOob: hx.SwapOuterHtml},
+				components.UserBlock(components.UserBlockParams{
+					Name:     message.Name,
+					Username: message.Username,
+				}),
+			))
+		})
+	}
+}
 
-			// It's a notfication to the partner
-			isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
-			if err != nil {
-				return err
-			}
+func (me *HtmlHandler) partnerProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.PartnerProfileWasUpdatedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
 
+		isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
+		if err != nil {
+			return err
+		}
+
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return h.Render(w, h.Empty(
 				h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
 					components.PartnersListItem(components.PartnerBlockParams{
@@ -704,7 +717,7 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 	}
 }
 
-func (me *HtmlHandler) profileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *HtmlHandler) partnerProfileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerProfileWasDeletedEventPayload)
 		if message.UserID != userID {
@@ -723,9 +736,9 @@ func (me *HtmlHandler) profileWasDeletedEventHandler(userID string, c *websocket
 	}
 }
 
-func (me *HtmlHandler) chatPartnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *HtmlHandler) partnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
-		message := payload.(services.ChatPartnerPresenceEventPayload)
+		message := payload.(services.PartnerPresenceEventPayload)
 		if message.UserID != userID {
 			return nil
 		}

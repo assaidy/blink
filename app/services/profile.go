@@ -73,15 +73,22 @@ func validateProfileUpdateParams(name, username, email, bio string) error {
 	)
 }
 
-const ProfileWasUpdatedEvent = "ProfileWasUpdatedEvent"
+const (
+	UserProfileWasUpdatedEvent    = "UserProfileWasUpdatedEvent"
+	PartnerProfileWasUpdatedEvent = "PartnerProfileWasUpdatedEvent"
+)
 
-type ProfileWasUpdatedEventPayload struct {
+type UserProfileWasUpdatedEventPayload struct {
+	UserID   string `json:"userID"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+}
+
+type PartnerProfileWasUpdatedEventPayload struct {
 	UserID    string `json:"userID"`
-	PartnerID string `json:"partnerID"` // Empty when notifying self
+	PartnerID string `json:"partnerID"`
 	Name      string `json:"name"`
 	Username  string `json:"username"`
-	Email     string `json:"email"`
-	Bio       string `json:"bio"`
 }
 
 func (me *ProfileService) UpdateProfile(userID, name, username, email, bio string) error {
@@ -141,17 +148,15 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 	}
 
 	if err := me.pubsub.Publish(ctx,
-		ProfileWasUpdatedEvent,
+		UserProfileWasUpdatedEvent,
 		pubsub.JsonMessageGenerator,
-		ProfileWasUpdatedEventPayload{
+		UserProfileWasUpdatedEventPayload{
 			UserID:   userID,
 			Name:     name,
 			Username: username,
-			Email:    email,
-			Bio:      bio,
 		},
 	); err != nil {
-		return fmt.Errorf("failed to publish event %s: %w", ProfileWasUpdatedEvent, err)
+		return fmt.Errorf("failed to publish event %s: %w", UserProfileWasUpdatedEvent, err)
 	}
 
 	partnerIDs, err := me.queries.GetAllChatPartnerIDs(ctx, userID)
@@ -161,18 +166,16 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 
 	for _, id := range partnerIDs {
 		if err := me.pubsub.Publish(ctx,
-			ProfileWasUpdatedEvent,
+			PartnerProfileWasUpdatedEvent,
 			pubsub.JsonMessageGenerator,
-			ProfileWasUpdatedEventPayload{
+			PartnerProfileWasUpdatedEventPayload{
 				UserID:    id,
 				PartnerID: userID,
 				Name:      name,
 				Username:  username,
-				Email:     email,
-				Bio:       bio,
 			},
 		); err != nil {
-			return fmt.Errorf("failed to publish event %s: %w", ProfileWasUpdatedEvent, err)
+			return fmt.Errorf("failed to publish event %s: %w", PartnerProfileWasUpdatedEvent, err)
 		}
 	}
 
