@@ -182,7 +182,7 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 	return nil
 }
 
-const PartnerProfileWasDeletedEvent = "ProfileWasDeletedEvent"
+const PartnerProfileWasDeletedEvent = "PartnerProfileWasDeletedEvent"
 
 type PartnerProfileWasDeletedEventPayload struct {
 	UserID    string `json:"userID"`

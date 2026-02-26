@@ -35,8 +35,7 @@ func presenceKey(userID string) string {
 }
 
 const (
-	PartnerPresenceEvent = "ChatPartnerPresence"
-
+	PartnerPresenceEvent  = "PartnerPresenceEvent"
 	presenceHeartbeatTick = 2 * time.Second
 	offlineTimeout        = 5 * time.Second
 )

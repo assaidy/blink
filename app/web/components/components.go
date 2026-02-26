@@ -191,37 +191,46 @@ func ChatPage(params ChatPageParams) h.Node {
 			};
 		`)),
 		h.Script(h.RawText(`
-				window.unreadManager = new class {
-            constructor() {
-							this.counts = {};
-            }
-            set(partnerID, delta) {
-							this.counts[partnerID] = delta;
-							setTimeout(() => {
-								this.updateBadge(partnerID);
-							}, 100);
-            }
-            add(partnerID, delta) {
-							this.counts[partnerID] = (this.counts[partnerID] || 0) + delta;
-							// this.updateBadge(partnerID);
-            }
-            sub(partnerID, delta) {
-							this.counts[partnerID] = Math.max(0, (this.counts[partnerID] || 0) - delta);
+			window.unreadManager = new class {
+					constructor() {
+						this.counts = {};
+					}
+					set(partnerID, delta) {
+						this.counts[partnerID] = delta;
+						setTimeout(() => {
 							this.updateBadge(partnerID);
-            }
-						updateBadge(partnerID) {
-							const badge = document.getElementById('unread-count-badge-' + partnerID);
-							if (!badge) return;
-							const count = this.counts[partnerID] || 0;
-							if (count > 0) {
-								badge.textContent = count > 99 ? '99+' : count;
-								badge.classList.remove('hidden');
-							} else {
-								badge.textContent = '';
-								badge.classList.add('hidden');
-							}
+						}, 100);
+					}
+					add(partnerID, delta) {
+						this.counts[partnerID] = (this.counts[partnerID] || 0) + delta;
+						// this.updateBadge(partnerID);
+					}
+					sub(partnerID, delta) {
+						this.counts[partnerID] = Math.max(0, (this.counts[partnerID] || 0) - delta);
+						this.updateBadge(partnerID);
+					}
+					updateBadge(partnerID) {
+						const badge = document.getElementById('unread-count-badge-' + partnerID);
+						if (!badge) return;
+						const count = this.counts[partnerID] || 0;
+						if (count > 0) {
+							badge.textContent = count > 99 ? '99+' : count;
+							badge.classList.remove('hidden');
+						} else {
+							badge.textContent = '';
+							badge.classList.add('hidden');
 						}
-        };
+					}
+			};
+
+			window.messageIDGenerator = new class {
+				constructor() {
+					this.id = 1;
+				}
+				GetID() {
+					return this.id++;
+				}
+			};
 		`)),
 		h.Div(h.KV{h.AttrId: "unread-manager-anchor"}),
 		// Actual page content
@@ -852,33 +861,50 @@ func ChatMessagesList(params ChatMessagesListParams) h.Node {
 	})
 }
 
+type ChatMessageStatus int
+
+const (
+	StatusPending ChatMessageStatus = iota
+	StatusSent
+	StatusRead
+)
+
 type ChatMessageParams struct {
-	ID        string
-	PartnerID string
-	Content   string
-	SentAt    time.Time
-	IsRead    bool
-	FromMe    bool
+	ID              string
+	ClientMessageID int
+	PartnerID       string
+	Content         string
+	SentAt          time.Time
+	Status          ChatMessageStatus
+	FromMe          bool
 }
 
 func ChatMessage(params ChatMessageParams) h.Node {
 	return h.Div(
-		h.IfElse(!params.FromMe && !params.IsRead,
+		h.IfElse(!params.FromMe && params.Status == StatusSent,
 			h.KV{
 				hx.AttrPost:    "/api/v1/chats/" + params.PartnerID + "/mark_as_read?upto_message_id=" + params.ID,
 				hx.AttrTrigger: "intersect once",
 				hx.AttrSwap:    hx.SwapNone,
 			},
-			nil,
+			h.KV{h.AttrId: fmt.Sprintf("pending-chat-message-%d", params.ClientMessageID)},
 		),
 		h.Div(h.KV{h.AttrClass: "flex w-full " + h.IfElse(params.FromMe, "justify-end", "justify-start")},
 			h.Div(h.KV{h.AttrClass: "flex flex-col " + h.IfElse(params.FromMe, "items-end", "items-start") + " max-w-[70%]"},
 				h.Div(h.KV{h.AttrClass: "px-4 py-2 " + h.IfElse(params.FromMe, "bg-blue text-bg-primary rounded-l-2xl rounded-tr-2xl", "bg-bg-tertiary text-fg-primary rounded-r-2xl rounded-tl-2xl")},
 					h.P(h.KV{h.AttrClass: "whitespace-pre-wrap"}, params.Content),
 					h.Div(h.KV{h.AttrClass: "flex items-center gap-1 mt-1 justify-end"},
-						h.P(h.KV{h.AttrClass: "text-xs " + h.IfElse(params.FromMe, "text-bg-primary/70", "text-fg-secondary")}, params.SentAt.Format("Jan 2, 3:04 PM")),
+						h.If(params.Status != StatusPending,
+							h.P(h.KV{h.AttrClass: "text-xs " + h.IfElse(params.FromMe, "text-bg-primary/70", "text-fg-secondary")}, params.SentAt.Format("Jan 2, 3:04 PM")),
+						),
 						h.If(params.FromMe,
-							h.IfElse(params.IsRead, ReadMessageIndicator(), unreadMessageIndicator(params.ID)),
+							h.IfElse(params.Status == StatusPending,
+								PendingMessageIndicator(),
+								h.IfElse(params.Status == StatusSent,
+									sentMessageIndicator(params.ID),
+									ReadMessageIndicator(),
+								),
+							),
 						),
 					),
 				),
@@ -887,11 +913,15 @@ func ChatMessage(params ChatMessageParams) h.Node {
 	)
 }
 
+func PendingMessageIndicator() h.Node {
+	return h.Span(h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary animate-spin" style="animation-duration: 1s;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`))
+}
+
 func ReadMessageIndicator() h.Node {
 	return h.Span(h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary"><polyline points="16 6 8 14 4 10"></polyline><polyline points="22 6 14 14 10 10"></polyline></svg>`))
 }
 
-func unreadMessageIndicator(messageID string) h.Node {
+func sentMessageIndicator(messageID string) h.Node {
 	return h.Span(h.RawText(fmt.Sprintf(`
 		<svg id="unread-message-indicator-%s" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-bg-primary"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
 		messageID,
@@ -902,9 +932,6 @@ type ChatInputFormParams struct {
 	PartnerID string
 }
 
-// TODO: Handle message retry when failing,
-// and add an indicator when sending message until
-// a confirmation message is recived `MessageWasSent`.
 func ChatInputForm(params ChatInputFormParams) h.Node {
 	return h.Form(h.KV{
 		"ws-send": true,
@@ -915,6 +942,7 @@ func ChatInputForm(params ChatInputFormParams) h.Node {
 				return;
 			}
 			event.detail.parameters.content = content;
+			event.detail.parameters.clientMessageID = window.messageIDGenerator.GetID();
 		`,
 		hx.AttrOn(":ws-after-send"): `
 			const textarea = event.detail.elt.querySelector('textarea[name="content"]');

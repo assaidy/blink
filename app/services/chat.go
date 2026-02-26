@@ -211,7 +211,6 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 		return ErrUnauthorized
 	}
 
-	// TODO: Make message writing async
 	messageID := ulid.Make().String()
 	timestamp := time.Now()
 	if err := qtx.InsertChatMessage(ctx, repo.InsertChatMessageParams{

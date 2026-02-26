@@ -29,6 +29,10 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
+// TODO: Use fiber v3
+// TODO: remove the scripts from hyper/htmx. add attributes for WS and SSE extensions,
+// and hint the user to install the extensions.
+
 type App struct {
 	logger          *slog.Logger
 	db              *sql.DB

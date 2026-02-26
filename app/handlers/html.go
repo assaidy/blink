@@ -414,7 +414,7 @@ func (me *HtmlHandler) HandleChatMessages(c *fiber.Ctx) error {
 			ID:      m.ID,
 			Content: m.Content,
 			SentAt:  m.SentAt,
-			IsRead:  m.IsRead,
+			Status:  h.IfElse(m.IsRead, components.StatusRead, components.StatusSent),
 			FromMe:  m.FromMe,
 		})
 	}
@@ -509,12 +509,7 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	me.sendUnreadMessageCounts(userID, c)
 
 	for {
-		var message struct {
-			Kind      string `json:"kind"`
-			PartnerID string `json:"partnerID"`
-			Content   string `json:"content"`
-		}
-
+		var message WebsocketMessage
 		if err := c.ReadJSON(&message); err != nil {
 			if websocket.IsUnexpectedCloseError(err) {
 				break
@@ -525,10 +520,7 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 
 		switch message.Kind {
 		case SendMessage:
-			// I didn't need to use client messag id. It might be useful for the api handler.
-			if err := me.chatService.SendChatMessage(userID, message.PartnerID, message.Content, 0); err != nil {
-				me.logger.Error("failed to send message with chat serivce", "error", err)
-			}
+			me.handleSendMessage(userID, c, message)
 		}
 	}
 }
@@ -550,6 +542,30 @@ func (me *HtmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteC
 	defer w.Close() // Flush
 
 	return f(w)
+}
+
+func (me *HtmlHandler) handleSendMessage(userID string, c *websocket.Conn, message WebsocketMessage) {
+	if err := me.withWebsocketWriter(c, func(w io.WriteCloser) error {
+		return h.Render(w,
+			h.Div(h.KV{h.AttrId: "new-message-inserter", hx.AttrSwapOob: hx.SwapAfterEnd},
+				components.ChatMessage(components.ChatMessageParams{
+					ClientMessageID: message.ClientMessageID,
+					PartnerID:       message.PartnerID,
+					Content:         message.Content,
+					FromMe:          true,
+					Status:          components.StatusPending,
+				}),
+			),
+		)
+	}); err != nil {
+		me.logger.Error("failed to send pending message component", "error", err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	if err := me.chatService.SendChatMessage(userID, message.PartnerID, message.Content, message.ClientMessageID); err != nil {
+		me.logger.Error("failed to send message with chat serivce", "error", err)
+	}
 }
 
 func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn) error {
@@ -593,16 +609,23 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 				return err
 			}
 
-			return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
-				PartnerID:        message.PartnerID,
-				PartnerName:      profile.Name,
-				PartnerUsername:  profile.Username,
-				PartnerIsOnline:  isOnline,
-				MessageID:        message.MessageID,
-				MessageContent:   message.Content,
-				MessageTimestamp: message.Timestamp,
-				MessageIsFromMe:  true,
-			}))
+			return h.Render(w, h.Empty(
+				h.Div(h.KV{
+					h.AttrId:       fmt.Sprintf("pending-chat-message-%d", message.ClientMessageID),
+					hx.AttrSwapOob: hx.SwapDelete,
+				}),
+
+				newChatMessageResponse(newChatMessageResponseParams{
+					PartnerID:        message.PartnerID,
+					PartnerName:      profile.Name,
+					PartnerUsername:  profile.Username,
+					PartnerIsOnline:  isOnline,
+					MessageID:        message.MessageID,
+					MessageContent:   message.Content,
+					MessageTimestamp: message.Timestamp,
+					MessageIsFromMe:  true,
+				}),
+			))
 		})
 	}
 }
@@ -659,6 +682,7 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 					SentAt:    params.MessageTimestamp,
 					FromMe:    params.MessageIsFromMe,
 					PartnerID: params.PartnerID,
+					Status:    components.StatusSent,
 				}),
 			),
 		),
