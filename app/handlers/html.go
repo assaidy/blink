@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/assaidy/blink/app/services"
@@ -428,49 +430,63 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go me.presenceService.StartHeartbeat(ctx, userID, sessionID)
+	var wg sync.WaitGroup
+	defer wg.Wait()
 
-	go me.pubsub.Subscribe(ctx,
-		services.ProfileWasUpdatedEvent,
-		pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
-		me.profileWasUpdatedEventHandler(userID, c),
-	)
-	go me.pubsub.Subscribe(ctx,
-		services.PartnerProfileWasDeletedEvent,
-		pubsub.JsonPayloadGenerator[services.PartnerProfileWasDeletedEventPayload],
-		me.profileWasDeletedEventHandler(userID, c),
-	)
-	go me.pubsub.Subscribe(ctx,
-		services.MessageWasSentEvent,
-		pubsub.JsonPayloadGenerator[services.MessageWasSentEventPayload],
-		me.messageWasSentEventHandler(userID, c),
-	)
-	go me.pubsub.Subscribe(ctx,
-		services.IncommingMessageEvent,
-		pubsub.JsonPayloadGenerator[services.IncommingMessageEventPayload],
-		me.incommingMessageEventHandler(userID, c),
-	)
-	go me.pubsub.Subscribe(ctx,
-		services.ChatPartnerPresenceEvent,
-		pubsub.JsonPayloadGenerator[services.ChatPartnerPresenceEventPayload],
-		me.chatPartnerPresenceEventHandler(userID, c),
-	)
-	go me.pubsub.Subscribe(ctx,
-		services.MessagesWereReadEvent,
-		pubsub.JsonPayloadGenerator[services.MessagesWereReadEventPayload],
-		me.messagesWereReadEventHandler(userID, c),
-	)
+	wg.Go(func() { me.presenceService.StartHeartbeat(ctx, userID, sessionID) })
+
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.ProfileWasUpdatedEvent,
+			pubsub.JsonPayloadGenerator[services.ProfileWasUpdatedEventPayload],
+			me.profileWasUpdatedEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.PartnerProfileWasDeletedEvent,
+			pubsub.JsonPayloadGenerator[services.PartnerProfileWasDeletedEventPayload],
+			me.profileWasDeletedEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.MessageWasSentEvent,
+			pubsub.JsonPayloadGenerator[services.MessageWasSentEventPayload],
+			me.messageWasSentEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.IncommingMessageEvent,
+			pubsub.JsonPayloadGenerator[services.IncommingMessageEventPayload],
+			me.incommingMessageEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.ChatPartnerPresenceEvent,
+			pubsub.JsonPayloadGenerator[services.ChatPartnerPresenceEventPayload],
+			me.chatPartnerPresenceEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.MessagesWereReadEvent,
+			pubsub.JsonPayloadGenerator[services.MessagesWereReadEventPayload],
+			me.messagesWereReadEventHandler(userID, c),
+		)
+	})
 
 	me.sendUnreadMessageCounts(userID, c)
 
-	type Message struct {
-		Kind      string `json:"kind"`
-		PartnerID string `json:"partnerID"`
-		Content   string `json:"content"`
-	}
-
 	for {
-		var message Message
+		var message struct {
+			Kind      string `json:"kind"`
+			PartnerID string `json:"partnerID"`
+			Content   string `json:"content"`
+		}
+
 		if err := c.ReadJSON(&message); err != nil {
 			if websocket.IsUnexpectedCloseError(err) {
 				break
@@ -489,31 +505,37 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	}
 }
 
-func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn) error {
+func withWebsocketWriter(c *websocket.Conn, f func(w io.WriteCloser) error) error {
 	w, err := c.NextWriter(websocket.TextMessage)
 	if err != nil {
 		return fmt.Errorf("failed to get next writer for ws conn: %w", err)
 	}
 	defer w.Close()
 
-	unreadCounts, err := me.chatService.GetUnreadCounts(context.Background(), userID)
-	if err != nil {
-		return fmt.Errorf("failed to get unread counts: %w", err)
-	}
+	return f(w)
+}
 
-	if len(unreadCounts) > 0 {
-		return h.Render(w, h.Empty(
-			h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
-				h.MapSlice(unreadCounts, func(uc services.UnreadCount) h.Node {
-					return h.Script(h.RawText(
-						fmt.Sprintf(`window.unreadManager.set("%s", %d);`, uc.PartnerID, uc.Count),
-					))
-				}),
-			),
-		))
-	}
+func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn) error {
+	return withWebsocketWriter(c, func(w io.WriteCloser) error {
+		unreadCounts, err := me.chatService.GetUnreadCounts(context.Background(), userID)
+		if err != nil {
+			return fmt.Errorf("failed to get unread counts: %w", err)
+		}
 
-	return nil
+		if len(unreadCounts) > 0 {
+			return h.Render(w, h.Empty(
+				h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
+					h.MapSlice(unreadCounts, func(uc services.UnreadCount) h.Node {
+						return h.Script(h.RawText(
+							fmt.Sprintf(`window.unreadManager.set("%s", %d);`, uc.PartnerID, uc.Count),
+						))
+					}),
+				),
+			))
+		}
+
+		return nil
+	})
 }
 
 func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
@@ -523,32 +545,28 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 			return nil
 		}
 
-		w, err := c.NextWriter(websocket.TextMessage)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
+		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+			profile, err := me.profileService.GetProfile(message.PartnerID)
+			if err != nil {
+				return err
+			}
 
-		profile, err := me.profileService.GetProfile(message.PartnerID)
-		if err != nil {
-			return err
-		}
+			isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
+			if err != nil {
+				return err
+			}
 
-		isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
-		if err != nil {
-			return err
-		}
-
-		return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
-			PartnerID:        message.PartnerID,
-			PartnerName:      profile.Name,
-			PartnerUsername:  profile.Username,
-			PartnerIsOnline:  isOnline,
-			MessageID:        message.MessageID,
-			MessageContent:   message.Content,
-			MessageTimestamp: message.Timestamp,
-			MessageIsFromMe:  true,
-		}))
+			return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
+				PartnerID:        message.PartnerID,
+				PartnerName:      profile.Name,
+				PartnerUsername:  profile.Username,
+				PartnerIsOnline:  isOnline,
+				MessageID:        message.MessageID,
+				MessageContent:   message.Content,
+				MessageTimestamp: message.Timestamp,
+				MessageIsFromMe:  true,
+			}))
+		})
 	}
 }
 
@@ -559,31 +577,27 @@ func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 			return nil
 		}
 
-		w, err := c.NextWriter(websocket.TextMessage)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
+		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+			profile, err := me.profileService.GetProfile(message.PartnerID)
+			if err != nil {
+				return err
+			}
 
-		profile, err := me.profileService.GetProfile(message.PartnerID)
-		if err != nil {
-			return err
-		}
+			isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
+			if err != nil {
+				return err
+			}
 
-		isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
-		if err != nil {
-			return err
-		}
-
-		return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
-			PartnerID:        message.PartnerID,
-			PartnerName:      profile.Name,
-			PartnerUsername:  profile.Username,
-			PartnerIsOnline:  isOnline,
-			MessageID:        message.MessageID,
-			MessageContent:   message.Content,
-			MessageTimestamp: message.Timestamp,
-		}))
+			return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
+				PartnerID:        message.PartnerID,
+				PartnerName:      profile.Name,
+				PartnerUsername:  profile.Username,
+				PartnerIsOnline:  isOnline,
+				MessageID:        message.MessageID,
+				MessageContent:   message.Content,
+				MessageTimestamp: message.Timestamp,
+			}))
+		})
 	}
 }
 
@@ -641,47 +655,43 @@ func (me *HtmlHandler) profileWasUpdatedEventHandler(userID string, c *websocket
 			return nil
 		}
 
-		w, err := c.NextWriter(websocket.TextMessage)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
+		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+			// It's a notfication to the user
+			if message.PartnerID == "" {
+				return h.Render(w, h.Div(h.KV{h.AttrId: "user-block", hx.AttrSwapOob: hx.SwapOuterHtml},
+					components.UserBlock(components.UserBlockParams{
+						Name:     message.Name,
+						Username: message.Username,
+					}),
+				))
+			}
 
-		// It's a notfication to the user
-		if message.PartnerID == "" {
-			return h.Render(w, h.Div(h.KV{h.AttrId: "user-block", hx.AttrSwapOob: hx.SwapOuterHtml},
-				components.UserBlock(components.UserBlockParams{
-					Name:     message.Name,
-					Username: message.Username,
-				}),
+			// It's a notfication to the partner
+			isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
+			if err != nil {
+				return err
+			}
+
+			return h.Render(w, h.Empty(
+				h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
+					components.PartnersListItem(components.PartnerBlockParams{
+						ID:       message.PartnerID,
+						Name:     message.Name,
+						Username: message.Username,
+						IsOnline: isOnline,
+					}),
+				),
+
+				h.Div(h.KV{h.AttrId: "chat-container-header-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
+					components.ChatContainerHeader(components.PartnerBlockParams{
+						ID:       message.PartnerID,
+						Name:     message.Name,
+						Username: message.Username,
+						IsOnline: isOnline,
+					}),
+				),
 			))
-		}
-
-		// It's a notfication to the partner
-		isOnline, err := me.presenceService.IsUserOnline(context.Background(), message.PartnerID)
-		if err != nil {
-			return err
-		}
-
-		return h.Render(w, h.Empty(
-			h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
-				components.PartnersListItem(components.PartnerBlockParams{
-					ID:       message.PartnerID,
-					Name:     message.Name,
-					Username: message.Username,
-					IsOnline: isOnline,
-				}),
-			),
-
-			h.Div(h.KV{h.AttrId: "chat-container-header-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
-				components.ChatContainerHeader(components.PartnerBlockParams{
-					ID:       message.PartnerID,
-					Name:     message.Name,
-					Username: message.Username,
-					IsOnline: isOnline,
-				}),
-			),
-		))
+		})
 	}
 }
 
@@ -692,20 +702,15 @@ func (me *HtmlHandler) profileWasDeletedEventHandler(userID string, c *websocket
 			return nil
 		}
 
-		w, err := c.NextWriter(websocket.TextMessage)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
+		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+			return h.Render(w, h.Empty(
+				h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapDelete}),
 
-		return h.Render(w, h.Empty(
-			h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrSwapOob: hx.SwapDelete}),
-
-			h.Div(h.KV{h.AttrId: "chat-container", hx.AttrSwapOob: hx.SwapInnerHtml},
-				components.ChatContainerPlaceholder(),
-			),
-		))
-
+				h.Div(h.KV{h.AttrId: "chat-container", hx.AttrSwapOob: hx.SwapInnerHtml},
+					components.ChatContainerPlaceholder(),
+				),
+			))
+		})
 	}
 }
 
@@ -716,21 +721,17 @@ func (me *HtmlHandler) chatPartnerPresenceEventHandler(userID string, c *websock
 			return nil
 		}
 
-		w, err := c.NextWriter(websocket.TextMessage)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
+		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+			return h.Render(w, h.Empty(
+				h.Div(h.KV{h.AttrId: "profile-block-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
+					components.PartnerBlockPresenceIndicator(message.PartnerID, message.IsOnline),
+				),
 
-		return h.Render(w, h.Empty(
-			h.Div(h.KV{h.AttrId: "profile-block-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
-				components.PartnerBlockPresenceIndicator(message.PartnerID, message.IsOnline),
-			),
-
-			h.Div(h.KV{h.AttrId: "chat-container-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
-				components.ChatContainerPresenceIndicator(message.PartnerID, message.IsOnline),
-			),
-		))
+				h.Div(h.KV{h.AttrId: "chat-container-presence-indicator-" + message.PartnerID, hx.AttrSwapOob: hx.SwapOuterHtml},
+					components.ChatContainerPresenceIndicator(message.PartnerID, message.IsOnline),
+				),
+			))
+		})
 	}
 }
 
@@ -741,30 +742,26 @@ func (me *HtmlHandler) messagesWereReadEventHandler(userID string, c *websocket.
 			return nil
 		}
 
-		w, err := c.NextWriter(websocket.TextMessage)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
+		return withWebsocketWriter(c, func(w io.WriteCloser) error {
+			// It's a notfication to the user who read them
+			if message.UserID == userID {
+				return h.Render(w, h.Empty(
+					h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
+						h.Script(h.RawText(
+							fmt.Sprintf(`window.unreadManager.sub("%s", %d);`, message.PartnerID, len(message.ReadMessageIDs)),
+						)),
+					),
+				))
+			}
 
-		// It's a notfication to the user who read them
-		if message.UserID == userID {
+			// It's a notfication to the partner whose messaegs were read
 			return h.Render(w, h.Empty(
-				h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrSwapOob: hx.SwapInnerHtml},
-					h.Script(h.RawText(
-						fmt.Sprintf(`window.unreadManager.sub("%s", %d);`, message.PartnerID, len(message.ReadMessageIDs)),
-					)),
-				),
+				h.MapSlice(message.ReadMessageIDs, func(id string) h.Node {
+					return h.Div(h.KV{h.AttrId: "unread-message-indicator-" + id, hx.AttrSwapOob: hx.SwapOuterHtml},
+						components.ReadMessageIndicator(),
+					)
+				}),
 			))
-		}
-
-		// It's a notfication to the partner whose messaegs were read
-		return h.Render(w, h.Empty(
-			h.MapSlice(message.ReadMessageIDs, func(id string) h.Node {
-				return h.Div(h.KV{h.AttrId: "unread-message-indicator-" + id, hx.AttrSwapOob: hx.SwapOuterHtml},
-					components.ReadMessageIndicator(),
-				)
-			}),
-		))
+		})
 	}
 }

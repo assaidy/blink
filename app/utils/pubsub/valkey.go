@@ -22,18 +22,21 @@ func (me ValkeyPubsub) Publish(ctx context.Context, event string, generator Mess
 	if err != nil {
 		return fmt.Errorf("failed to generate message from payload: %w", err)
 	}
+
 	cmd := me.client.B().Publish().Channel(event).Message(message).Build()
 	return me.client.Do(ctx, cmd).Error()
 }
 
 func (me ValkeyPubsub) Subscribe(ctx context.Context, event string, generator PayloadGenerator, handler PayloadHandler) {
 	cmd := me.client.B().Subscribe().Channel(event).Build()
+
 	if err := me.client.Receive(ctx, cmd, func(msg valkey.PubSubMessage) {
 		payload, err := generator(msg.Message)
 		if err != nil {
 			me.logger.Error("failed to generate payload in valkey pubub", "error", err)
 			return
 		}
+
 		if err := handler(payload); err != nil {
 			me.logger.Error("failed handle payload in valkey pubub", "error", err)
 		}
