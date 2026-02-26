@@ -20,13 +20,18 @@ import (
 )
 
 type HtmlHandler struct {
-	logger          *slog.Logger
-	pubsub          pubsub.Pubsub
-	authService     *services.AuthService
-	chatService     *services.ChatService
-	profileService  *services.ProfileService
-	presenceService *services.PresenceService
-	wsWriteMu       sync.Mutex
+	logger           *slog.Logger
+	pubsub           pubsub.Pubsub
+	authService      *services.AuthService
+	chatService      *services.ChatService
+	profileService   *services.ProfileService
+	presenceService  *services.PresenceService
+	mu               sync.RWMutex
+	websocketsSatate map[*websocket.Conn]*WebsocketState
+}
+
+type WebsocketState struct {
+	mu sync.Mutex
 }
 
 func NewHtmlHandler(
@@ -38,12 +43,13 @@ func NewHtmlHandler(
 	presenceService *services.PresenceService,
 ) *HtmlHandler {
 	return &HtmlHandler{
-		logger:          logger,
-		pubsub:          pubsub,
-		authService:     authService,
-		chatService:     chatService,
-		profileService:  profileService,
-		presenceService: presenceService,
+		logger:           logger,
+		pubsub:           pubsub,
+		authService:      authService,
+		chatService:      chatService,
+		profileService:   profileService,
+		presenceService:  presenceService,
+		websocketsSatate: make(map[*websocket.Conn]*WebsocketState),
 	}
 }
 
@@ -421,14 +427,25 @@ func (me *HtmlHandler) HandleChatMessages(c *fiber.Ctx) error {
 }
 
 func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
-	defer c.Close()
+	me.mu.RLock()
+	me.websocketsSatate[c] = &WebsocketState{}
+	me.mu.RUnlock()
+
+	defer func() {
+		c.Close()
+
+		me.mu.RLock()
+		delete(me.websocketsSatate, c)
+		me.mu.RUnlock()
+	}()
+
 	userID := c.Locals(currentUserID).(string)
 	sessionID := c.Locals(currentSessionID).(string)
 
 	me.logger.Info("websocket connection", "user", userID, "session", sessionID)
 	defer me.logger.Info("websocket disconnection", "user", userID, "session", sessionID)
 
-	// NOTE: defering wg.Wait() before defering cancel() is critical.
+	// Defering wg.Wait() before defering cancel() is critical.
 	// If not the wg.Wait() will be called before cancel(),
 	// and block this go routine i.e. never close ws connection/subscribers.
 	var wg sync.WaitGroup
@@ -508,7 +525,7 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 
 		switch message.Kind {
 		case SendMessage:
-			// NOTE: I didn't need to use client messag id. It might be useful for the api handler.
+			// I didn't need to use client messag id. It might be useful for the api handler.
 			if err := me.chatService.SendChatMessage(userID, message.PartnerID, message.Content, 0); err != nil {
 				me.logger.Error("failed to send message with chat serivce", "error", err)
 			}
@@ -517,10 +534,14 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 }
 
 func (me *HtmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteCloser) error) error {
-	// Mutex is required because NextWriter closes any existing writer, causing a race
-	// condition when multiple goroutines (e.g., pubsub handlers) call it concurrently.
-	me.wsWriteMu.Lock()
-	defer me.wsWriteMu.Unlock()
+	// Per-socket mutex is required because NextWriter closes any existing writer,
+	// causing a race condition when multiple goroutines (e.g., pubsub handlers) call it concurrently.
+	state, ok := me.websocketsSatate[c]
+	if !ok {
+		return fmt.Errorf("couldn't find websocket")
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
 
 	w, err := c.NextWriter(websocket.TextMessage)
 	if err != nil {
