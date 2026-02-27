@@ -493,9 +493,16 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	})
 	wg.Go(func() {
 		me.pubsub.Subscribe(ctx,
-			services.MessagesWereReadEvent,
-			pubsub.JsonPayloadGenerator[services.MessagesWereReadEventPayload],
-			me.messagesWereReadEventHandler(userID, c),
+			services.UserMessagesWereReadEvent,
+			pubsub.JsonPayloadGenerator[services.UserMessagesWereReadEventPayload],
+			me.userMessagesWereReadEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.PartnerMessagesWereReadEvent,
+			pubsub.JsonPayloadGenerator[services.PartnerMessagesWereReadEventPayload],
+			me.partnerMessagesWereReadEventHandler(userID, c),
 		)
 	})
 	wg.Go(func() {
@@ -505,6 +512,7 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 			me.incommingMessageEventHandler(userID, c),
 		)
 	})
+	// TODO: Implement delete chat, and listen handle its event.
 
 	me.sendUnreadMessageCounts(userID, c)
 
@@ -521,6 +529,8 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 		switch message.Kind {
 		case SendMessage:
 			me.handleSendMessage(userID, c, message)
+		default:
+			me.logger.Warn("unhandeled websocket message", "kind", message.Kind, "user", userID, "session", sessionID)
 		}
 	}
 }
@@ -574,7 +584,7 @@ func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn)
 		}
 
 		if len(unreadCounts) > 0 {
-			return h.Render(w, h.Empty(
+			return h.Render(w,
 				h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrHxSwapOob: hx.SwapInnerHtml},
 					h.MapSlice(unreadCounts, func(uc services.UnreadCount) h.Node {
 						return h.Script(h.RawText(
@@ -582,7 +592,7 @@ func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn)
 						))
 					}),
 				),
-			))
+			)
 		}
 
 		return nil
@@ -609,7 +619,7 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 
 			return h.Render(w, h.Empty(
 				h.Div(h.KV{
-					h.AttrId:       fmt.Sprintf("pending-chat-message-%d", message.ClientMessageID),
+					h.AttrId:         fmt.Sprintf("pending-chat-message-%d", message.ClientMessageID),
 					hx.AttrHxSwapOob: hx.SwapDelete,
 				}),
 
@@ -714,12 +724,14 @@ func (me *HtmlHandler) userProfileWasUpdatedEventHandler(userID string, c *webso
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			return h.Render(w, h.Div(h.KV{h.AttrId: "user-block", hx.AttrHxSwapOob: hx.SwapOuterHtml},
-				components.UserBlock(components.UserBlockParams{
-					Name:     message.Name,
-					Username: message.Username,
-				}),
-			))
+			return h.Render(w,
+				h.Div(h.KV{h.AttrId: "user-block", hx.AttrHxSwapOob: hx.SwapOuterHtml},
+					components.UserBlock(components.UserBlockParams{
+						Name:     message.Name,
+						Username: message.Username,
+					}),
+				),
+			)
 		})
 	}
 }
@@ -800,33 +812,40 @@ func (me *HtmlHandler) partnerPresenceEventHandler(userID string, c *websocket.C
 	}
 }
 
-func (me *HtmlHandler) messagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *HtmlHandler) userMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
-		message := payload.(services.MessagesWereReadEventPayload)
-		if message.UserID != userID && message.PartnerID != userID {
+		message := payload.(services.UserMessagesWereReadEventPayload)
+		if message.UserID != userID {
 			return nil
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			// It's a notfication to the user who read them
-			if message.UserID == userID {
-				return h.Render(w, h.Empty(
-					h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrHxSwapOob: hx.SwapInnerHtml},
-						h.Script(h.RawText(
-							fmt.Sprintf(`window.unreadManager.sub("%s", %d);`, message.PartnerID, len(message.ReadMessageIDs)),
-						)),
-					),
-				))
-			}
-
-			// It's a notfication to the partner whose messaegs were read
-			return h.Render(w, h.Empty(
+			return h.Render(w,
 				h.MapSlice(message.ReadMessageIDs, func(id string) h.Node {
 					return h.Div(h.KV{h.AttrId: "unread-message-indicator-" + id, hx.AttrHxSwapOob: hx.SwapOuterHtml},
 						components.ReadMessageIndicator(),
 					)
 				}),
-			))
+			)
+		})
+	}
+}
+
+func (me *HtmlHandler) partnerMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.PartnerMessagesWereReadEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
+			return h.Render(w,
+				h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrHxSwapOob: hx.SwapInnerHtml},
+					h.Script(h.RawText(
+						fmt.Sprintf(`window.unreadManager.sub("%s", %d);`, message.PartnerID, message.ReadMessageCount)),
+					),
+				),
+			)
 		})
 	}
 }

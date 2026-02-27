@@ -318,6 +318,36 @@ func redirect(c *fiber.Ctx, endpoint string) error {
 	return nil
 }
 
+const (
+	PartnerPresenceChanged   = "ChatPartnerPresenceChanged"
+	ChatWasDeleted           = "ChatWasDeleted"
+	UserProfileWasUpdated    = "UserProfileWasUpdated"
+	PartnerProfileWasUpdated = "PartnerProfileWasUpdated"
+	PartnerProfileWasDeleted = "PartnerProfileWasDeleted"
+	SendMessage              = "SendMessage"
+	MessageWasSent           = "MessageWasSent"
+	IncommingMessage         = "IncommingMessage"
+	UserMessagesWereRead     = "UserMessagesWereRead"
+	PartnerMessagesWereRead  = "PartnerMessagesWereRead"
+)
+
+type WebsocketMessage struct {
+	Kind              string    `json:"kind"`
+	UserID            string    `json:"userID,omitempty"`
+	PartnerID         string    `json:"partnerID,omitempty"`
+	IsOnline          bool      `json:"isOnline,omitempty"`
+	ReadMessageIDs    []string  `json:"readMessageIDs,omitempty"`
+	ReadMessagesCount int       `json:"readMessagesCount,omitempty"`
+	Name              string    `json:"name,omitempty"`
+	Username          string    `json:"username"`
+	Email             string    `json:"email,omitempty"`
+	Bio               string    `json:"bio,omitempty"`
+	MessageID         string    `json:"messageID"`
+	ClientMessageID   int       `json:"clientMessageID"`
+	Content           string    `json:"content"`
+	Timestamp         time.Time `json:"timestamp"`
+}
+
 func extractPlatformAndOSFromUserAgent(userAgent string) (platform string, os string) {
 	if userAgent == "" {
 		return "Unknown", "Unknown"

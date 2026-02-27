@@ -126,13 +126,20 @@ func (me *ChatService) GetChatMessages(userID, partnerID, lastMessageID string, 
 	return messages, nil
 }
 
-const MessagesWereReadEvent = "MessagesWereReadEvent"
+const (
+	UserMessagesWereReadEvent    = "UserMessagesWereReadEvent"
+	PartnerMessagesWereReadEvent = "PartnerMessagesWereReadEvent"
+)
 
-type MessagesWereReadEventPayload struct {
+type UserMessagesWereReadEventPayload struct {
 	UserID         string   `json:"userID"`
-	PartnerID      string   `json:"partnerID"`
-	UptoMessageID  string   `json:"uptoMessageID"`
 	ReadMessageIDs []string `json:"ReadMessageIDs"`
+}
+
+type PartnerMessagesWereReadEventPayload struct {
+	UserID           string `json:"userID"`
+	PartnerID        string `json:"partnerID"`
+	ReadMessageCount int    `json:"readMessageCount"`
 }
 
 func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID string) error {
@@ -156,14 +163,20 @@ func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID strin
 		return fmt.Errorf("failed to mark messages as read")
 	}
 
-	if len(markedMessageIDs) > 0 {
-		if err := me.pubsub.Publish(ctx, MessagesWereReadEvent, pubsub.JsonMessageGenerator, MessagesWereReadEventPayload{
-			UserID:         userID,
-			PartnerID:      partnerID,
-			UptoMessageID:  uptoMessageID,
+	if count := len(markedMessageIDs); count > 0 {
+		if err := me.pubsub.Publish(ctx, UserMessagesWereReadEvent, pubsub.JsonMessageGenerator, UserMessagesWereReadEventPayload{
+			UserID:         partnerID,
 			ReadMessageIDs: markedMessageIDs,
 		}); err != nil {
-			return fmt.Errorf("failed to publish event %s: %w", MessagesWereReadEvent, err)
+			return fmt.Errorf("failed to publish event %s: %w", UserMessagesWereReadEvent, err)
+		}
+
+		if err := me.pubsub.Publish(ctx, PartnerMessagesWereReadEvent, pubsub.JsonMessageGenerator, PartnerMessagesWereReadEventPayload{
+			UserID:           userID,
+			PartnerID:        partnerID,
+			ReadMessageCount: count,
+		}); err != nil {
+			return fmt.Errorf("failed to publish event %s: %w", PartnerMessagesWereReadEvent, err)
 		}
 	}
 
