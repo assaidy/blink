@@ -11,6 +11,12 @@ github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 h1:zV3ejI06
 github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496/go.mod h1:oGkLhpf+kjZl6xBf758TQhh5XrAeiJv/7FRz/2spLIg=
 github.com/assaidy/hyper v1.2.0 h1:X4AvNXdTvGBtPT9tfClkSDBWmkcHqiICOaa6fMjaH+w=
 github.com/assaidy/hyper v1.2.0/go.mod h1:6rMALrdr4uqSWvNpnqoCiyD0/Gfjl0oct3sZkodV4dc=
+github.com/assaidy/hyper v1.3.0 h1:XGoeiCsrijniyM/+y9FEWAxRKhT/kKFTGNnd+a4aLmw=
+github.com/assaidy/hyper v1.3.0/go.mod h1:6rMALrdr4uqSWvNpnqoCiyD0/Gfjl0oct3sZkodV4dc=
+github.com/assaidy/hyper v1.4.0 h1:iqlnChiMCrD1u5nmeycXMylyV+zJGm2notgn/QsnhtM=
+github.com/assaidy/hyper v1.4.0/go.mod h1:6rMALrdr4uqSWvNpnqoCiyD0/Gfjl0oct3sZkodV4dc=
+github.com/assaidy/hyper v1.4.1 h1:g+52GRQ9ADHAwHlv+iVMMurJAuQYMlkb2EFgDi2b1x4=
+github.com/assaidy/hyper v1.4.1/go.mod h1:6rMALrdr4uqSWvNpnqoCiyD0/Gfjl0oct3sZkodV4dc=
 github.com/assaidy/workers v1.0.2 h1:hTdoWyYoVatzC4TTbzu1R5riyzTh88GTwonMW0EDxRo=
 github.com/assaidy/workers v1.0.2/go.mod h1:zbdxcDQpHGcOe8Dlo+FoR7RwPlwyzgpBshOS76izkoE=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=

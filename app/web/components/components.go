@@ -8,6 +8,7 @@ import (
 
 	"github.com/assaidy/hyper"
 	"github.com/assaidy/hyper/htmx"
+	"github.com/assaidy/hyper/htmx/extensions/ws"
 )
 
 func rootLayout(children ...any) h.Node {
@@ -19,7 +20,7 @@ func rootLayout(children ...any) h.Node {
 				h.Meta(h.KV{h.AttrCharset: "UTF-8"}),
 				h.Meta(h.KV{h.AttrName: "viewport", h.AttrContent: "width=device-width, initial-scale=1.0"}),
 				h.Link(h.KV{h.AttrRel: "stylesheet", h.AttrHref: "/public/css/style.css"}),
-				hx.Script(),
+				h.Script(h.KV{h.AttrSrc: "/public/js/lib/htmx@2.0.8.js"}),
 				h.Script(h.RawText(`
 					const $cookie = (name) => {
 						return document.cookie
@@ -31,7 +32,7 @@ func rootLayout(children ...any) h.Node {
 				`)),
 			),
 			h.Body(h.KV{
-				hx.AttrOn(hx.EventConfigRequest): `
+				hx.AttrHxOn(hx.EventConfigRequest): `
 					event.detail.headers['X-CSRF-Token'] = $cookie("csrf_token");
 				`,
 				h.AttrClass: "bg-bg-primary text-fg-primary",
@@ -75,7 +76,7 @@ func RegisterForm(params ...RegisterFormParams) h.Node {
 		p = params[0]
 	}
 
-	return h.Form(h.KV{hx.AttrPost: "/register", hx.AttrSwap: hx.SwapOuterHtml, h.AttrClass: "space-y-5"},
+	return h.Form(h.KV{hx.AttrHxPost: "/register", hx.AttrHxSwap: hx.SwapOuterHtml, h.AttrClass: "space-y-5"},
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "name", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Full Name"),
 			h.Input(h.KV{h.AttrType: "text", h.AttrId: "name", h.AttrName: "name", h.AttrRequired: true, h.AttrValue: p.Name, h.AttrPlaceholder: "Enter your full name", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
@@ -131,7 +132,7 @@ func LoginForm(params ...LoginFormParams) h.Node {
 		p = params[0]
 	}
 
-	return h.Form(h.KV{hx.AttrPost: "/login", hx.AttrSwap: hx.SwapOuterHtml, h.AttrClass: "space-y-5"},
+	return h.Form(h.KV{hx.AttrHxPost: "/login", hx.AttrHxSwap: hx.SwapOuterHtml, h.AttrClass: "space-y-5"},
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "email", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Email Address"),
 			h.Input(h.KV{h.AttrType: "email", h.AttrId: "email", h.AttrName: "email", h.AttrValue: p.Email, h.AttrRequired: true, h.AttrPlaceholder: "you@example.com", h.AttrClass: "bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary w-full px-4 py-3 outline-none transition-colors"}),
@@ -150,7 +151,7 @@ type OtpFormParams struct {
 }
 
 func OtpForm(params OtpFormParams) h.Node {
-	return h.Form(h.KV{hx.AttrPost: "/verify_otp", hx.AttrSwap: hx.SwapOuterHtml, h.AttrClass: "space-y-5"},
+	return h.Form(h.KV{hx.AttrHxPost: "/verify_otp", hx.AttrHxSwap: hx.SwapOuterHtml, h.AttrClass: "space-y-5"},
 		h.Input(h.KV{h.AttrType: h.TypeHidden, h.AttrName: "otpID", h.AttrValue: params.OtpID}),
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
 			h.Label(h.KV{"for": "otp", h.AttrClass: "block text-sm font-medium text-fg-secondary"}, "Verification Code"),
@@ -235,9 +236,9 @@ func ChatPage(params ChatPageParams) h.Node {
 		h.Div(h.KV{h.AttrId: "unread-manager-anchor"}),
 		// Actual page content
 		h.Div(h.KV{
-			h.AttrClass:  "h-screen flex bg-bg-primary",
-			hx.AttrExt:   "ws",
-			"ws-connect": "/ws",
+			h.AttrClass:        "h-screen flex bg-bg-primary",
+			hx.AttrHxExt:         "ws",
+			hxws.AttrWsConnect: "/ws",
 		},
 			// Sidebar
 			h.Div(h.KV{h.AttrClass: "w-80 bg-bg-secondary border-r border-bg-tertiary flex flex-col"},
@@ -245,10 +246,10 @@ func ChatPage(params ChatPageParams) h.Node {
 				h.Div(h.KV{h.AttrClass: "sticky top-0 z-10 h-16 bg-aqua/10 border-b border-bg-primary flex items-center"},
 					UserBlock(params.User),
 					h.Button(h.KV{
-						hx.AttrGet:     "/search_modal",
-						hx.AttrTrigger: "click",
-						hx.AttrTarget:  "body",
-						hx.AttrSwap:    hx.SwapBeforeEnd,
+						hx.AttrHxGet:     "/search_modal",
+						hx.AttrHxTrigger: "click",
+						hx.AttrHxTarget:  "body",
+						hx.AttrHxSwap:    hx.SwapBeforeEnd,
 						h.AttrClass:    "flex items-center justify-center w-16 h-16 flex-shrink-0 hover:bg-aqua/30 transition-colors cursor-pointer",
 					},
 						h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`),
@@ -260,11 +261,11 @@ func ChatPage(params ChatPageParams) h.Node {
 					h.AttrClass: "flex-1 overflow-y-auto px-2 py-2",
 				},
 					h.Div(h.KV{
-						hx.AttrGet:                     "/partners",
-						hx.AttrTrigger:                 "load",
-						hx.AttrSwap:                    hx.SwapAfterEnd,
-						hx.AttrIndicator:               "#partners-indicator",
-						hx.AttrOn(hx.EventAfterSettle): "document.getElementById('partners-container').scrollTop = 0; this.remove()",
+						hx.AttrHxGet:                     "/partners",
+						hx.AttrHxTrigger:                 "load",
+						hx.AttrHxSwap:                    hx.SwapAfterEnd,
+						hx.AttrHxIndicator:               "#partners-indicator",
+						hx.AttrHxOn(hx.EventAfterSettle): "document.getElementById('partners-container').scrollTop = 0; this.remove()",
 					}),
 					h.Div(h.KV{h.AttrClass: "flex justify-center"},
 						spinner("partners-indicator"),
@@ -304,10 +305,10 @@ type UserBlockParams struct {
 func UserBlock(params UserBlockParams) h.Node {
 	return h.Div(h.KV{
 		h.AttrId:       "user-block",
-		hx.AttrGet:     "/profile_modal",
-		hx.AttrTrigger: "click",
-		hx.AttrTarget:  "body",
-		hx.AttrSwap:    hx.SwapBeforeEnd,
+		hx.AttrHxGet:     "/profile_modal",
+		hx.AttrHxTrigger: "click",
+		hx.AttrHxTarget:  "body",
+		hx.AttrHxSwap:    hx.SwapBeforeEnd,
 		h.AttrClass:    "w-64 h-16 flex-shrink-0 flex items-center gap-3 cursor-pointer hover:bg-aqua/20 transition-colors px-4",
 	},
 		h.Div(h.KV{h.AttrClass: "w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold flex-shrink-0"},
@@ -356,7 +357,7 @@ func ProfileModal(params ProfileModalParams) h.Node {
 	return h.Div(h.KV{
 		h.AttrId:                "profile-modal",
 		h.AttrClass:             "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 outline-none",
-		hx.AttrOn(h.EventClick): "if (event.target === this) this.remove()",
+		hx.AttrHxOn(h.EventClick): "if (event.target === this) this.remove()",
 	},
 		h.Div(h.KV{h.AttrClass: "bg-bg-secondary rounded-2xl shadow-2xl max-w-3xl w-full flex overflow-hidden", h.AttrStyle: "height: 80vh; max-height: 700px;"},
 			// Left sidebar with tabs
@@ -364,26 +365,26 @@ func ProfileModal(params ProfileModalParams) h.Node {
 				// Close button at top
 				h.Button(h.KV{
 					h.AttrClass:             "self-start p-2 hover:bg-bg-secondary rounded-lg transition-colors cursor-pointer mb-6",
-					hx.AttrOn(h.EventClick): "this.closest('#profile-modal').remove()",
+					hx.AttrHxOn(h.EventClick): "this.closest('#profile-modal').remove()",
 				},
 					h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`),
 				),
 				// Tabs
 				h.Div(h.KV{h.AttrClass: "flex flex-col gap-1"},
 					h.Button(h.KV{
-						hx.AttrGet:     "/profile_modal?tab=profile",
-						hx.AttrTarget:  "#profile-modal",
-						hx.AttrSwap:    hx.SwapOuterHtml,
-						hx.AttrTrigger: h.IfElse(params.ActiveTab == TabProfile, hx.SwapNone, "click"),
+						hx.AttrHxGet:     "/profile_modal?tab=profile",
+						hx.AttrHxTarget:  "#profile-modal",
+						hx.AttrHxSwap:    hx.SwapOuterHtml,
+						hx.AttrHxTrigger: h.IfElse(params.ActiveTab == TabProfile, hx.SwapNone, "click"),
 						h.AttrClass:    "flex items-center gap-3 px-2 py-2.5 rounded-lg text-left font-medium text-fg-primary " + h.IfElse(params.ActiveTab == TabProfile, "bg-bg-secondary", "hover:bg-bg-secondary/50"),
 					},
 						profileIcon, "Profile",
 					),
 					h.Button(h.KV{
-						hx.AttrGet:     "/profile_modal?tab=sessions",
-						hx.AttrTarget:  "#profile-modal",
-						hx.AttrSwap:    hx.SwapOuterHtml,
-						hx.AttrTrigger: h.IfElse(params.ActiveTab == TabSessions, hx.SwapNone, "click"),
+						hx.AttrHxGet:     "/profile_modal?tab=sessions",
+						hx.AttrHxTarget:  "#profile-modal",
+						hx.AttrHxSwap:    hx.SwapOuterHtml,
+						hx.AttrHxTrigger: h.IfElse(params.ActiveTab == TabSessions, hx.SwapNone, "click"),
 						h.AttrClass:    "flex items-center gap-3 px-2 py-2.5 rounded-lg text-left font-medium text-fg-primary " + h.IfElse(params.ActiveTab == TabSessions, "bg-bg-secondary", "hover:bg-bg-secondary/50"),
 					},
 						sessionsIcon, "Sessions",
@@ -444,9 +445,9 @@ func ProfileTab(params ProfileTabParams) h.Node {
 		),
 		h.Div(h.KV{h.AttrClass: "border-t border-bg-tertiary my-6"}),
 		h.Button(h.KV{
-			hx.AttrDelete:  "/profile",
-			hx.AttrSwap:    hx.SwapNone,
-			hx.AttrConfirm: "Are you sure you wish to delete your account? This action cannot be undone.",
+			hx.AttrHxDelete:  "/profile",
+			hx.AttrHxSwap:    hx.SwapNone,
+			hx.AttrHxConfirm: "Are you sure you wish to delete your account? This action cannot be undone.",
 			h.AttrClass:    "w-full px-4 py-2 rounded-lg !bg-red-600 hover:!bg-red-700 text-white font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer",
 		},
 			h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`),
@@ -468,10 +469,10 @@ type ProfileFormParams struct {
 
 func ProfileForm(params ProfileFormParams) h.Node {
 	return h.Form(h.KV{
-		hx.AttrPut:         "/profile",
-		hx.AttrSwap:        hx.SwapOuterHtml,
-		hx.AttrDisabledElt: "find button",
-		hx.AttrIndicator:   "#spinner",
+		hx.AttrHxPut:         "/profile",
+		hx.AttrHxSwap:        hx.SwapOuterHtml,
+		hx.AttrHxDisabledElt: "find button",
+		hx.AttrHxIndicator:   "#spinner",
 		h.AttrClass:        "space-y-5",
 	},
 		h.Div(h.KV{h.AttrClass: "space-y-1"},
@@ -544,20 +545,20 @@ func SessionsTab(params SessionsTabParams) h.Node {
 				// Right side: Action button
 				h.IfElse(isCurrent,
 					h.Button(h.KV{
-						hx.AttrPost:        "/logout",
-						hx.AttrDisabledElt: "this",
-						hx.AttrIndicator:   "#" + spinnerID,
+						hx.AttrHxPost:        "/logout",
+						hx.AttrHxDisabledElt: "this",
+						hx.AttrHxIndicator:   "#" + spinnerID,
 						h.AttrClass:        "px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 font-medium transition-colors flex items-center gap-2 cursor-pointer",
 					},
 						h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>`),
 						"Logout", spinner(spinnerID),
 					),
 					h.Button(h.KV{
-						hx.AttrDelete:      fmt.Sprintf("/sessions/%s", session.ID),
-						hx.AttrTarget:      "#" + elementID,
-						hx.AttrSwap:        hx.SwapDelete,
-						hx.AttrDisabledElt: "this",
-						hx.AttrIndicator:   "#" + spinnerID,
+						hx.AttrHxDelete:      fmt.Sprintf("/sessions/%s", session.ID),
+						hx.AttrHxTarget:      "#" + elementID,
+						hx.AttrHxSwap:        hx.SwapDelete,
+						hx.AttrHxDisabledElt: "this",
+						hx.AttrHxIndicator:   "#" + spinnerID,
 						h.AttrClass:        "px-4 py-2 rounded-lg hover:bg-red-500/10 text-fg-secondary hover:text-red-500 font-medium transition-colors flex items-center gap-2 cursor-pointer",
 					},
 						h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`),
@@ -573,7 +574,7 @@ func SearchModal() h.Node {
 	return h.Div(h.KV{
 		h.AttrId:                "search-modal",
 		h.AttrClass:             "fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20 outline-none",
-		hx.AttrOn(h.EventClick): "if (event.target === this) this.remove()",
+		hx.AttrHxOn(h.EventClick): "if (event.target === this) this.remove()",
 	},
 		h.Div(h.KV{h.AttrClass: "bg-bg-secondary rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden"},
 			// Header with search input
@@ -585,15 +586,15 @@ func SearchModal() h.Node {
 						h.AttrPlaceholder: "Search users...",
 						h.AttrAutofocus:   true,
 						h.AttrName:        "query",
-						hx.AttrGet:        "/search/users",
-						hx.AttrTrigger:    "input changed delay:300ms",
-						hx.AttrTarget:     "#search-results",
-						hx.AttrSwap:       hx.SwapInnerHtml,
+						hx.AttrHxGet:        "/search/users",
+						hx.AttrHxTrigger:    "input changed delay:300ms",
+						hx.AttrHxTarget:     "#search-results",
+						hx.AttrHxSwap:       hx.SwapInnerHtml,
 						h.AttrClass:       "w-full bg-bg-tertiary border-2 border-bg-tertiary focus:border-blue rounded-lg text-fg-primary pl-10 pr-4 py-3 outline-none transition-colors",
 					}),
 				),
 				h.Button(h.KV{
-					hx.AttrOn(h.EventClick): "this.closest('#search-modal').remove()",
+					hx.AttrHxOn(h.EventClick): "this.closest('#search-modal').remove()",
 					h.AttrClass:             "p-2 hover:bg-bg-tertiary rounded-lg transition-colors cursor-pointer",
 				},
 					h.RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`),
@@ -627,16 +628,16 @@ func SearchResult(params SearchResultParams) h.Node {
 	return h.Div(h.KV{h.AttrClass: "space-y-1"},
 		h.MapSlice(params.Items, func(profile SearchResultItemParams) h.Node {
 			return h.Div(h.KV{
-				hx.AttrGet:     "/search/users/select/" + profile.ID,
-				hx.AttrTrigger: "click",
-				hx.AttrTarget:  "#chat-container",
-				hx.AttrSwap:    hx.SwapInnerHtml,
+				hx.AttrHxGet:     "/search/users/select/" + profile.ID,
+				hx.AttrHxTrigger: "click",
+				hx.AttrHxTarget:  "#chat-container",
+				hx.AttrHxSwap:    hx.SwapInnerHtml,
 			},
 				h.IfElse(profile.ID == lastID,
 					h.Div(h.KV{
-						hx.AttrGet:     "/search/users?query=" + params.Query + "&cursor=" + lastID,
-						hx.AttrTrigger: "intersect once",
-						hx.AttrSwap:    hx.SwapAfterEnd,
+						hx.AttrHxGet:     "/search/users?query=" + params.Query + "&cursor=" + lastID,
+						hx.AttrHxTrigger: "intersect once",
+						hx.AttrHxSwap:    hx.SwapAfterEnd,
 					},
 						searchResultItem(profile),
 					),
@@ -687,12 +688,12 @@ func PartnersList(params PartnersListParams) h.Node {
 	},
 		h.MapSlice(params.Partners, func(partner PartnerBlockParams) h.Node {
 			attrs := h.IfElse(partner.ID == lastID && params.LastMessageWithLastPartnerID != "", h.KV{
-				hx.AttrGet:       "/partners?cursor=" + params.LastMessageWithLastPartnerID,
-				hx.AttrTrigger:   "intersect once",
-				hx.AttrSwap:      hx.SwapAfterEnd,
-				hx.AttrIndicator: "#partners-indicator",
+				hx.AttrHxGet:       "/partners?cursor=" + params.LastMessageWithLastPartnerID,
+				hx.AttrHxTrigger:   "intersect once",
+				hx.AttrHxSwap:      hx.SwapAfterEnd,
+				hx.AttrHxIndicator: "#partners-indicator",
 				// Disable the sidebar indicator for requests in blocks
-				hx.AttrDisinherit: hx.AttrIndicator,
+				hx.AttrHxDisinherit: hx.AttrHxIndicator,
 			}, nil)
 
 			return h.Div(attrs, PartnersListItem(partner))
@@ -704,18 +705,18 @@ func PartnersListItem(params PartnerBlockParams) h.Node {
 	return h.Div(h.KV{
 		h.AttrId:       "partner-" + params.ID,
 		h.AttrClass:    "cursor-pointer transition-colors",
-		hx.AttrGet:     "/chat/" + params.ID,
-		hx.AttrTrigger: "click",
-		hx.AttrTarget:  "#chat-container",
-		hx.AttrSwap:    hx.SwapInnerHtml,
+		hx.AttrHxGet:     "/chat/" + params.ID,
+		hx.AttrHxTrigger: "click",
+		hx.AttrHxTarget:  "#chat-container",
+		hx.AttrHxSwap:    hx.SwapInnerHtml,
 		// Cancel the request if clicking the active partner
-		hx.AttrOn(hx.EventConfigRequest): `
+		hx.AttrHxOn(hx.EventConfigRequest): `
 			if (window.currentActivePartnerId === "` + params.ID + `") {
 				event.preventDefault();
 				return;
 			}
 		`,
-		hx.AttrOn(hx.EventLoad): `
+		hx.AttrHxOn(hx.EventLoad): `
 			// Re-applies data-active attribute.
 			// This prevents losing the active styles for newly instered element if it was the active
 			// as the old one which has the attribute is deleted by the oob-swap response.
@@ -769,7 +770,7 @@ type ChatContainerParams struct {
 func ChatContainer(params ChatContainerParams) h.Node {
 	return h.Div(h.KV{
 		h.AttrClass: "flex-1 flex flex-col bg-bg-primary h-full",
-		hx.AttrOn(hx.EventLoad): `
+		hx.AttrHxOn(hx.EventLoad): `
 			window.currentActivePartnerId = "` + params.Partner.ID + `";
 		  document.querySelector("#partners-list [data-active]")?.removeAttribute("data-active");
 		  document.getElementById("partner-" + "` + params.Partner.ID + `")?.setAttribute("data-active", "");
@@ -782,7 +783,7 @@ func ChatContainer(params ChatContainerParams) h.Node {
 		},
 			h.Div(h.KV{
 				h.AttrId: "new-message-inserter-" + params.Partner.ID,
-				hx.AttrOn(hx.EventOobBeforeSwap): `
+				hx.AttrHxOn(hx.EventOobBeforeSwap): `
 					// don't insert the new message if it doesn't come from the active partner
 					if (window.currentActivePartnerId !== "` + params.Partner.ID + `") {
 						event.preventDefault();
@@ -791,11 +792,11 @@ func ChatContainer(params ChatContainerParams) h.Node {
 				`,
 			}),
 			h.Div(h.KV{
-				hx.AttrGet:                     fmt.Sprintf("/chat/%s/messages", params.Partner.ID),
-				hx.AttrTrigger:                 "load",
-				hx.AttrSwap:                    hx.SwapAfterEnd,
-				hx.AttrIndicator:               "#messages-indicator",
-				hx.AttrOn(hx.EventAfterSettle): "this.remove()",
+				hx.AttrHxGet:                     fmt.Sprintf("/chat/%s/messages", params.Partner.ID),
+				hx.AttrHxTrigger:                 "load",
+				hx.AttrHxSwap:                    hx.SwapAfterEnd,
+				hx.AttrHxIndicator:               "#messages-indicator",
+				hx.AttrHxOn(hx.EventAfterSettle): "this.remove()",
 			}),
 			h.Div(h.KV{h.AttrClass: "flex justify-center"},
 				spinner("messages-indicator"),
@@ -847,12 +848,12 @@ func ChatMessagesList(params ChatMessagesListParams) h.Node {
 		return h.Div(
 			h.IfElse(params.HasMore && msg.ID == cursorMessageID,
 				h.KV{
-					hx.AttrGet:       fmt.Sprintf("/chat/%s/messages?cursor=%s", params.PartnerID, cursorMessageID),
-					hx.AttrTrigger:   "intersect once",
-					hx.AttrSwap:      hx.SwapAfterEnd,
-					hx.AttrIndicator: "#messages-indicator",
+					hx.AttrHxGet:       fmt.Sprintf("/chat/%s/messages?cursor=%s", params.PartnerID, cursorMessageID),
+					hx.AttrHxTrigger:   "intersect once",
+					hx.AttrHxSwap:      hx.SwapAfterEnd,
+					hx.AttrHxIndicator: "#messages-indicator",
 					// For internal requests not to use this indicator
-					hx.AttrDisinherit: hx.AttrIndicator,
+					hx.AttrHxDisinherit: hx.AttrHxIndicator,
 				},
 				nil,
 			),
@@ -883,9 +884,9 @@ func ChatMessage(params ChatMessageParams) h.Node {
 	return h.Div(
 		h.IfElse(!params.FromMe && params.Status == StatusSent,
 			h.KV{
-				hx.AttrPost:    "/api/v1/chats/" + params.PartnerID + "/mark_as_read?upto_message_id=" + params.ID,
-				hx.AttrTrigger: "intersect once",
-				hx.AttrSwap:    hx.SwapNone,
+				hx.AttrHxPost:    "/api/v1/chats/" + params.PartnerID + "/mark_as_read?upto_message_id=" + params.ID,
+				hx.AttrHxTrigger: "intersect once",
+				hx.AttrHxSwap:    hx.SwapNone,
 			},
 			h.KV{h.AttrId: fmt.Sprintf("pending-chat-message-%d", params.ClientMessageID)},
 		),
@@ -934,8 +935,8 @@ type ChatInputFormParams struct {
 
 func ChatInputForm(params ChatInputFormParams) h.Node {
 	return h.Form(h.KV{
-		"ws-send": true,
-		hx.AttrOn(":ws-config-send"): `
+		hxws.AttrWsSend: true,
+		hx.AttrHxOn(hxws.EventWsConfigSend): `
 			const content = event.detail.parameters.content.trim();
 			if (content == "") {
 				event.preventDefault();
@@ -944,7 +945,7 @@ func ChatInputForm(params ChatInputFormParams) h.Node {
 			event.detail.parameters.content = content;
 			event.detail.parameters.clientMessageID = window.messageIDGenerator.GetID();
 		`,
-		hx.AttrOn(":ws-after-send"): `
+		hx.AttrHxOn(hxws.EventWsAfterSend): `
 			const textarea = event.detail.elt.querySelector('textarea[name="content"]');
 			textarea.value = '';
 			textarea.style.height = 'auto';
