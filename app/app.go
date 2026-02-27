@@ -29,6 +29,7 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
+// TODO: Rename ApiHandler to JsonHandler
 // TODO: Use fiber v3
 // TODO: Implement delete chats.
 // TODO: Implement delete messages.
