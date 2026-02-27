@@ -30,6 +30,9 @@ import (
 )
 
 // TODO: Use fiber v3
+// TODO: Implement delete chats.
+// TODO: Implement delete messages.
+// TODO: Use rate limiting for different purposes
 
 type App struct {
 	logger          *slog.Logger
@@ -95,7 +98,6 @@ func (me *App) registerRoutes() {
 	me.router.Use(recovermw.New(recovermw.Config{EnableStackTrace: true}))
 	me.router.Use(handlers.WithLogging(me.logger))
 	me.router.Use(handlers.WithErrorResolver(me.logger))
-	// TODO: Use rate limiting for different purposes
 
 	me.registerApiRoutes()
 	me.registerHTMLRoutes()

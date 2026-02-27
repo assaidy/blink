@@ -512,7 +512,6 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 			me.incommingMessageEventHandler(userID, c),
 		)
 	})
-	// TODO: Implement delete chat, and listen handle its event.
 
 	me.sendUnreadMessageCounts(userID, c)
 
