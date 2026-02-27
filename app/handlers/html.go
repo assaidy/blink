@@ -84,12 +84,12 @@ func (me *HtmlHandler) HandleRegister(c *fiber.Ctx) error {
 			return render(c, components.RegisterForm(params))
 		}
 
-		if errors.Is(err, services.ErrUsernameTaken) {
+		if errors.Is(err, services.ErrUsernameConflict) {
 			params.UsernameErr = "Username is taken"
 			return render(c, components.RegisterForm(params))
 		}
 
-		if errors.Is(err, services.ErrEmailTaken) {
+		if errors.Is(err, services.ErrEmailConflict) {
 			params.EmailErr = "Email is taken"
 			return render(c, components.RegisterForm(params))
 		}
@@ -114,14 +114,14 @@ func (me *HtmlHandler) HandleLogin(c *fiber.Ctx) error {
 		if errors.Is(err, services.ErrValidation) {
 			var validationErrs validation.Errors
 			if errors.As(err, &validationErrs) {
-				params.EmailErr = validationErrs["Email"]
+				params.EmailErr = validationErrs["Identifier"]
 			} else {
 				me.logger.Warn("expected validation error", "found", err)
 			}
 			return render(c, components.LoginForm(params))
 		}
 
-		if errors.Is(err, services.ErrEmailNotFound) {
+		if errors.Is(err, services.ErrNotFound) {
 			params.EmailErr = "Invalid email address"
 			return render(c, components.LoginForm(params))
 		}
@@ -277,12 +277,12 @@ func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 			return render(c, components.ProfileForm(params))
 		}
 
-		if errors.Is(err, services.ErrUsernameTaken) {
+		if errors.Is(err, services.ErrUsernameConflict) {
 			params.UsernameErr = "Username is taken"
 			return render(c, components.ProfileForm(params))
 		}
 
-		if errors.Is(err, services.ErrEmailTaken) {
+		if errors.Is(err, services.ErrEmailConflict) {
 			params.EmailErr = "Email is taken"
 			return render(c, components.ProfileForm(params))
 		}

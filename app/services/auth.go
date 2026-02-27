@@ -78,13 +78,13 @@ func (me *AuthService) Register(name, username, email, bio string) error {
 	if ok, err := qtx.CheckUsername(ctx, username); err != nil {
 		return fmt.Errorf("failed to check username: %w", err)
 	} else if ok {
-		return ErrUsernameTaken
+		return ErrUsernameConflict
 	}
 
 	if ok, err := qtx.CheckEmail(ctx, email); err != nil {
 		return fmt.Errorf("failed to check email: %w", err)
 	} else if ok {
-		return ErrEmailTaken
+		return ErrEmailConflict
 	}
 
 	if err := qtx.InsertUser(ctx, repo.InsertUserParams{
@@ -107,14 +107,14 @@ func (me *AuthService) Register(name, username, email, bio string) error {
 func validateSendOtpParams(channel, identifier, purpose string) error {
 	type Params struct {
 		Channel   string
-		Identifer string
+		Identifier string
 		Purpose   string
 	}
-	params := Params{Channel: channel, Identifer: identifier, Purpose: purpose}
+	params := Params{Channel: channel, Identifier: identifier, Purpose: purpose}
 
 	return validation.ValidateStruct(&params,
 		validation.Field(&params.Channel, validation.Required, validation.In("email")),
-		validation.Field(&params.Identifer, validation.Required, validation.By(func(value any) error {
+		validation.Field(&params.Identifier, validation.Required, validation.By(func(value any) error {
 			switch channel {
 			case "email":
 				return validation.Validate(value, is.Email)
@@ -144,7 +144,7 @@ func (me *AuthService) SendOtp(channel, identifier, purpose string) (string, err
 		user, err = me.queries.GetUserByEmail(ctx, identifier)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return "", ErrEmailNotFound
+				return "", ErrNotFound
 			}
 			return "", fmt.Errorf("failed to get user by email: %w", err)
 		}

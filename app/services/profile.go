@@ -121,7 +121,7 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 		if ok, err := qtx.CheckUsername(ctx, username); err != nil {
 			return fmt.Errorf("failed to check username: %w", err)
 		} else if ok {
-			return ErrUsernameTaken
+			return ErrUsernameConflict
 		}
 	}
 
@@ -129,7 +129,7 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 		if ok, err := qtx.CheckEmail(ctx, email); err != nil {
 			return fmt.Errorf("failed to check email: %w", err)
 		} else if ok {
-			return ErrEmailTaken
+			return ErrEmailConflict
 		}
 	}
 

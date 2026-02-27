@@ -23,6 +23,14 @@ type ApiError struct {
 	Details     any       `json:"details,omitempty"`
 }
 
+func NewApiError(kind ErrorKind, details any) ApiError {
+	return ApiError{
+		Kind:        kind,
+		Description: errorDescriptions[kind],
+		Details:     details,
+	}
+}
+
 func (me ApiError) Error() string {
 	return fmt.Sprintf("%s: %v", me.Kind, me.Details)
 }
@@ -36,7 +44,6 @@ const (
 	ErrUsernameConflict         ErrorKind = "UsernameConflict"
 	ErrEmailConflict            ErrorKind = "EmailConflict"
 	ErrInternalFailure          ErrorKind = "InternalFailure"
-	ErrEmailNotFound            ErrorKind = "EmailNotFound"
 	ErrInvalidOTP               ErrorKind = "InvalidOtp"
 	ErrUnauthorized             ErrorKind = "Unauthorized"
 	ErrInvalidCursor            ErrorKind = "InvalidCursor"
@@ -52,21 +59,12 @@ var errorDescriptions = map[ErrorKind]string{
 	ErrUsernameConflict:         "Username already exists.",
 	ErrEmailConflict:            "Email already exists.",
 	ErrInternalFailure:          "An unexpected internal error occurred while processing the request.",
-	ErrEmailNotFound:            "The provided email is not found.",
 	ErrInvalidOTP:               "The provided otp is not invalid or expired.",
 	ErrUnauthorized:             "Authentication is required or the provided credentials are invalid.",
 	ErrInvalidCursor:            "The provided pagination cursor is malformed or invalid.",
 	ErrInvalidEndpoint:          "The requested API endpoint does not exist or is malformed.",
 	ErrMethodNotAllowed:         "The requested HTTP method is not allowed for this endpoint.",
 	ErrWebscoketUpgradeRequired: "Websocket upgrade is required for this endpoint.",
-}
-
-func NewApiError(kind ErrorKind, details any) ApiError {
-	return ApiError{
-		Kind:        kind,
-		Description: errorDescriptions[kind],
-		Details:     details,
-	}
 }
 
 // serviceErrToApiErr converts service errors to ApiError
@@ -95,15 +93,11 @@ func serviceErrToApiErr(err error) error {
 		return NewApiError(ErrInvalidOTP, nil)
 	}
 
-	if errors.Is(err, services.ErrEmailNotFound) {
-		return NewApiError(ErrEmailNotFound, nil)
-	}
-
-	if errors.Is(err, services.ErrUsernameTaken) {
+	if errors.Is(err, services.ErrUsernameConflict) {
 		return NewApiError(ErrUsernameConflict, nil)
 	}
 
-	if errors.Is(err, services.ErrEmailTaken) {
+	if errors.Is(err, services.ErrEmailConflict) {
 		return NewApiError(ErrEmailConflict, nil)
 	}
 
@@ -127,7 +121,7 @@ func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 }
 
 // This ensures we always return ApiError, and the proper status code was set.
-// This must be registered after (handled before) the logger middleware
+// This must be registered after (handled before) the logger middleware.
 func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if err := c.Next(); err != nil {
@@ -149,10 +143,11 @@ func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 					err = NewApiError(ErrInternalFailure, err)
 				}
 			} else if errors.As(err, &ae) {
+				// Returned by services
 				switch ae.Kind {
 				case ErrInvalidJSON, ErrInvalidData, ErrInvalidCursor:
 					code = fiber.StatusBadRequest
-				case ErrNotFound, ErrEmailNotFound, ErrInvalidEndpoint:
+				case ErrNotFound, ErrInvalidEndpoint:
 					code = fiber.StatusNotFound
 				case ErrEmailConflict, ErrUsernameConflict:
 					code = fiber.StatusConflict
@@ -169,6 +164,9 @@ func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 					logger.Warn("unhandled api error", "error", err)
 				}
 			} else {
+				// General error returned from anywhere.
+				// I don't give specific error type for general errors (e.g. DB failiur, encodin/decoding errors, ...etc).
+				// They are all handled here.
 				code = fiber.StatusInternalServerError
 				err = NewApiError(ErrInternalFailure, err)
 			}
