@@ -47,11 +47,12 @@ create index on sessions (expires_at);
 
 create table chat_messages (
   id varchar not null,
-  sender_id varchar,
-  receiver_id varchar,
+  sender_id varchar not null,
+  receiver_id varchar not null,
   content varchar not null,
   sent_at timestamptz not null default now(),
   is_read boolean not null default false,
+  is_deleted boolean not null default false,
 
   primary key (id),
   foreign key (sender_id) references users (id) on delete set null,
@@ -59,7 +60,7 @@ create table chat_messages (
 );
 
 create index on chat_messages (sender_id, receiver_id);
-create index on chat_messages ((case when sender_id is null or receiver_id is null then 1 else 0 end));
+create index on chat_messages ((case when is_deleted = true then 1 else 0 end));
 
 --------------------------------------------------
 -- +goose Down

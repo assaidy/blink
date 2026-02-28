@@ -20,7 +20,7 @@ begin
     where ctid in (
       select ctid
       from chat_messages
-      where (case when sender_id is null or receiver_id is null then 1 else 0 end) = 1
+      where (case when is_deleted = true then 1 else 0 end) = 1
       limit 1000
     );
     get diagnostics rows_deleted = row_count;
@@ -36,11 +36,13 @@ func (q *Queries) BatchDeleteChatMessages(ctx context.Context) error {
 }
 
 const checkChatPartnerID = `-- name: CheckChatPartnerID :one
-select exists (select 1
-               from chat_messages
-               where (sender_id = $1::varchar and receiver_id = $2::varchar) or
-                     (sender_id = $2::varchar and receiver_id = $1::varchar)
-               for update)
+select exists (
+  select 1
+  from chat_messages
+  where is_deleted = false and
+        ((sender_id = $1 and receiver_id = $2) or (sender_id = $2 and receiver_id = $1))
+  for update
+)
 `
 
 type CheckChatPartnerIDParams struct {
@@ -57,10 +59,9 @@ func (q *Queries) CheckChatPartnerID(ctx context.Context, arg CheckChatPartnerID
 
 const getAllChatPartnerIDs = `-- name: GetAllChatPartnerIDs :many
 select distinct
-  (case when sender_id = $1::varchar then receiver_id else sender_id end)::varchar as id
+  (case when sender_id = $1 then receiver_id else sender_id end)::varchar as id
 from chat_messages
-where (sender_id is not null and receiver_id is not null) and
-      (sender_id = $1::varchar or receiver_id = $1::varchar)
+where is_deleted = false and (sender_id = $1 or receiver_id = $1)
 `
 
 func (q *Queries) GetAllChatPartnerIDs(ctx context.Context, userID string) ([]string, error) {
@@ -92,10 +93,10 @@ select
   content,
   sent_at,
   is_read,
-  (sender_id = $2::varchar) as from_me
+  (sender_id = $2) as from_me
 from chat_messages 
-where ((sender_id = $2::varchar and receiver_id = $3::varchar) or
-       (sender_id = $3::varchar and receiver_id = $2::varchar)) and
+where is_deleted = false and
+      ((sender_id = $2 and receiver_id = $3) or (sender_id = $3 and receiver_id = $2)) and
       ($4::varchar = '' or id < $4::varchar)
 order by id desc
 limit $1
@@ -153,10 +154,10 @@ func (q *Queries) GetChatMessages(ctx context.Context, arg GetChatMessagesParams
 const getChats = `-- name: GetChats :many
 with last_messages as (
   select
-    case when m.sender_id = $3::varchar then m.receiver_id else m.sender_id end as partner_id,
+    (case when m.sender_id = $3 then m.receiver_id else m.sender_id end)::varchar as partner_id,
     max(m.id)::varchar as last_message_id
   from chat_messages m
-  where m.sender_id = $3::varchar or m.receiver_id = $3::varchar
+  where is_deleted = false and (m.sender_id = $3 or m.receiver_id = $3)
   group by partner_id
 )
 select
@@ -166,7 +167,7 @@ select
   lm.last_message_id
 from last_messages lm
 join users u on u.id = lm.partner_id
-where $2::varchar = '' or lm.last_message_id < $2::varchar
+where ($2::varchar = '' or lm.last_message_id < $2::varchar)
 order by lm.last_message_id desc
 limit $1
 `
@@ -214,10 +215,10 @@ func (q *Queries) GetChats(ctx context.Context, arg GetChatsParams) ([]GetChatsR
 
 const getUnreadCountsForUser = `-- name: GetUnreadCountsForUser :many
 select
-  sender_id::varchar as partner_id,
+  sender_id as partner_id,
   count(*)
 from chat_messages
-where receiver_id = $1::varchar and is_read = false
+where is_deleted = false and receiver_id = $1 and is_read = false
 group by sender_id
 `
 
@@ -251,33 +252,32 @@ func (q *Queries) GetUnreadCountsForUser(ctx context.Context, userID string) ([]
 
 const insertChatMessage = `-- name: InsertChatMessage :exec
 insert into chat_messages (id, sender_id, receiver_id, content, sent_at)
-values ($1, $4::varchar, $5::varchar, $2, $3)
+values ($1, $2, $3, $4, $5)
 `
 
 type InsertChatMessageParams struct {
 	ID         string
-	Content    string
-	SentAt     time.Time
 	SenderID   string
 	ReceiverID string
+	Content    string
+	SentAt     time.Time
 }
 
 func (q *Queries) InsertChatMessage(ctx context.Context, arg InsertChatMessageParams) error {
 	_, err := q.db.ExecContext(ctx, insertChatMessage,
 		arg.ID,
-		arg.Content,
-		arg.SentAt,
 		arg.SenderID,
 		arg.ReceiverID,
+		arg.Content,
+		arg.SentAt,
 	)
 	return err
 }
 
 const markChatAsDeleted = `-- name: MarkChatAsDeleted :exec
 update chat_messages
-set sender_id = null, receiver_id = null
-where (sender_id = $1::varchar and receiver_id = $2::varchar) or 
-      (sender_id = $2::varchar and receiver_id = $1::varchar)
+set is_deleted = true
+where ((sender_id = $1 and receiver_id = $2) or (sender_id = $2 and receiver_id = $1))
 `
 
 type MarkChatAsDeletedParams struct {
@@ -293,7 +293,7 @@ func (q *Queries) MarkChatAsDeleted(ctx context.Context, arg MarkChatAsDeletedPa
 const markMessagesAsRead = `-- name: MarkMessagesAsRead :many
 update chat_messages 
 set is_read = true
-where (receiver_id = $1::varchar and sender_id = $2::varchar) and
+where receiver_id = $1 and sender_id = $2 and
       ($3::varchar = '' or id <= $3::varchar) and
       is_read = false
 returning id

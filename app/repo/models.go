@@ -5,17 +5,17 @@
 package repo
 
 import (
-	"database/sql"
 	"time"
 )
 
 type ChatMessage struct {
 	ID         string
-	SenderID   sql.NullString
-	ReceiverID sql.NullString
+	SenderID   string
+	ReceiverID string
 	Content    string
 	SentAt     time.Time
 	IsRead     bool
+	IsDeleted  bool
 }
 
 type Otp struct {
