@@ -29,7 +29,6 @@ func main() {
 		workers.NewWorker("clean expired sessions", cleanExpiredSessionsJob,
 			workers.WithTick(1*time.Hour),
 			workers.WithTimeout(10*time.Minute),
-			workers.WithNRetries(2),
 			workers.WithRetryDelay(30*time.Second),
 		),
 	)
@@ -37,7 +36,6 @@ func main() {
 		workers.NewWorker("clean expired OTPs", cleanExpiredOtpsJob,
 			workers.WithTick(5*time.Minute),
 			workers.WithTimeout(30*time.Second),
-			workers.WithNRetries(3),
 			workers.WithRetryDelay(10*time.Second),
 		),
 	)
@@ -45,7 +43,6 @@ func main() {
 		workers.NewWorker("clean deleted chat messages", cleanDeletedChatMessagesJob,
 			workers.WithSchedules(workers.DailyAt(2, 0)),
 			workers.WithTimeout(15*time.Minute),
-			workers.WithNRetries(2),
 			workers.WithRetryDelay(1*time.Minute),
 		),
 	)
@@ -53,14 +50,14 @@ func main() {
 	workerManager.Start()
 }
 
-func cleanExpiredSessionsJob(ctx context.Context, _ *slog.Logger) error {
+func cleanExpiredSessionsJob(ctx context.Context) error {
 	return queries.BatchDeleteExpriredSessions(ctx)
 }
 
-func cleanExpiredOtpsJob(ctx context.Context, _ *slog.Logger) error {
+func cleanExpiredOtpsJob(ctx context.Context) error {
 	return queries.BatchDeleteExpiredOtps(ctx)
 }
 
-func cleanDeletedChatMessagesJob(ctx context.Context, _ *slog.Logger) error {
+func cleanDeletedChatMessagesJob(ctx context.Context) error {
 	return queries.BatchDeleteChatMessages(ctx)
 }
