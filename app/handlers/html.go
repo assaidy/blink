@@ -19,7 +19,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type HtmlHandler struct {
+type htmlHandler struct {
 	logger           *slog.Logger
 	pubsub           pubsub.Pubsub
 	authService      *services.AuthService
@@ -27,10 +27,10 @@ type HtmlHandler struct {
 	profileService   *services.ProfileService
 	presenceService  *services.PresenceService
 	mu               sync.RWMutex
-	websocketsSatate map[*websocket.Conn]*WebsocketState
+	websocketsSatate map[*websocket.Conn]*websocketState
 }
 
-type WebsocketState struct {
+type websocketState struct {
 	mu sync.Mutex
 }
 
@@ -41,23 +41,23 @@ func NewHtmlHandler(
 	chatService *services.ChatService,
 	profileService *services.ProfileService,
 	presenceService *services.PresenceService,
-) *HtmlHandler {
-	return &HtmlHandler{
+) *htmlHandler {
+	return &htmlHandler{
 		logger:           logger,
 		pubsub:           pubsub,
 		authService:      authService,
 		chatService:      chatService,
 		profileService:   profileService,
 		presenceService:  presenceService,
-		websocketsSatate: make(map[*websocket.Conn]*WebsocketState),
+		websocketsSatate: make(map[*websocket.Conn]*websocketState),
 	}
 }
 
-func (me *HtmlHandler) HandleRegisterPage(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleRegisterPage(c *fiber.Ctx) error {
 	return render(c, components.RegisterPage())
 }
 
-func (me *HtmlHandler) HandleRegister(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleRegister(c *fiber.Ctx) error {
 	name := c.FormValue("name")
 	username := c.FormValue("username")
 	email := c.FormValue("email")
@@ -100,11 +100,11 @@ func (me *HtmlHandler) HandleRegister(c *fiber.Ctx) error {
 	return redirect(c, "/login")
 }
 
-func (me *HtmlHandler) HandleLoginPage(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleLoginPage(c *fiber.Ctx) error {
 	return render(c, components.LoginPage())
 }
 
-func (me *HtmlHandler) HandleLogin(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleLogin(c *fiber.Ctx) error {
 	email := c.FormValue("email")
 
 	otpID, err := me.authService.SendOtp("email", email, "login")
@@ -132,7 +132,7 @@ func (me *HtmlHandler) HandleLogin(c *fiber.Ctx) error {
 	return render(c, components.OtpForm(components.OtpFormParams{OtpID: otpID}))
 }
 
-func (me *HtmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 	otpID := c.FormValue("otpID")
 	otp := c.FormValue("otp")
 
@@ -145,7 +145,7 @@ func (me *HtmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 			Otp:   otp,
 		}
 
-		if errors.Is(err, services.ErrInvalidOTP) {
+		if errors.Is(err, services.ErrInvalidOtp) {
 			params.OtpErr = "Invalid code"
 			return render(c, components.OtpForm(params))
 		}
@@ -170,7 +170,7 @@ func (me *HtmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 	return redirect(c, "/")
 }
 
-func (me *HtmlHandler) HandleChatPage(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleChatPage(c *fiber.Ctx) error {
 	userID := getCurrentUserID(c)
 	profile, err := me.profileService.GetProfile(userID)
 	if err != nil {
@@ -185,7 +185,7 @@ func (me *HtmlHandler) HandleChatPage(c *fiber.Ctx) error {
 	}))
 }
 
-func (me *HtmlHandler) HandleGetChatPartners(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 	cursor := c.Query("cursor")
 
 	limit := 15
@@ -215,7 +215,7 @@ func (me *HtmlHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 	}))
 }
 
-func (me *HtmlHandler) HandleProfileModal(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleProfileModal(c *fiber.Ctx) error {
 	tab := c.Query("tab", "profile")
 	params := components.ProfileModalParams{}
 
@@ -250,7 +250,7 @@ func (me *HtmlHandler) HandleProfileModal(c *fiber.Ctx) error {
 	return render(c, components.ProfileModal(params))
 }
 
-func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	name := c.FormValue("name")
 	username := c.FormValue("username")
 	email := c.FormValue("email")
@@ -293,7 +293,7 @@ func (me *HtmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	return render(c, components.ProfileForm(params))
 }
 
-func (me *HtmlHandler) HandleDeleteProfile(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleDeleteProfile(c *fiber.Ctx) error {
 	if err := me.profileService.DeleteProfile(getCurrentUserID(c)); err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func (me *HtmlHandler) HandleDeleteProfile(c *fiber.Ctx) error {
 	return redirect(c, "/")
 }
 
-func (me *HtmlHandler) HandleLogout(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleLogout(c *fiber.Ctx) error {
 	if err := me.authService.DeleteSession(getCurrentUserID(c), getCurrentSessionID(c)); err != nil {
 		return err
 	}
@@ -309,16 +309,16 @@ func (me *HtmlHandler) HandleLogout(c *fiber.Ctx) error {
 	return redirect(c, "/login")
 }
 
-func (me *HtmlHandler) HandleDeleteSession(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleDeleteSession(c *fiber.Ctx) error {
 	sessionID := c.Params("session_id")
 	return me.authService.DeleteSession(getCurrentUserID(c), sessionID)
 }
 
-func (me *HtmlHandler) HandleSearchModal(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleSearchModal(c *fiber.Ctx) error {
 	return render(c, components.SearchModal())
 }
 
-func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 	query := c.Query("query")
 	cursor := c.Query("cursor")
 
@@ -348,7 +348,7 @@ func (me *HtmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 	}))
 }
 
-func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 	partnerID := c.Params("partner_id")
 
 	partnerProfile, err := me.profileService.GetProfile(partnerID)
@@ -375,7 +375,7 @@ func (me *HtmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 	))
 }
 
-func (me *HtmlHandler) HandleSelectPartnerFromPartnersList(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleSelectPartnerFromPartnersList(c *fiber.Ctx) error {
 	partnerID := c.Params("partner_id")
 
 	partnerProfile, err := me.profileService.GetProfile(partnerID)
@@ -398,7 +398,7 @@ func (me *HtmlHandler) HandleSelectPartnerFromPartnersList(c *fiber.Ctx) error {
 	}))
 }
 
-func (me *HtmlHandler) HandleChatMessages(c *fiber.Ctx) error {
+func (me *htmlHandler) HandleChatMessages(c *fiber.Ctx) error {
 	cursor := c.Query("cursor")
 	partnerID := c.Params("partner_id")
 
@@ -426,9 +426,9 @@ func (me *HtmlHandler) HandleChatMessages(c *fiber.Ctx) error {
 	}))
 }
 
-func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
+func (me *htmlHandler) HandleWebsocket(c *websocket.Conn) {
 	me.mu.RLock()
-	me.websocketsSatate[c] = &WebsocketState{}
+	me.websocketsSatate[c] = &websocketState{}
 	me.mu.RUnlock()
 
 	defer func() {
@@ -516,7 +516,7 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	me.sendUnreadMessageCounts(userID, c)
 
 	for {
-		var message WebsocketMessage
+		var message websocketMessage
 		if err := c.ReadJSON(&message); err != nil {
 			if websocket.IsUnexpectedCloseError(err) {
 				break
@@ -526,7 +526,7 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 		}
 
 		switch message.Kind {
-		case SendMessage:
+		case sendMessage:
 			me.handleSendMessage(userID, c, message)
 		default:
 			me.logger.Warn("unhandeled websocket message", "kind", message.Kind, "user", userID, "session", sessionID)
@@ -534,7 +534,7 @@ func (me *HtmlHandler) HandleWebsocket(c *websocket.Conn) {
 	}
 }
 
-func (me *HtmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteCloser) error) error {
+func (me *htmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteCloser) error) error {
 	// Per-socket mutex is required because NextWriter closes any existing writer,
 	// causing a race condition when multiple goroutines (e.g., pubsub handlers) call it concurrently.
 	state, ok := me.websocketsSatate[c]
@@ -553,7 +553,7 @@ func (me *HtmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteC
 	return f(w)
 }
 
-func (me *HtmlHandler) handleSendMessage(userID string, c *websocket.Conn, message WebsocketMessage) {
+func (me *htmlHandler) handleSendMessage(userID string, c *websocket.Conn, message websocketMessage) {
 	if err := me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 		return h.Render(w,
 			h.Div(h.KV{h.AttrId: "new-message-inserter-" + message.PartnerID, hx.AttrHxSwapOob: hx.SwapAfterEnd},
@@ -575,7 +575,7 @@ func (me *HtmlHandler) handleSendMessage(userID string, c *websocket.Conn, messa
 	}
 }
 
-func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn) error {
+func (me *htmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn) error {
 	return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 		unreadCounts, err := me.chatService.GetUnreadCounts(context.Background(), userID)
 		if err != nil {
@@ -598,7 +598,7 @@ func (me *HtmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn)
 	})
 }
 
-func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *htmlHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.MessageWasSentEventPayload)
 		if message.UserID != userID {
@@ -637,7 +637,7 @@ func (me *HtmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 	}
 }
 
-func (me *HtmlHandler) incommingMessageEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *htmlHandler) incommingMessageEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.IncommingMessageEventPayload)
 		if message.UserID != userID {
@@ -715,7 +715,7 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 	)
 }
 
-func (me *HtmlHandler) userProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *htmlHandler) userProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.UserProfileWasUpdatedEventPayload)
 		if message.UserID != userID {
@@ -735,7 +735,7 @@ func (me *HtmlHandler) userProfileWasUpdatedEventHandler(userID string, c *webso
 	}
 }
 
-func (me *HtmlHandler) partnerProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *htmlHandler) partnerProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerProfileWasUpdatedEventPayload)
 		if message.UserID != userID {
@@ -771,7 +771,7 @@ func (me *HtmlHandler) partnerProfileWasUpdatedEventHandler(userID string, c *we
 	}
 }
 
-func (me *HtmlHandler) partnerProfileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *htmlHandler) partnerProfileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerProfileWasDeletedEventPayload)
 		if message.UserID != userID {
@@ -790,7 +790,7 @@ func (me *HtmlHandler) partnerProfileWasDeletedEventHandler(userID string, c *we
 	}
 }
 
-func (me *HtmlHandler) partnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *htmlHandler) partnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerPresenceEventPayload)
 		if message.UserID != userID {
@@ -811,7 +811,7 @@ func (me *HtmlHandler) partnerPresenceEventHandler(userID string, c *websocket.C
 	}
 }
 
-func (me *HtmlHandler) userMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *htmlHandler) userMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.UserMessagesWereReadEventPayload)
 		if message.UserID != userID {
@@ -830,7 +830,7 @@ func (me *HtmlHandler) userMessagesWereReadEventHandler(userID string, c *websoc
 	}
 }
 
-func (me *HtmlHandler) partnerMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *htmlHandler) partnerMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerMessagesWereReadEventPayload)
 		if message.UserID != userID {

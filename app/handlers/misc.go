@@ -16,148 +16,138 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// ApiError is the error type returned from API handlers
-type ApiError struct {
-	Kind        ErrorKind `json:"kind"`
+type apiError struct {
+	Kind        errorKind `json:"kind"`
 	Description string    `json:"description"`
 	Details     any       `json:"details,omitempty"`
 }
 
-func NewApiError(kind ErrorKind, details any) ApiError {
-	return ApiError{
+func newApiError(kind errorKind, details any) apiError {
+	return apiError{
 		Kind:        kind,
 		Description: errorDescriptions[kind],
 		Details:     details,
 	}
 }
 
-func (me ApiError) Error() string {
+func (me apiError) Error() string {
 	return fmt.Sprintf("%s: %v", me.Kind, me.Details)
 }
 
-type ErrorKind string
+type errorKind string
 
 const (
-	ErrInvalidJSON              ErrorKind = "InvalidJson"
-	ErrInvalidData              ErrorKind = "InvalidData"
-	ErrNotFound                 ErrorKind = "NotFound"
-	ErrUsernameConflict         ErrorKind = "UsernameConflict"
-	ErrEmailConflict            ErrorKind = "EmailConflict"
-	ErrInternalFailure          ErrorKind = "InternalFailure"
-	ErrInvalidOTP               ErrorKind = "InvalidOtp"
-	ErrUnauthorized             ErrorKind = "Unauthorized"
-	ErrInvalidCursor            ErrorKind = "InvalidCursor"
-	ErrInvalidEndpoint          ErrorKind = "InvalidEndpoint"
-	ErrMethodNotAllowed         ErrorKind = "MethodNotAllowed"
-	ErrWebscoketUpgradeRequired ErrorKind = "UpgradeRequired"
+	errInvalidJSON              errorKind = "InvalidJson"
+	errInvalidData              errorKind = "InvalidData"
+	errNotFound                 errorKind = "NotFound"
+	errUsernameConflict         errorKind = "UsernameConflict"
+	errEmailConflict            errorKind = "EmailConflict"
+	errInternalFailure          errorKind = "InternalFailure"
+	errInvalidOtp               errorKind = "InvalidOtp"
+	errUnauthorized             errorKind = "Unauthorized"
+	errInvalidCursor            errorKind = "InvalidCursor"
+	errInvalidEndpoint          errorKind = "InvalidEndpoint"
+	errMethodNotAllowed         errorKind = "MethodNotAllowed"
+	errWebscoketUpgradeRequired errorKind = "UpgradeRequired"
 )
 
-var errorDescriptions = map[ErrorKind]string{
-	ErrInvalidJSON:              "The request body contains malformed or invalid JSON.",
-	ErrInvalidData:              "The request data fails validation rules.",
-	ErrNotFound:                 "The requested resource could not be found.",
-	ErrUsernameConflict:         "Username already exists.",
-	ErrEmailConflict:            "Email already exists.",
-	ErrInternalFailure:          "An unexpected internal error occurred while processing the request.",
-	ErrInvalidOTP:               "The provided otp is not invalid or expired.",
-	ErrUnauthorized:             "Authentication is required or the provided credentials are invalid.",
-	ErrInvalidCursor:            "The provided pagination cursor is malformed or invalid.",
-	ErrInvalidEndpoint:          "The requested API endpoint does not exist or is malformed.",
-	ErrMethodNotAllowed:         "The requested HTTP method is not allowed for this endpoint.",
-	ErrWebscoketUpgradeRequired: "Websocket upgrade is required for this endpoint.",
+var errorDescriptions = map[errorKind]string{
+	errInvalidJSON:              "The request body contains malformed or invalid JSON.",
+	errInvalidData:              "The request data fails validation rules.",
+	errNotFound:                 "The requested resource could not be found.",
+	errUsernameConflict:         "Username already exists.",
+	errEmailConflict:            "Email already exists.",
+	errInternalFailure:          "An unexpected internal error occurred while processing the request.",
+	errInvalidOtp:               "The provided otp is not invalid or expired.",
+	errUnauthorized:             "Authentication is required or the provided credentials are invalid.",
+	errInvalidCursor:            "The provided pagination cursor is malformed or invalid.",
+	errInvalidEndpoint:          "The requested API endpoint does not exist or is malformed.",
+	errMethodNotAllowed:         "The requested HTTP method is not allowed for this endpoint.",
+	errWebscoketUpgradeRequired: "Websocket upgrade is required for this endpoint.",
 }
 
-// serviceErrToApiErr converts service errors to ApiError
 func serviceErrToApiErr(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	if errors.Is(err, services.ErrValidation) {
+	switch {
+	case errors.Is(err, services.ErrValidation):
 		var validationErrs validation.Errors
 		if errors.As(err, &validationErrs) {
-			return NewApiError(ErrInvalidData, validationErrs)
+			return newApiError(errInvalidData, validationErrs)
 		}
-		return NewApiError(ErrInvalidData, err)
-	}
-
-	if errors.Is(err, services.ErrNotFound) {
-		return NewApiError(ErrNotFound, nil)
-	}
-
-	if errors.Is(err, services.ErrUnauthorized) {
-		return NewApiError(ErrUnauthorized, nil)
-	}
-
-	if errors.Is(err, services.ErrInvalidOTP) {
-		return NewApiError(ErrInvalidOTP, nil)
-	}
-
-	if errors.Is(err, services.ErrUsernameConflict) {
-		return NewApiError(ErrUsernameConflict, nil)
-	}
-
-	if errors.Is(err, services.ErrEmailConflict) {
-		return NewApiError(ErrEmailConflict, nil)
+		return newApiError(errInvalidData, err)
+	case errors.Is(err, services.ErrNotFound):
+		return newApiError(errNotFound, nil)
+	case errors.Is(err, services.ErrUnauthorized):
+		return newApiError(errUnauthorized, nil)
+	case errors.Is(err, services.ErrInvalidOtp):
+		return newApiError(errInvalidOtp, nil)
+	case errors.Is(err, services.ErrUsernameConflict):
+		return newApiError(errUsernameConflict, nil)
+	case errors.Is(err, services.ErrEmailConflict):
+		return newApiError(errEmailConflict, nil)
 	}
 
 	// If it's not a known service error, return as-is (likely internal error)
 	return err
 }
 
-// This error handler is called after [WithErrorResolver] and all other handlers,
-// so err is ApiError, and the status code was set
+// ErrorHandler returns a Fiber error handler that returns [apiError] as JSON.
+// It is called after [WithErrorResolver], so the status code is already set.
 func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		if c.Response().StatusCode() == fiber.StatusInternalServerError {
-			if _, ok := err.(ApiError); !ok {
+			if _, ok := err.(apiError); !ok {
 				logger.Warn("expected an api error", "error", err)
 			}
-			return c.JSON(NewApiError(ErrInternalFailure, nil))
+			return c.JSON(newApiError(errInternalFailure, nil))
 		}
 
 		return c.JSON(err)
 	}
 }
 
-// This ensures we always return ApiError, and the proper status code was set.
-// This must be registered after (handled before) the logger middleware.
+// WithErrorResolver is a middleware that converts errors to apiError
+// and sets the appropriate HTTP status code.
+// It must be registered after (handled before) the logger middleware.
 func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if err := c.Next(); err != nil {
 			var code int
 			var fe *fiber.Error
-			var ae ApiError
+			var ae apiError
 
 			if errors.As(err, &fe) {
 				// Returned by fiber's router
 				code = fe.Code
 				switch fe.Code {
 				case fiber.StatusNotFound:
-					err = NewApiError(ErrInvalidEndpoint, nil)
+					err = newApiError(errInvalidEndpoint, nil)
 				case fiber.StatusMethodNotAllowed:
-					err = NewApiError(ErrMethodNotAllowed, nil)
+					err = newApiError(errMethodNotAllowed, nil)
 				default:
 					logger.Warn("unhandled fiber error", "error", err)
 					code = fiber.StatusInternalServerError
-					err = NewApiError(ErrInternalFailure, err)
+					err = newApiError(errInternalFailure, err)
 				}
 			} else if errors.As(err, &ae) {
 				// Returned by services
 				switch ae.Kind {
-				case ErrInvalidJSON, ErrInvalidData, ErrInvalidCursor:
+				case errInvalidJSON, errInvalidData, errInvalidCursor:
 					code = fiber.StatusBadRequest
-				case ErrNotFound, ErrInvalidEndpoint:
+				case errNotFound, errInvalidEndpoint:
 					code = fiber.StatusNotFound
-				case ErrEmailConflict, ErrUsernameConflict:
+				case errEmailConflict, errUsernameConflict:
 					code = fiber.StatusConflict
-				case ErrInvalidOTP, ErrUnauthorized:
+				case errInvalidOtp, errUnauthorized:
 					code = fiber.StatusUnauthorized
-				case ErrWebscoketUpgradeRequired:
+				case errWebscoketUpgradeRequired:
 					code = fiber.StatusUpgradeRequired
-				case ErrMethodNotAllowed:
+				case errMethodNotAllowed:
 					code = fiber.StatusMethodNotAllowed
-				case ErrInternalFailure:
+				case errInternalFailure:
 					code = fiber.StatusInternalServerError
 				default:
 					code = fiber.StatusInternalServerError
@@ -168,7 +158,7 @@ func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 				// I don't give specific error type for general errors (e.g. DB failiur, encodin/decoding errors, ...etc).
 				// They are all handled here.
 				code = fiber.StatusInternalServerError
-				err = NewApiError(ErrInternalFailure, err)
+				err = newApiError(errInternalFailure, err)
 			}
 
 			c.Status(code)
@@ -179,6 +169,7 @@ func WithErrorResolver(logger *slog.Logger) fiber.Handler {
 	}
 }
 
+// WithLogging is a middleware that logs request details (method, path, status, duration, IP).
 func WithLogging(logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
@@ -198,6 +189,13 @@ func WithLogging(logger *slog.Logger) fiber.Handler {
 	}
 }
 
+const (
+	currentSessionID = "Auth.SessionID"
+	currentUserID    = "Auth.UserID"
+)
+
+// WithSessionTokenCookie is a middleware that validates the session token from cookies
+// and stores the session ID and user ID in context locals.
 func WithSessionTokenCookie(authService *services.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		sessionID, userID, err := authService.ValidateSessionToken(c.Cookies("session_token"))
@@ -211,52 +209,54 @@ func WithSessionTokenCookie(authService *services.AuthService) fiber.Handler {
 	}
 }
 
-// WARN: Must be used after passing through [WithSessionTokenCookie]
+// getCurrentSessionID returns the session ID from the request context.
+// It must be called after [WithSessionTokenCookie] middleware.
+func getCurrentSessionID(c *fiber.Ctx) string {
+	return c.Locals(currentSessionID).(string)
+}
+
+// getCurrentUserID returns the user ID from the request context.
+// It must be called after [WithSessionTokenCookie] middleware.
+func getCurrentUserID(c *fiber.Ctx) string {
+	return c.Locals(currentUserID).(string)
+}
+
+// WithCsrfTokenHeader is a middleware that validates the CSRF token from the X-CSRF-Token header.
+// It must be used after passing through [WithSessionTokenCookie]
 func WithCsrfTokenHeader(authService *services.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if err := authService.ValidateCsrfToken(getCurrentSessionID(c), c.Get("X-CSRF-Token")); err != nil {
 			return serviceErrToApiErr(err)
 		}
-
 		return c.Next()
 	}
 }
 
-// WARN: Must be used after passing through [WithSessionTokenCookie]
+// WithCsrfTokenQuery is a middleware that validates the CSRF token from the csrf_token URL query.
+// It must be used after passing through [WithSessionTokenCookie]
 func WithCsrfTokenQuery(authService *services.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if err := authService.ValidateCsrfToken(getCurrentSessionID(c), c.Query("csrf_token")); err != nil {
 			return serviceErrToApiErr(err)
 		}
-
 		return c.Next()
 	}
 }
 
-const (
-	currentSessionID = "Auth.SessionID"
-	currentUserID    = "Auth.UserID"
-)
-
-func getCurrentSessionID(c *fiber.Ctx) string {
-	return c.Locals(currentSessionID).(string)
-}
-
-func getCurrentUserID(c *fiber.Ctx) string {
-	return c.Locals(currentUserID).(string)
-}
-
+// WithWebsocket is a middleware that checks if the request is a WebSocket upgrade.
+// If not, it returns an error indicating that a WebSocket upgrade is required.
 func WithWebsocket(c *fiber.Ctx) error {
 	if websocket.IsWebSocketUpgrade(c) {
 		return c.Next()
 	}
-	return NewApiError(ErrWebscoketUpgradeRequired, nil)
+	return newApiError(errWebscoketUpgradeRequired, nil)
 }
 
+// WithRedirectUnauthorizedToLogin is a middleware that redirects unauthorized users to the login page.
 func WithRedirectUnauthorizedToLogin(c *fiber.Ctx) error {
 	if err := c.Next(); err != nil {
-		var ae ApiError
-		if errors.As(err, &ae) && ae.Kind == ErrUnauthorized {
+		var ae apiError
+		if errors.As(err, &ae) && ae.Kind == errUnauthorized {
 			return redirect(c, "/login")
 		}
 		return err
@@ -264,12 +264,14 @@ func WithRedirectUnauthorizedToLogin(c *fiber.Ctx) error {
 	return nil
 }
 
+// WithForbiddenAsInvalidEndpoint is a middleware that treats 403 Forbidden as 404 Not Found.
+// This prevents information leakage about the existence of protected resources.
 func WithForbiddenAsInvalidEndpoint(c *fiber.Ctx) error {
 	if err := c.Next(); err != nil {
 		var fe *fiber.Error
 		if errors.As(err, &fe) && fe.Code == fiber.StatusForbidden {
 			c.Status(fiber.StatusNotFound)
-			return NewApiError(ErrInvalidEndpoint, nil)
+			return newApiError(errInvalidEndpoint, nil)
 		}
 		return err
 	}
@@ -295,7 +297,7 @@ func decodeCursor(decoded string, v any) error {
 	return nil
 }
 
-type CursoredResponse[T any] struct {
+type cursoredResponse[T any] struct {
 	Items  []T    `json:"items"`
 	Cursor string `json:"cursor,omitempty"`
 }
@@ -317,19 +319,19 @@ func redirect(c *fiber.Ctx, endpoint string) error {
 }
 
 const (
-	PartnerPresenceChanged   = "ChatPartnerPresenceChanged"
-	ChatWasDeleted           = "ChatWasDeleted"
-	UserProfileWasUpdated    = "UserProfileWasUpdated"
-	PartnerProfileWasUpdated = "PartnerProfileWasUpdated"
-	PartnerProfileWasDeleted = "PartnerProfileWasDeleted"
-	SendMessage              = "SendMessage"
-	MessageWasSent           = "MessageWasSent"
-	IncommingMessage         = "IncommingMessage"
-	UserMessagesWereRead     = "UserMessagesWereRead"
-	PartnerMessagesWereRead  = "PartnerMessagesWereRead"
+	partnerPresenceChanged   = "ChatPartnerPresenceChanged"
+	chatWasDeleted           = "ChatWasDeleted"
+	userProfileWasUpdated    = "UserProfileWasUpdated"
+	partnerProfileWasUpdated = "PartnerProfileWasUpdated"
+	partnerProfileWasDeleted = "PartnerProfileWasDeleted"
+	sendMessage              = "SendMessage"
+	messageWasSent           = "MessageWasSent"
+	incommingMessage         = "IncommingMessage"
+	userMessagesWereRead     = "UserMessagesWereRead"
+	partnerMessagesWereRead  = "PartnerMessagesWereRead"
 )
 
-type WebsocketMessage struct {
+type websocketMessage struct {
 	Kind              string    `json:"kind"`
 	UserID            string    `json:"userID,omitempty"`
 	PartnerID         string    `json:"partnerID,omitempty"`
@@ -337,21 +339,20 @@ type WebsocketMessage struct {
 	ReadMessageIDs    []string  `json:"readMessageIDs,omitempty"`
 	ReadMessagesCount int       `json:"readMessagesCount,omitempty"`
 	Name              string    `json:"name,omitempty"`
-	Username          string    `json:"username"`
+	Username          string    `json:"username,omitempty"`
 	Email             string    `json:"email,omitempty"`
 	Bio               string    `json:"bio,omitempty"`
-	MessageID         string    `json:"messageID"`
-	ClientMessageID   int       `json:"clientMessageID"`
-	Content           string    `json:"content"`
-	Timestamp         time.Time `json:"timestamp"`
+	MessageID         string    `json:"messageID,omitempty"`
+	ClientMessageID   int       `json:"clientMessageID,omitempty"`
+	Content           string    `json:"content,omitempty"`
+	Timestamp         time.Time `json:"timestamp,omitempty"`
 }
 
-func extractPlatformAndOSFromUserAgent(userAgent string) (platform string, os string) {
-	if userAgent == "" {
+func extractPlatformAndOSFromUserAgent(ua string) (platform string, os string) {
+	if ua == "" {
 		return "Unknown", "Unknown"
 	}
-
-	ua := strings.ToLower(userAgent)
+	ua = strings.ToLower(ua)
 
 	os = "Unknown"
 	for _, p := range osPatterns {
@@ -378,6 +379,7 @@ type pattern struct {
 }
 
 var platformPatterns = []pattern{
+	// Order is critical
 	{"firefox", "Firefox"},
 	{"chrome", "Chrome"},
 	{"safari", "Safari"},
@@ -387,6 +389,7 @@ var platformPatterns = []pattern{
 }
 
 var osPatterns = []pattern{
+	// Order is critical
 	{"windows nt 10.0", "Windows 10"},
 	{"windows nt 6.3", "Windows 8.1"},
 	{"windows nt 6.2", "Windows 8"},

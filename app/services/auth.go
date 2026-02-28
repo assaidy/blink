@@ -16,7 +16,7 @@ import (
 
 	"github.com/assaidy/blink/app/env"
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils/email"
+	"github.com/assaidy/blink/app/utils/mailer"
 	"github.com/go-ozzo/ozzo-validation/is"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/oklog/ulid/v2"
@@ -106,9 +106,9 @@ func (me *AuthService) Register(name, username, email, bio string) error {
 
 func validateSendOtpParams(channel, identifier, purpose string) error {
 	type Params struct {
-		Channel   string
+		Channel    string
 		Identifier string
-		Purpose   string
+		Purpose    string
 	}
 	params := Params{Channel: channel, Identifier: identifier, Purpose: purpose}
 
@@ -199,7 +199,7 @@ func hashOtp(otp string) string {
 	return hex.EncodeToString([]byte(sum))
 }
 
-func verifyOtp(otp string, hash string) bool {
+func compareOtpAndHash(otp string, hash string) bool {
 	actual := hashOtp(otp)
 	return hmac.Equal([]byte(actual), []byte(hash))
 }
@@ -241,13 +241,13 @@ func (me *AuthService) VerifyOtp(otpID, otp, platform, os string) (*LoginSession
 	storedOtp, err := me.queries.GetOtpByID(ctx, otpID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrInvalidOTP
+			return nil, ErrInvalidOtp
 		}
 		return nil, fmt.Errorf("failed to get otp by id: %w", err)
 	}
 
-	if time.Since(storedOtp.ExpiresAt) >= 0 || !verifyOtp(otp, storedOtp.OtpHash) {
-		return nil, ErrInvalidOTP
+	if time.Since(storedOtp.ExpiresAt) >= 0 || !compareOtpAndHash(otp, storedOtp.OtpHash) {
+		return nil, ErrInvalidOtp
 	}
 
 	switch storedOtp.Purpose {
@@ -274,7 +274,11 @@ func (me *AuthService) VerifyOtp(otpID, otp, platform, os string) (*LoginSession
 			return nil, fmt.Errorf("failed to mark email as verified: %w", err)
 		}
 
-		return &LoginSession{SessionToken: sessionToken, CsrfToken: csrfToken, ExpiresAt: sessionExpiration}, nil
+		return &LoginSession{
+			SessionToken: sessionToken,
+			CsrfToken:    csrfToken,
+			ExpiresAt:    sessionExpiration,
+		}, nil
 	}
 
 	return nil, nil

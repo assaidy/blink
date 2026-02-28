@@ -18,7 +18,7 @@ import (
 	"github.com/assaidy/blink/app/env"
 	"github.com/assaidy/blink/app/handlers"
 	"github.com/assaidy/blink/app/services"
-	"github.com/assaidy/blink/app/utils/email"
+	"github.com/assaidy/blink/app/utils/mailer"
 	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/contrib/websocket"

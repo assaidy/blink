@@ -25,13 +25,15 @@ type Pubsub interface {
 	Subscribe(ctx context.Context, event string, payloadGenerator PayloadGenerator, handler PayloadHandler)
 }
 
-// JsonMessageGenerator serializes a payload into a JSON string.
+// JsonMessageGenerator serializes a payload into a JSON string message.
+// It is used by publishers to convert a payload before sending over the pubsub.
 func JsonMessageGenerator(payload any) (string, error) {
 	bytes, err := json.Marshal(payload)
 	return string(bytes), err
 }
 
-// JsonPayloadGenerator deserializes a JSON string into the specified type T.
+// JsonPayloadGenerator deserializes a JSON string message into the specified type T.
+// It is used by subscribers to convert an incoming message back into a payload.
 func JsonPayloadGenerator[T any](message string) (any, error) {
 	var payload T
 	err := json.Unmarshal([]byte(message), &payload)

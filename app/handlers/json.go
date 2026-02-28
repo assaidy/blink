@@ -13,7 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type JsonHandler struct {
+type jsonHandler struct {
 	logger          *slog.Logger
 	authService     *services.AuthService
 	chatService     *services.ChatService
@@ -29,8 +29,8 @@ func NewJsonHandler(
 	profileService *services.ProfileService,
 	presenceService *services.PresenceService,
 	pubsub pubsub.Pubsub,
-) *JsonHandler {
-	return &JsonHandler{
+) *jsonHandler {
+	return &jsonHandler{
 		logger:          logger,
 		authService:     authService,
 		chatService:     chatService,
@@ -42,17 +42,17 @@ func NewJsonHandler(
 
 // ==================== Auth API Handlers ====================
 
-type RegisterRequest struct {
+type registerRequest struct {
 	Name     string `json:"name"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Bio      string `json:"bio"`
 }
 
-func (me *JsonHandler) HandleRegister(c *fiber.Ctx) error {
-	var request RegisterRequest
+func (me *jsonHandler) HandleRegister(c *fiber.Ctx) error {
+	var request registerRequest
 	if err := c.BodyParser(&request); err != nil {
-		return NewApiError(ErrInvalidJSON, err)
+		return newApiError(errInvalidJSON, err)
 	}
 
 	if err := me.authService.Register(request.Name, request.Username, request.Email, request.Bio); err != nil {
@@ -62,20 +62,20 @@ func (me *JsonHandler) HandleRegister(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusCreated)
 }
 
-type RequestOtpRequest struct {
+type requestOtpRequest struct {
 	Channel    string `json:"channel"`
 	Identifier string `json:"identifier"`
 	Purpose    string `json:"purpose"`
 }
 
-type RequestOtpResponse struct {
+type requestOtpResponse struct {
 	OtpID string `json:"otpID"`
 }
 
-func (me *JsonHandler) HandleRequestOtp(c *fiber.Ctx) error {
-	var request RequestOtpRequest
+func (me *jsonHandler) HandleRequestOtp(c *fiber.Ctx) error {
+	var request requestOtpRequest
 	if err := c.BodyParser(&request); err != nil {
-		return NewApiError(ErrInvalidJSON, err)
+		return newApiError(errInvalidJSON, err)
 	}
 
 	otpID, err := me.authService.SendOtp(request.Channel, request.Identifier, request.Purpose)
@@ -83,20 +83,20 @@ func (me *JsonHandler) HandleRequestOtp(c *fiber.Ctx) error {
 		return serviceErrToApiErr(err)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(RequestOtpResponse{
+	return c.Status(fiber.StatusOK).JSON(requestOtpResponse{
 		OtpID: otpID,
 	})
 }
 
-type VerifyOtpRequest struct {
+type verifyOtpRequest struct {
 	OtpID string `json:"otpID"`
 	Otp   string `json:"otp"`
 }
 
-func (me *JsonHandler) HandleVerifyOtp(c *fiber.Ctx) error {
-	var request VerifyOtpRequest
+func (me *jsonHandler) HandleVerifyOtp(c *fiber.Ctx) error {
+	var request verifyOtpRequest
 	if err := c.BodyParser(&request); err != nil {
-		return NewApiError(ErrInvalidJSON, err)
+		return newApiError(errInvalidJSON, err)
 	}
 
 	platform, os := extractPlatformAndOSFromUserAgent(c.Get("User-Agent"))
@@ -123,7 +123,7 @@ func (me *JsonHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (me *JsonHandler) HandleLogout(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleLogout(c *fiber.Ctx) error {
 	if err := me.authService.DeleteSession(getCurrentUserID(c), getCurrentSessionID(c)); err != nil {
 		return err
 	}
@@ -131,26 +131,26 @@ func (me *JsonHandler) HandleLogout(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (me *JsonHandler) HandleDeleteSession(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleDeleteSession(c *fiber.Ctx) error {
 	sessionID := c.Params("session_id")
 	return me.authService.DeleteSession(getCurrentUserID(c), sessionID)
 }
 
-type GetActiveSessionsResponseItem struct {
+type getActiveSessionsResponseItem struct {
 	ID       string `json:"id"`
 	Platform string `json:"platform"`
 	Os       string `json:"os"`
 }
 
-func (me *JsonHandler) HandleGetActiveSessions(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleGetActiveSessions(c *fiber.Ctx) error {
 	sessions, err := me.authService.GetActiveSessionsForUser(getCurrentUserID(c))
 	if err != nil {
 		return err
 	}
 
-	response := make([]GetActiveSessionsResponseItem, 0, len(sessions))
+	response := make([]getActiveSessionsResponseItem, 0, len(sessions))
 	for _, s := range sessions {
-		response = append(response, GetActiveSessionsResponseItem{
+		response = append(response, getActiveSessionsResponseItem{
 			ID:       s.ID,
 			Platform: s.Platform,
 			Os:       s.Os,
@@ -162,24 +162,24 @@ func (me *JsonHandler) HandleGetActiveSessions(c *fiber.Ctx) error {
 
 // ==================== Chat API Handlers ====================
 
-type GetChatsCursor struct {
+type getChatsCursor struct {
 	LastMessageIDWithLastPartner string `json:"lastMessageIDWithLastPartner"`
 }
 
-type GetChatPartnersResponseItem struct {
+type getChatPartnersResponseItem struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Username string `json:"username"`
 	IsOnline bool   `json:"isOnline"`
 }
 
-type GetChatPartnersResponse CursoredResponse[GetChatPartnersResponseItem]
+type GetChatPartnersResponse cursoredResponse[getChatPartnersResponseItem]
 
-func (me *JsonHandler) HandleGetChatPartners(c *fiber.Ctx) error {
-	var requestCursor GetChatsCursor
+func (me *jsonHandler) HandleGetChatPartners(c *fiber.Ctx) error {
+	var requestCursor getChatsCursor
 	if qc := c.Query("cursor"); qc != "" {
 		if err := decodeCursor(qc, &requestCursor); err != nil {
-			return NewApiError(ErrInvalidCursor, nil)
+			return newApiError(errInvalidCursor, err)
 		}
 	}
 
@@ -191,16 +191,16 @@ func (me *JsonHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 
 	var encodedResponseCursor string
 	if limit == len(partners) {
-		if encodedResponseCursor, err = encodeCursor(GetChatsCursor{
+		if encodedResponseCursor, err = encodeCursor(getChatsCursor{
 			LastMessageIDWithLastPartner: partners[limit-1].ID,
 		}); err != nil {
 			return fmt.Errorf("failed to encode cursor: %w", err)
 		}
 	}
 
-	responseItems := make([]GetChatPartnersResponseItem, 0, len(partners))
+	responseItems := make([]getChatPartnersResponseItem, 0, len(partners))
 	for _, p := range partners {
-		responseItems = append(responseItems, GetChatPartnersResponseItem{
+		responseItems = append(responseItems, getChatPartnersResponseItem{
 			ID:       p.ID,
 			Name:     p.Name,
 			Username: p.Username,
@@ -214,18 +214,18 @@ func (me *JsonHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 	})
 }
 
-func (me *JsonHandler) HandleDeleteChat(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleDeleteChat(c *fiber.Ctx) error {
 	if err := me.chatService.DeleteChat(getCurrentUserID(c), c.Params("partner_id")); err != nil {
 		return err
 	}
 	return c.SendStatus(fiber.StatusOK)
 }
 
-type GetChatMessagesCursor struct {
+type getChatMessagesCursor struct {
 	LastMessageID string `json:"lastMessageID"`
 }
 
-type GetChatMessagesResponseItem struct {
+type getChatMessagesResponseItem struct {
 	ID      string    `json:"id"`
 	Content string    `json:"content"`
 	SentAt  time.Time `json:"sentAt"`
@@ -233,13 +233,13 @@ type GetChatMessagesResponseItem struct {
 	FromMe  bool      `json:"fromMe"`
 }
 
-type GetChatMessagesResponse CursoredResponse[GetChatMessagesResponseItem]
+type GetChatMessagesResponse cursoredResponse[getChatMessagesResponseItem]
 
-func (me *JsonHandler) HandleGetChatMessages(c *fiber.Ctx) error {
-	var requestCursor GetChatMessagesCursor
+func (me *jsonHandler) HandleGetChatMessages(c *fiber.Ctx) error {
+	var requestCursor getChatMessagesCursor
 	if qc := c.Query("cursor"); qc != "" {
 		if err := decodeCursor(qc, &requestCursor); err != nil {
-			return NewApiError(ErrInvalidCursor, nil)
+			return newApiError(errInvalidCursor, err)
 		}
 	}
 
@@ -251,16 +251,16 @@ func (me *JsonHandler) HandleGetChatMessages(c *fiber.Ctx) error {
 
 	var encodedResponseCursor string
 	if limit == len(messages) {
-		if encodedResponseCursor, err = encodeCursor(GetChatMessagesCursor{
+		if encodedResponseCursor, err = encodeCursor(getChatMessagesCursor{
 			LastMessageID: messages[limit-1].ID,
 		}); err != nil {
 			return fmt.Errorf("failed to encode cursor: %w", err)
 		}
 	}
 
-	responseItems := make([]GetChatMessagesResponseItem, 0, len(messages))
+	responseItems := make([]getChatMessagesResponseItem, 0, len(messages))
 	for _, m := range messages {
-		responseItems = append(responseItems, GetChatMessagesResponseItem{
+		responseItems = append(responseItems, getChatMessagesResponseItem{
 			ID:      m.ID,
 			Content: m.Content,
 			SentAt:  m.SentAt,
@@ -275,7 +275,7 @@ func (me *JsonHandler) HandleGetChatMessages(c *fiber.Ctx) error {
 	})
 }
 
-func (me *JsonHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
 	if err := me.chatService.MarkMessagesAsRead(getCurrentUserID(c), c.Params("partner_id"), c.Query("upto_message_id")); err != nil {
 		return err
 	}
@@ -284,30 +284,30 @@ func (me *JsonHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
 
 // ==================== Profile API Handlers ====================
 
-type SearchProfilesCursor struct {
+type searchProfilesCursor struct {
 	LastUserID string `json:"lastUserID"`
 }
 
-type SearchProfileResponseItem struct {
+type searchProfileResponseItem struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Username string `json:"username"`
 }
 
-type SearchProfileResponse CursoredResponse[SearchProfileResponseItem]
+type SearchProfileResponse cursoredResponse[searchProfileResponseItem]
 
-func (me *JsonHandler) HandleSearchProfiles(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleSearchProfiles(c *fiber.Ctx) error {
 	query := c.Query("query")
 	if query == "" {
 		return c.Status(fiber.StatusOK).JSON(SearchProfileResponse{
-			Items: []SearchProfileResponseItem{},
+			Items: []searchProfileResponseItem{},
 		})
 	}
 
-	var requestCursor SearchProfilesCursor
+	var requestCursor searchProfilesCursor
 	if cq := c.Query("cursor"); cq != "" {
 		if err := decodeCursor(cq, &requestCursor); err != nil {
-			return NewApiError(ErrInvalidCursor, err)
+			return newApiError(errInvalidCursor, err)
 		}
 	}
 
@@ -319,16 +319,16 @@ func (me *JsonHandler) HandleSearchProfiles(c *fiber.Ctx) error {
 
 	var encodedResponseCursor string
 	if limit == len(profiles) {
-		if encodedResponseCursor, err = encodeCursor(SearchProfilesCursor{
+		if encodedResponseCursor, err = encodeCursor(searchProfilesCursor{
 			LastUserID: profiles[limit-1].ID,
 		}); err != nil {
 			return fmt.Errorf("failed to encode cursor: %w", err)
 		}
 	}
 
-	responseItems := make([]SearchProfileResponseItem, 0, len(profiles))
+	responseItems := make([]searchProfileResponseItem, 0, len(profiles))
 	for _, p := range profiles {
-		responseItems = append(responseItems, SearchProfileResponseItem{
+		responseItems = append(responseItems, searchProfileResponseItem{
 			ID:       p.ID,
 			Name:     p.Name,
 			Username: p.Username,
@@ -341,7 +341,7 @@ func (me *JsonHandler) HandleSearchProfiles(c *fiber.Ctx) error {
 	})
 }
 
-type GetProfileResponse struct {
+type getProfileResponse struct {
 	ID       string    `json:"id"`
 	Name     string    `json:"name"`
 	Username string    `json:"username"`
@@ -349,13 +349,13 @@ type GetProfileResponse struct {
 	JoinedAt time.Time `json:"joinedAt"`
 }
 
-func (me *JsonHandler) HandleGetProfile(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleGetProfile(c *fiber.Ctx) error {
 	profile, err := me.profileService.GetProfile(c.Params("user_id"))
 	if err != nil {
 		return err
 	}
 
-	return c.Status(fiber.StatusOK).JSON(GetProfileResponse{
+	return c.Status(fiber.StatusOK).JSON(getProfileResponse{
 		ID:       profile.ID,
 		Name:     profile.Name,
 		Username: profile.Username,
@@ -364,7 +364,7 @@ func (me *JsonHandler) HandleGetProfile(c *fiber.Ctx) error {
 	})
 }
 
-type GetMyProfileResponse struct {
+type getMyProfileResponse struct {
 	ID              string    `json:"id"`
 	Name            string    `json:"name"`
 	Username        string    `json:"username"`
@@ -374,13 +374,13 @@ type GetMyProfileResponse struct {
 	JoinedAt        time.Time `json:"joinedAt"`
 }
 
-func (me *JsonHandler) HandleGetMyProfile(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleGetMyProfile(c *fiber.Ctx) error {
 	profile, err := me.profileService.GetProfile(getCurrentUserID(c))
 	if err != nil {
 		return err
 	}
 
-	return c.Status(fiber.StatusOK).JSON(GetMyProfileResponse{
+	return c.Status(fiber.StatusOK).JSON(getMyProfileResponse{
 		ID:              profile.ID,
 		Name:            profile.Name,
 		Username:        profile.Username,
@@ -391,17 +391,17 @@ func (me *JsonHandler) HandleGetMyProfile(c *fiber.Ctx) error {
 	})
 }
 
-type UpdateProfileRequest struct {
+type updateProfileRequest struct {
 	Name     string `json:"name"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Bio      string `json:"bio"`
 }
 
-func (me *JsonHandler) HandleUpdateProfile(c *fiber.Ctx) error {
-	var request UpdateProfileRequest
+func (me *jsonHandler) HandleUpdateProfile(c *fiber.Ctx) error {
+	var request updateProfileRequest
 	if err := c.BodyParser(&request); err != nil {
-		return NewApiError(ErrInvalidJSON, err)
+		return newApiError(errInvalidJSON, err)
 	}
 
 	if err := me.profileService.UpdateProfile(getCurrentUserID(c), request.Name, request.Username, request.Email, request.Bio); err != nil {
@@ -411,7 +411,7 @@ func (me *JsonHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (me *JsonHandler) HandleDeleteProfile(c *fiber.Ctx) error {
+func (me *jsonHandler) HandleDeleteProfile(c *fiber.Ctx) error {
 	if err := me.profileService.DeleteProfile(getCurrentUserID(c)); err != nil {
 		return err
 	}
@@ -421,7 +421,7 @@ func (me *JsonHandler) HandleDeleteProfile(c *fiber.Ctx) error {
 
 // ==================== WebSocket Handler ====================
 
-func (me *JsonHandler) HandleWebsocket(c *websocket.Conn) {
+func (me *jsonHandler) HandleWebsocket(c *websocket.Conn) {
 	defer c.Close()
 	userID := c.Locals(currentUserID).(string)
 	sessionID := c.Locals(currentSessionID).(string)
@@ -498,7 +498,7 @@ func (me *JsonHandler) HandleWebsocket(c *websocket.Conn) {
 	})
 
 	for {
-		message := WebsocketMessage{}
+		message := websocketMessage{}
 		if err := c.ReadJSON(&message); err != nil {
 			if websocket.IsUnexpectedCloseError(err) {
 				break
@@ -508,7 +508,7 @@ func (me *JsonHandler) HandleWebsocket(c *websocket.Conn) {
 		}
 
 		switch message.Kind {
-		case SendMessage:
+		case sendMessage:
 			me.handleSendMessage(userID, message)
 		default:
 			me.logger.Warn("unhandeled websocket message", "kind", message.Kind, "user", userID, "session", sessionID)
@@ -516,90 +516,90 @@ func (me *JsonHandler) HandleWebsocket(c *websocket.Conn) {
 	}
 }
 
-func (me *JsonHandler) handleSendMessage(userID string, message WebsocketMessage) {
+func (me *jsonHandler) handleSendMessage(userID string, message websocketMessage) {
 	if err := me.chatService.SendChatMessage(userID, message.PartnerID, message.Content, message.ClientMessageID); err != nil {
 		me.logger.Error("failed to send message with chat serivce", "error", err)
 	}
 }
 
-func (me *JsonHandler) partnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) partnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerPresenceEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:      PartnerPresenceChanged,
+		return c.WriteJSON(websocketMessage{
+			Kind:      partnerPresenceChanged,
 			PartnerID: message.PartnerID,
 			IsOnline:  message.IsOnline,
 		})
 	}
 }
 
-func (me *JsonHandler) chatWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) chatWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.ChatWasDeletedEventPayload)
 		if message.UserID != userID && message.PartnerID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:      ChatWasDeleted,
+		return c.WriteJSON(websocketMessage{
+			Kind:      chatWasDeleted,
 			UserID:    message.UserID,
 			PartnerID: message.PartnerID,
 		})
 	}
 }
 
-func (me *JsonHandler) userMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) userMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.UserMessagesWereReadEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:           UserMessagesWereRead,
+		return c.WriteJSON(websocketMessage{
+			Kind:           userMessagesWereRead,
 			UserID:         message.UserID,
 			ReadMessageIDs: message.ReadMessageIDs,
 		})
 	}
 }
 
-func (me *JsonHandler) partnerMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) partnerMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerMessagesWereReadEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:              PartnerMessagesWereRead,
+		return c.WriteJSON(websocketMessage{
+			Kind:              partnerMessagesWereRead,
 			PartnerID:         message.PartnerID,
 			ReadMessagesCount: message.ReadMessageCount,
 		})
 	}
 }
 
-func (me *JsonHandler) userProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) userProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.UserProfileWasUpdatedEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:     UserProfileWasUpdated,
+		return c.WriteJSON(websocketMessage{
+			Kind:     userProfileWasUpdated,
 			Name:     message.Name,
 			Username: message.Username,
 		})
 	}
 }
 
-func (me *JsonHandler) partnerProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) partnerProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerProfileWasUpdatedEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:      PartnerProfileWasUpdated,
+		return c.WriteJSON(websocketMessage{
+			Kind:      partnerProfileWasUpdated,
 			PartnerID: message.PartnerID,
 			Name:      message.Name,
 			Username:  message.Username,
@@ -607,27 +607,27 @@ func (me *JsonHandler) partnerProfileWasUpdatedEventHandler(userID string, c *we
 	}
 }
 
-func (me *JsonHandler) partnerProfileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) partnerProfileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerProfileWasDeletedEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:      PartnerProfileWasDeleted,
+		return c.WriteJSON(websocketMessage{
+			Kind:      partnerProfileWasDeleted,
 			PartnerID: message.PartnerID,
 		})
 	}
 }
 
-func (me *JsonHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.MessageWasSentEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:            MessageWasSent,
+		return c.WriteJSON(websocketMessage{
+			Kind:            messageWasSent,
 			PartnerID:       message.PartnerID,
 			MessageID:       message.MessageID,
 			ClientMessageID: message.ClientMessageID,
@@ -637,14 +637,14 @@ func (me *JsonHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 	}
 }
 
-func (me *JsonHandler) incommingMessageEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *jsonHandler) incommingMessageEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.IncommingMessageEventPayload)
 		if message.UserID != userID {
 			return nil
 		}
-		return c.WriteJSON(WebsocketMessage{
-			Kind:      IncommingMessage,
+		return c.WriteJSON(websocketMessage{
+			Kind:      incommingMessage,
 			PartnerID: message.PartnerID,
 			MessageID: message.MessageID,
 			Content:   message.Content,

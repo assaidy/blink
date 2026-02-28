@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -33,14 +34,14 @@ func (me ValkeyPubsub) Subscribe(ctx context.Context, event string, generator Pa
 	if err := me.client.Receive(ctx, cmd, func(msg valkey.PubSubMessage) {
 		payload, err := generator(msg.Message)
 		if err != nil {
-			me.logger.Error("failed to generate payload in valkey pubub", "error", err)
+			me.logger.Error("failed to generate payload in valkey pubsub", "error", err)
 			return
 		}
 
 		if err := handler(payload); err != nil {
-			me.logger.Error("failed handle payload in valkey pubub", "error", err)
+			me.logger.Error("failed to handle payload in valkey pubsub", "error", err)
 		}
-	}); err != nil {
-		me.logger.Error("failed to recieve message in valkey pubub", "error", err)
+	}); err != nil && !errors.Is(err, context.Canceled) {
+		me.logger.Error("failed to receive message in valkey pubsub", "error", err)
 	}
 }
