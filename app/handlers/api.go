@@ -13,7 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type ApiHandler struct {
+type JsonHandler struct {
 	logger          *slog.Logger
 	authService     *services.AuthService
 	chatService     *services.ChatService
@@ -22,15 +22,15 @@ type ApiHandler struct {
 	pubsub          pubsub.Pubsub
 }
 
-func NewApiHandler(
+func NewJsonHandler(
 	logger *slog.Logger,
 	authService *services.AuthService,
 	chatService *services.ChatService,
 	profileService *services.ProfileService,
 	presenceService *services.PresenceService,
 	pubsub pubsub.Pubsub,
-) *ApiHandler {
-	return &ApiHandler{
+) *JsonHandler {
+	return &JsonHandler{
 		logger:          logger,
 		authService:     authService,
 		chatService:     chatService,
@@ -49,7 +49,7 @@ type RegisterRequest struct {
 	Bio      string `json:"bio"`
 }
 
-func (me *ApiHandler) HandleRegister(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleRegister(c *fiber.Ctx) error {
 	var request RegisterRequest
 	if err := c.BodyParser(&request); err != nil {
 		return NewApiError(ErrInvalidJSON, err)
@@ -72,7 +72,7 @@ type RequestOtpResponse struct {
 	OtpID string `json:"otpID"`
 }
 
-func (me *ApiHandler) HandleRequestOtp(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleRequestOtp(c *fiber.Ctx) error {
 	var request RequestOtpRequest
 	if err := c.BodyParser(&request); err != nil {
 		return NewApiError(ErrInvalidJSON, err)
@@ -93,7 +93,7 @@ type VerifyOtpRequest struct {
 	Otp   string `json:"otp"`
 }
 
-func (me *ApiHandler) HandleVerifyOtp(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 	var request VerifyOtpRequest
 	if err := c.BodyParser(&request); err != nil {
 		return NewApiError(ErrInvalidJSON, err)
@@ -123,7 +123,7 @@ func (me *ApiHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (me *ApiHandler) HandleLogout(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleLogout(c *fiber.Ctx) error {
 	if err := me.authService.DeleteSession(getCurrentUserID(c), getCurrentSessionID(c)); err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (me *ApiHandler) HandleLogout(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (me *ApiHandler) HandleDeleteSession(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleDeleteSession(c *fiber.Ctx) error {
 	sessionID := c.Params("session_id")
 	return me.authService.DeleteSession(getCurrentUserID(c), sessionID)
 }
@@ -142,7 +142,7 @@ type GetActiveSessionsResponseItem struct {
 	Os       string `json:"os"`
 }
 
-func (me *ApiHandler) HandleGetActiveSessions(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleGetActiveSessions(c *fiber.Ctx) error {
 	sessions, err := me.authService.GetActiveSessionsForUser(getCurrentUserID(c))
 	if err != nil {
 		return err
@@ -175,7 +175,7 @@ type GetChatPartnersResponseItem struct {
 
 type GetChatPartnersResponse CursoredResponse[GetChatPartnersResponseItem]
 
-func (me *ApiHandler) HandleGetChatPartners(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 	var requestCursor GetChatsCursor
 	if qc := c.Query("cursor"); qc != "" {
 		if err := decodeCursor(qc, &requestCursor); err != nil {
@@ -214,7 +214,7 @@ func (me *ApiHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 	})
 }
 
-func (me *ApiHandler) HandleDeleteChat(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleDeleteChat(c *fiber.Ctx) error {
 	if err := me.chatService.DeleteChat(getCurrentUserID(c), c.Params("partner_id")); err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ type GetChatMessagesResponseItem struct {
 
 type GetChatMessagesResponse CursoredResponse[GetChatMessagesResponseItem]
 
-func (me *ApiHandler) HandleGetChatMessages(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleGetChatMessages(c *fiber.Ctx) error {
 	var requestCursor GetChatMessagesCursor
 	if qc := c.Query("cursor"); qc != "" {
 		if err := decodeCursor(qc, &requestCursor); err != nil {
@@ -275,7 +275,7 @@ func (me *ApiHandler) HandleGetChatMessages(c *fiber.Ctx) error {
 	})
 }
 
-func (me *ApiHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
 	if err := me.chatService.MarkMessagesAsRead(getCurrentUserID(c), c.Params("partner_id"), c.Query("upto_message_id")); err != nil {
 		return err
 	}
@@ -296,7 +296,7 @@ type SearchProfileResponseItem struct {
 
 type SearchProfileResponse CursoredResponse[SearchProfileResponseItem]
 
-func (me *ApiHandler) HandleSearchProfiles(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleSearchProfiles(c *fiber.Ctx) error {
 	query := c.Query("query")
 	if query == "" {
 		return c.Status(fiber.StatusOK).JSON(SearchProfileResponse{
@@ -349,7 +349,7 @@ type GetProfileResponse struct {
 	JoinedAt time.Time `json:"joinedAt"`
 }
 
-func (me *ApiHandler) HandleGetProfile(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleGetProfile(c *fiber.Ctx) error {
 	profile, err := me.profileService.GetProfile(c.Params("user_id"))
 	if err != nil {
 		return err
@@ -374,7 +374,7 @@ type GetMyProfileResponse struct {
 	JoinedAt        time.Time `json:"joinedAt"`
 }
 
-func (me *ApiHandler) HandleGetMyProfile(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleGetMyProfile(c *fiber.Ctx) error {
 	profile, err := me.profileService.GetProfile(getCurrentUserID(c))
 	if err != nil {
 		return err
@@ -398,7 +398,7 @@ type UpdateProfileRequest struct {
 	Bio      string `json:"bio"`
 }
 
-func (me *ApiHandler) HandleUpdateProfile(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	var request UpdateProfileRequest
 	if err := c.BodyParser(&request); err != nil {
 		return NewApiError(ErrInvalidJSON, err)
@@ -411,7 +411,7 @@ func (me *ApiHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (me *ApiHandler) HandleDeleteProfile(c *fiber.Ctx) error {
+func (me *JsonHandler) HandleDeleteProfile(c *fiber.Ctx) error {
 	if err := me.profileService.DeleteProfile(getCurrentUserID(c)); err != nil {
 		return err
 	}
@@ -421,7 +421,7 @@ func (me *ApiHandler) HandleDeleteProfile(c *fiber.Ctx) error {
 
 // ==================== WebSocket Handler ====================
 
-func (me *ApiHandler) HandleWebsocket(c *websocket.Conn) {
+func (me *JsonHandler) HandleWebsocket(c *websocket.Conn) {
 	defer c.Close()
 	userID := c.Locals(currentUserID).(string)
 	sessionID := c.Locals(currentSessionID).(string)
@@ -516,13 +516,13 @@ func (me *ApiHandler) HandleWebsocket(c *websocket.Conn) {
 	}
 }
 
-func (me *ApiHandler) handleSendMessage(userID string, message WebsocketMessage) {
+func (me *JsonHandler) handleSendMessage(userID string, message WebsocketMessage) {
 	if err := me.chatService.SendChatMessage(userID, message.PartnerID, message.Content, message.ClientMessageID); err != nil {
 		me.logger.Error("failed to send message with chat serivce", "error", err)
 	}
 }
 
-func (me *ApiHandler) partnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) partnerPresenceEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerPresenceEventPayload)
 		if message.UserID != userID {
@@ -536,7 +536,7 @@ func (me *ApiHandler) partnerPresenceEventHandler(userID string, c *websocket.Co
 	}
 }
 
-func (me *ApiHandler) chatWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) chatWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.ChatWasDeletedEventPayload)
 		if message.UserID != userID && message.PartnerID != userID {
@@ -550,7 +550,7 @@ func (me *ApiHandler) chatWasDeletedEventHandler(userID string, c *websocket.Con
 	}
 }
 
-func (me *ApiHandler) userMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) userMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.UserMessagesWereReadEventPayload)
 		if message.UserID != userID {
@@ -564,7 +564,7 @@ func (me *ApiHandler) userMessagesWereReadEventHandler(userID string, c *websock
 	}
 }
 
-func (me *ApiHandler) partnerMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) partnerMessagesWereReadEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerMessagesWereReadEventPayload)
 		if message.UserID != userID {
@@ -578,7 +578,7 @@ func (me *ApiHandler) partnerMessagesWereReadEventHandler(userID string, c *webs
 	}
 }
 
-func (me *ApiHandler) userProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) userProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.UserProfileWasUpdatedEventPayload)
 		if message.UserID != userID {
@@ -592,7 +592,7 @@ func (me *ApiHandler) userProfileWasUpdatedEventHandler(userID string, c *websoc
 	}
 }
 
-func (me *ApiHandler) partnerProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) partnerProfileWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerProfileWasUpdatedEventPayload)
 		if message.UserID != userID {
@@ -607,7 +607,7 @@ func (me *ApiHandler) partnerProfileWasUpdatedEventHandler(userID string, c *web
 	}
 }
 
-func (me *ApiHandler) partnerProfileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) partnerProfileWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.PartnerProfileWasDeletedEventPayload)
 		if message.UserID != userID {
@@ -620,7 +620,7 @@ func (me *ApiHandler) partnerProfileWasDeletedEventHandler(userID string, c *web
 	}
 }
 
-func (me *ApiHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) messageWasSentEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.MessageWasSentEventPayload)
 		if message.UserID != userID {
@@ -637,7 +637,7 @@ func (me *ApiHandler) messageWasSentEventHandler(userID string, c *websocket.Con
 	}
 }
 
-func (me *ApiHandler) incommingMessageEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+func (me *JsonHandler) incommingMessageEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
 	return func(payload any) error {
 		message := payload.(services.IncommingMessageEventPayload)
 		if message.UserID != userID {

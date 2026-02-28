@@ -29,7 +29,6 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
-// TODO: Rename ApiHandler to JsonHandler
 // TODO: Use fiber v3
 // TODO: Implement delete chats.
 // TODO: Implement delete messages.
@@ -105,7 +104,7 @@ func (me *App) registerRoutes() {
 }
 
 func (me *App) registerApiRoutes() {
-	apiHandler := handlers.NewApiHandler(
+	jsonHandler := handlers.NewJsonHandler(
 		me.logger,
 		me.authService,
 		me.chatService,
@@ -119,28 +118,86 @@ func (me *App) registerApiRoutes() {
 
 	v1 := me.router.Group("/api/v1")
 	{
-		v1.Post("/auth/register", apiHandler.HandleRegister)
-		v1.Post("/auth/otp/request", apiHandler.HandleRequestOtp)
-		v1.Post("/auth/otp/verify", apiHandler.HandleVerifyOtp)
-		v1.Post("/auth/logout", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleLogout)
-		v1.Post("/auth/sessions/:session_id", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleDeleteSession)
-		v1.Get("/auth/sessions", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetActiveSessions)
+		v1.Post("/auth/register",
+			jsonHandler.HandleRegister,
+		)
+		v1.Post("/auth/otp/request",
+			jsonHandler.HandleRequestOtp,
+		)
+		v1.Post("/auth/otp/verify",
+			jsonHandler.HandleVerifyOtp,
+		)
+		v1.Post("/auth/logout",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleLogout,
+		)
+		v1.Post("/auth/sessions/:session_id",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleDeleteSession,
+		)
+		v1.Get("/auth/sessions",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleGetActiveSessions,
+		)
 
-		v1.Get("/profiles", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleSearchProfiles)
-		v1.Get("/profiles/others/:user_id", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetProfile)
-		v1.Get("/profiles/me", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetMyProfile)
-		v1.Put("/profiles", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleUpdateProfile)
-		v1.Delete("/profiles", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleDeleteProfile)
+		v1.Get("/profiles",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleSearchProfiles,
+		)
+		v1.Get("/profiles/others/:user_id",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleGetProfile,
+		)
+		v1.Get("/profiles/me",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleGetMyProfile,
+		)
+		v1.Put("/profiles",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleUpdateProfile,
+		)
+		v1.Delete("/profiles",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleDeleteProfile,
+		)
 
-		v1.Get("/chats", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetChatPartners)
-		v1.Delete("/chats/:partner_id", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleDeleteChat)
-		v1.Get("/chats/:partner_id", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleGetChatMessages)
-		v1.Post("/chats/:partner_id/mark_as_read", withSessionTokenCookie, withCsrfTokenHeader, apiHandler.HandleMarkMessagesAsRead)
+		v1.Get("/chats",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleGetChatPartners,
+		)
+		v1.Delete("/chats/:partner_id",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleDeleteChat,
+		)
+		v1.Get("/chats/:partner_id",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleGetChatMessages,
+		)
+		v1.Post("/chats/:partner_id/mark_as_read",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleMarkMessagesAsRead,
+		)
 
-		v1.Get("/ws", withSessionTokenCookie, withCsrfTokenQuery, handlers.WithWebsocket, websocket.New(
-			apiHandler.HandleWebsocket,
-			websocket.Config{RecoverHandler: websocketResolver},
-		))
+		v1.Get("/ws",
+			withSessionTokenCookie,
+			withCsrfTokenQuery,
+			handlers.WithWebsocket,
+			websocket.New(jsonHandler.HandleWebsocket, websocket.Config{
+				RecoverHandler: websocketResolver,
+			}),
+		)
 	}
 }
 
@@ -161,35 +218,99 @@ func (me *App) registerHTMLRoutes() {
 	withCsrfTokenQuery := handlers.WithCsrfTokenQuery(me.authService)
 
 	me.router.Use(handlers.WithRedirectUnauthorizedToLogin)
-	me.router.Use(compress.New(compress.Config{Level: compress.LevelBestSpeed}))
-	me.router.Use("/public", handlers.WithForbiddenAsInvalidEndpoint, filesystem.New(filesystem.Config{
-		Root:       http.FS(staticFS),
-		PathPrefix: "web/public",
-	}))
+	me.router.Use("/public",
+		handlers.WithForbiddenAsInvalidEndpoint,
+		compress.New(compress.Config{Level: compress.LevelBestSpeed}),
+		filesystem.New(filesystem.Config{
+			Root:       http.FS(staticFS),
+			PathPrefix: "web/public",
+		}),
+	)
 
-	me.router.Get("/", withSessionTokenCookie, htmlHandler.HandleChatPage)
-	me.router.Get("/register", htmlHandler.HandleRegisterPage)
-	me.router.Get("/login", htmlHandler.HandleLoginPage)
+	me.router.Get("/",
+		withSessionTokenCookie,
+		htmlHandler.HandleChatPage,
+	)
+	me.router.Get("/register",
+		htmlHandler.HandleRegisterPage,
+	)
+	me.router.Get("/login",
+		htmlHandler.HandleLoginPage,
+	)
 
-	me.router.Post("/register", htmlHandler.HandleRegister)
-	me.router.Post("/login", htmlHandler.HandleLogin)
-	me.router.Post("/verify_otp", htmlHandler.HandleVerifyOtp)
-	me.router.Get("/profile_modal", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleProfileModal)
-	me.router.Put("/profile", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleUpdateProfile)
-	me.router.Delete("/profile", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleDeleteProfile)
-	me.router.Post("/logout", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleLogout)
-	me.router.Delete("/sessions/:session_id", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleDeleteSession)
-	me.router.Get("/search_modal", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleSearchModal)
-	me.router.Get("/search/users", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleSearchUsers)
-	me.router.Get("/search/users/select/:partner_id", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleSelectPartnerFromSearch)
-	me.router.Get("/partners", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleGetChatPartners)
-	me.router.Get("/chat/:partner_id", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleSelectPartnerFromPartnersList)
-	me.router.Get("/chat/:partner_id/messages", withSessionTokenCookie, withCsrfTokenHeader, htmlHandler.HandleChatMessages)
+	me.router.Post("/register",
+		htmlHandler.HandleRegister,
+	)
+	me.router.Post("/login",
+		htmlHandler.HandleLogin,
+	)
+	me.router.Post("/verify_otp",
+		htmlHandler.HandleVerifyOtp,
+	)
+	me.router.Get("/profile_modal",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleProfileModal,
+	)
+	me.router.Put("/profile",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleUpdateProfile,
+	)
+	me.router.Delete("/profile",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleDeleteProfile,
+	)
+	me.router.Post("/logout",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleLogout,
+	)
+	me.router.Delete("/sessions/:session_id",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleDeleteSession,
+	)
+	me.router.Get("/search_modal",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleSearchModal,
+	)
+	me.router.Get("/search/users",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleSearchUsers,
+	)
+	me.router.Get("/search/users/select/:partner_id",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleSelectPartnerFromSearch,
+	)
+	me.router.Get("/partners",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleGetChatPartners,
+	)
+	me.router.Get("/chat/:partner_id",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleSelectPartnerFromPartnersList,
+	)
+	me.router.Get("/chat/:partner_id/messages",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleChatMessages,
+	)
 
-	me.router.Get("/ws", withSessionTokenCookie, withCsrfTokenQuery, handlers.WithWebsocket, websocket.New(
-		htmlHandler.HandleWebsocket,
-		websocket.Config{RecoverHandler: websocketResolver},
-	))
+	me.router.Get("/ws",
+		withSessionTokenCookie,
+		withCsrfTokenQuery,
+		handlers.WithWebsocket,
+		websocket.New(htmlHandler.HandleWebsocket, websocket.Config{
+			RecoverHandler: websocketResolver,
+		}),
+	)
 }
 
 func websocketResolver(c *websocket.Conn) {
