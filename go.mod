@@ -5,7 +5,7 @@ go 1.25.7
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
 require (
-	github.com/assaidy/hyper v1.4.1
+	github.com/assaidy/hyper v1.5.0
 	github.com/assaidy/workers v1.1.0
 	github.com/charmbracelet/log v0.4.2
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible

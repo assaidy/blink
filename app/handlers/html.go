@@ -13,7 +13,7 @@ import (
 	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/assaidy/blink/app/web/components"
 	h "github.com/assaidy/hyper"
-	"github.com/assaidy/hyper/htmx"
+	hx "github.com/assaidy/hyper/htmx"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
