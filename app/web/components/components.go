@@ -207,7 +207,7 @@ func ChatPage(params ChatPageParams) HyperNode {
 						// this.updateBadge(partnerID);
 					}
 					sub(partnerID, delta) {
-						this.counts[partnerID] = Matmax(0, (this.counts[partnerID] || 0) - delta);
+						this.counts[partnerID] = Math.max(0, (this.counts[partnerID] || 0) - delta);
 						this.updateBadge(partnerID);
 					}
 					updateBadge(partnerID) {
@@ -355,17 +355,17 @@ func ProfileModal(params ProfileModalParams) HyperNode {
 	sessionsIcon := RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`)
 
 	return Div(KV{
-		AttrId:               "profile-modal",
-		AttrClass:            "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 outline-none",
-		AttrHxOn(EventClick): "if (event.target === this) this.remove()",
+		AttrId:      "profile-modal",
+		AttrClass:   "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 outline-none",
+		AttrOnClick: "if (event.target === this) this.remove()",
 	},
 		Div(KV{AttrClass: "bg-bg-secondary rounded-2xl shadow-2xl max-w-3xl w-full flex overflow-hidden", AttrStyle: "height: 80vh; max-height: 700px;"},
 			// Left sidebar with tabs
 			Div(KV{AttrClass: "w-56 bg-bg-tertiary flex flex-col p-2 flex-shrink-0"},
 				// Close button at top
 				Button(KV{
-					AttrClass:            "self-start p-2 hover:bg-bg-secondary rounded-lg transition-colors cursor-pointer mb-6",
-					AttrHxOn(EventClick): "this.closest('#profile-modal').remove()",
+					AttrClass:   "self-start p-2 hover:bg-bg-secondary rounded-lg transition-colors cursor-pointer mb-6",
+					AttrOnClick: "this.closest('#profile-modal').remove()",
 				},
 					RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`),
 				),
@@ -572,9 +572,9 @@ func SessionsTab(params SessionsTabParams) HyperNode {
 
 func SearchModal() HyperNode {
 	return Div(KV{
-		AttrId:               "search-modal",
-		AttrClass:            "fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20 outline-none",
-		AttrHxOn(EventClick): "if (event.target === this) this.remove()",
+		AttrId:      "search-modal",
+		AttrClass:   "fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20 outline-none",
+		AttrOnClick: "if (event.target === this) this.remove();",
 	},
 		Div(KV{AttrClass: "bg-bg-secondary rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden"},
 			// Header with search input
@@ -594,8 +594,8 @@ func SearchModal() HyperNode {
 					}),
 				),
 				Button(KV{
-					AttrHxOn(EventClick): "this.closest('#search-modal').remove()",
-					AttrClass:            "p-2 hover:bg-bg-tertiary rounded-lg transition-colors cursor-pointer",
+					AttrOnClick: "this.closest('#search-modal').remove();",
+					AttrClass:   "p-2 hover:bg-bg-tertiary rounded-lg transition-colors cursor-pointer",
 				},
 					RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-secondary"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`),
 				),
@@ -770,12 +770,19 @@ type ChatContainerParams struct {
 func ChatContainer(params ChatContainerParams) HyperNode {
 	return Div(KV{
 		AttrClass: "flex-1 flex flex-col bg-bg-primary h-full",
+		AttrOnClick: `
+			const menu = document.getElementById('message-context-menu');
+			if (menu && !menu.classList.contains('hidden')) {
+				menu.classList.add('hidden');
+			}
+		`,
 		AttrHxOn(EventHtmxLoad): `
 			window.currentActivePartnerId = "` + params.Partner.ID + `";
 		  document.querySelector("#partners-list [data-active]")?.removeAttribute("data-active");
 		  document.getElementById("partner-" + "` + params.Partner.ID + `")?.setAttribute("data-active", "");
 		`,
 	},
+		messageContextMenu(),
 		ChatContainerHeader(params.Partner),
 		Div(KV{
 			AttrId:    "messages-container",
@@ -845,17 +852,16 @@ func ChatMessagesList(params ChatMessagesListParams) HyperNode {
 
 	return MapSlice(params.Messages, func(msg ChatMessageParams) HyperNode {
 		msg.PartnerID = params.PartnerID
-		return Div(
-			IfElse(params.HasMore && msg.ID == cursorMessageID,
-				KV{
-					AttrHxGet:       fmt.Sprintf("/chat/%s/messages?cursor=%s", params.PartnerID, cursorMessageID),
-					AttrHxTrigger:   "intersect once",
-					AttrHxSwap:      SwapAfterEnd,
-					AttrHxIndicator: "#messages-indicator",
-					// For internal requests not to use this indicator
-					AttrHxDisinherit: AttrHxIndicator,
-				},
-				nil,
+		return IfElse(params.HasMore && msg.ID == cursorMessageID,
+			Div(KV{
+				AttrHxGet:       fmt.Sprintf("/chat/%s/messages?cursor=%s", params.PartnerID, cursorMessageID),
+				AttrHxTrigger:   "intersect once",
+				AttrHxSwap:      SwapAfterEnd,
+				AttrHxIndicator: "#messages-indicator",
+				// For internal requests not to use this indicator
+				AttrHxDisinherit: AttrHxIndicator,
+			},
+				ChatMessage(msg),
 			),
 			ChatMessage(msg),
 		)
@@ -882,18 +888,43 @@ type ChatMessageParams struct {
 
 func ChatMessage(params ChatMessageParams) HyperNode {
 	return Div(
-		IfElse(!params.FromMe && params.Status == StatusSent,
-			KV{
-				AttrHxPost:    "/api/v1/chats/" + params.PartnerID + "/mark_as_read?upto_message_id=" + params.ID,
-				AttrHxTrigger: "intersect once",
-				AttrHxSwap:    SwapNone,
-			},
+		IfElse(params.Status == StatusPending,
 			KV{AttrId: fmt.Sprintf("pending-chat-message-%d", params.ClientMessageID)},
+			IfElse(!params.FromMe && params.Status != StatusRead,
+				KV{
+					AttrId:        "chat-message-" + params.ID,
+					AttrHxPost:    "/api/v1/chats/" + params.PartnerID + "/messages/mark_as_read?upto_message_id=" + params.ID,
+					AttrHxTrigger: "intersect once",
+					AttrHxSwap:    SwapNone,
+				},
+				KV{AttrId: "chat-message-" + params.ID},
+			),
 		),
-		Div(KV{AttrClass: "flex w-full " + IfElse(params.FromMe, "justify-end", "justify-start")},
+		Div(KV{
+			AttrClass: "flex w-full " + IfElse(params.FromMe, "justify-end", "justify-start"),
+			AttrOnContextMenu: `
+				event.preventDefault();
+				const menu = document.getElementById('message-context-menu');
+				menu.dataset.messageID = "` + params.ID + `";
+				const fromMe = ` + IfElse(params.FromMe, "true", "false") + `;
+				document.getElementById('ctx-edit').style.display = fromMe ? 'flex' : 'none';
+				document.getElementById('ctx-delete').style.display = fromMe ? 'flex' : 'none';
+
+				menu.style.left = event.clientX + 'px';
+				menu.style.top = event.clientY + 'px';
+				menu.classList.remove('hidden');
+				const menuRect = menu.getBoundingClientRect();
+				const viewportWidth = window.innerWidth;
+				const viewportHeight = window.innerHeight;
+				// Adjust if overflows right edge
+				if (event.clientX + menuRect.width > viewportWidth) menu.style.left = (event.clientX - menuRect.width) + 'px';
+				// Adjust if overflows bottom edge  
+				if (event.clientY + menuRect.height > viewportHeight) menu.style.top = (event.clientY - menuRect.height) + 'px';
+			`,
+		},
 			Div(KV{AttrClass: "flex flex-col " + IfElse(params.FromMe, "items-end", "items-start") + " max-w-[70%]"},
 				Div(KV{AttrClass: "px-4 py-2 " + IfElse(params.FromMe, "bg-blue text-bg-primary rounded-l-2xl rounded-tr-2xl", "bg-bg-tertiary text-fg-primary rounded-r-2xl rounded-tl-2xl")},
-					P(KV{AttrClass: "whitespace-pre-wrap"}, params.Content),
+					P(KV{AttrClass: "message-content whitespace-pre-wrap"}, params.Content),
 					Div(KV{AttrClass: "flex items-center gap-1 mt-1 justify-end"},
 						If(params.Status != StatusPending,
 							P(KV{AttrClass: "text-xs " + IfElse(params.FromMe, "text-bg-primary/70", "text-fg-secondary")}, params.SentAt.Format("Jan 2, 3:04 PM")),
@@ -962,7 +993,7 @@ func ChatInputForm(params ChatInputFormParams) HyperNode {
 			AttrAutofocus:   true,
 			AttrOnInput: `
 				this.style.height = "auto";
-				this.style.height = Matmin(this.scrollHeight, 120)+"px";
+				this.style.height = Math.min(this.scrollHeight, 120)+"px";
 			`,
 			AttrOnKeyDown: `
 				if (event.key === "Enter" && !event.shiftKey) {
@@ -977,6 +1008,46 @@ func ChatInputForm(params ChatInputFormParams) HyperNode {
 			AttrClass: "w-12 h-12 rounded-full bg-bg-primary hover:bg-bg-tertiary flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors",
 		},
 			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send-horizontal-icon lucide-send-horizontal text-blue"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>`),
+		),
+	)
+}
+
+func messageContextMenu() HyperNode {
+	return Div(KV{
+		AttrId:    "message-context-menu",
+		AttrClass: "hidden fixed z-50 bg-bg-secondary border border-bg-tertiary rounded-lg shadow-lg py-1 min-w-[120px]",
+	},
+		Button(KV{
+			AttrClass: "w-full px-4 py-2 text-left text-sm text-fg-primary hover:bg-bg-tertiary flex items-center gap-2",
+			AttrOnClick: `
+				const messageID = document.getElementById("message-context-menu").dataset.messageID;
+				const content = document.getElementById("chat-message-"+messageID).querySelector('.message-content').textContent;
+				navigator.clipboard.writeText(content);
+			`,
+		},
+			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`),
+			"Copy",
+		),
+		Button(KV{
+			AttrId:    "ctx-edit",
+			AttrClass: "w-full px-4 py-2 text-left text-sm text-fg-primary hover:bg-bg-tertiary flex items-center gap-2",
+			AttrOnClick: `
+				alert('Edit functionality coming soon!');
+			`,
+		},
+			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>`),
+			"Edit",
+		),
+		Button(KV{
+			AttrId:    "ctx-delete",
+			AttrClass: "w-full px-4 py-2 text-left text-sm text-fg-primary hover:bg-bg-tertiary flex items-center gap-2",
+			AttrOnClick: `
+				const messageID = document.getElementById('message-context-menu').dataset.messageID;
+				htmx.ajax('DELETE', '/api/v1/chats/messages/'+messageID, { swap: 'none' });
+			`,
+		},
+			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`),
+			"Delete",
 		),
 	)
 }

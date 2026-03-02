@@ -323,6 +323,8 @@ const (
 	incommingMessage         = "IncommingMessage"
 	userMessagesWereRead     = "UserMessagesWereRead"
 	partnerMessagesWereRead  = "PartnerMessagesWereRead"
+	userMessageWasDeleted    = "UserMessageWasDeleted"
+	partnerMessageWasDeleted = "PartnerMessageWasDeleted"
 )
 
 type websocketMessage struct {

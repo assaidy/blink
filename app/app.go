@@ -29,10 +29,10 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
-// TODO: Use fiber v3
-// TODO: Implement delete chats.
-// TODO: Implement delete messages.
+// TODO: Implement delete/pin chats.
+// TODO: Implement edit messages.
 // TODO: Use rate limiting for different purposes
+// TODO: Use fiber v3
 
 type App struct {
 	logger          *slog.Logger
@@ -179,15 +179,20 @@ func (me *App) registerApiRoutes() {
 			withCsrfTokenHeader,
 			jsonHandler.HandleDeleteChat,
 		)
-		v1.Get("/chats/:partner_id",
+		v1.Get("/chats/:partner_id/messages",
 			withSessionTokenCookie,
 			withCsrfTokenHeader,
 			jsonHandler.HandleGetChatMessages,
 		)
-		v1.Post("/chats/:partner_id/mark_as_read",
+		v1.Post("/chats/:partner_id/messages/mark_as_read",
 			withSessionTokenCookie,
 			withCsrfTokenHeader,
 			jsonHandler.HandleMarkMessagesAsRead,
+		)
+		v1.Delete("/chats/messages/:message_id",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleDeleteChatMessage,
 		)
 
 		v1.Get("/ws",

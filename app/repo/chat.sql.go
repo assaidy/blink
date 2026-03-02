@@ -87,6 +87,25 @@ func (q *Queries) GetAllChatPartnerIDs(ctx context.Context, userID string) ([]st
 	return items, nil
 }
 
+const getChatMessageByID = `-- name: GetChatMessageByID :one
+select sender_id, receiver_id
+from chat_messages
+where is_deleted = false and id = $1
+for update
+`
+
+type GetChatMessageByIDRow struct {
+	SenderID   string
+	ReceiverID string
+}
+
+func (q *Queries) GetChatMessageByID(ctx context.Context, id string) (GetChatMessageByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getChatMessageByID, id)
+	var i GetChatMessageByIDRow
+	err := row.Scan(&i.SenderID, &i.ReceiverID)
+	return i, err
+}
+
 const getChatMessages = `-- name: GetChatMessages :many
 select
   id,
@@ -287,6 +306,15 @@ type MarkChatAsDeletedParams struct {
 
 func (q *Queries) MarkChatAsDeleted(ctx context.Context, arg MarkChatAsDeletedParams) error {
 	_, err := q.db.ExecContext(ctx, markChatAsDeleted, arg.UserID, arg.PartnerID)
+	return err
+}
+
+const markChatMessageAsDeleted = `-- name: MarkChatMessageAsDeleted :exec
+update chat_messages set is_deleted = true where id = $1
+`
+
+func (q *Queries) MarkChatMessageAsDeleted(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, markChatMessageAsDeleted, id)
 	return err
 }
 

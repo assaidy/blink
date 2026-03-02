@@ -282,6 +282,13 @@ func (me *jsonHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+func (me *jsonHandler) HandleDeleteChatMessage(c *fiber.Ctx) error {
+	if err := me.chatService.DeleteChatMessage(getCurrentUserID(c), c.Params("message_id")); err != nil {
+		return err
+	}
+	return c.SendStatus(fiber.StatusOK)
+}
+
 // ==================== Profile API Handlers ====================
 
 type searchProfilesCursor struct {
@@ -496,6 +503,20 @@ func (me *jsonHandler) HandleWebsocket(c *websocket.Conn) {
 			me.incommingMessageEventHandler(userID, c),
 		)
 	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.UserMessageWasDeletedEvent,
+			pubsub.JsonPayloadGenerator[services.UserMessageWasDeletedEventPayload],
+			me.userMessageWasDeletedEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.PartnerMessageWasDeletedEvent,
+			pubsub.JsonPayloadGenerator[services.PartnerMessageWasDeletedEventPayload],
+			me.partnerMessageWasDeletedEventHandler(userID, c),
+		)
+	})
 
 	for {
 		message := websocketMessage{}
@@ -649,6 +670,35 @@ func (me *jsonHandler) incommingMessageEventHandler(userID string, c *websocket.
 			MessageID: message.MessageID,
 			Content:   message.Content,
 			Timestamp: message.Timestamp,
+		})
+	}
+}
+
+func (me *jsonHandler) userMessageWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.UserMessageWasDeletedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+		return c.WriteJSON(websocketMessage{
+			Kind:      userMessageWasDeleted,
+			UserID:    message.UserID,
+			MessageID: message.MessageID,
+		})
+	}
+}
+
+func (me *jsonHandler) partnerMessageWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.PartnerMessageWasDeletedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+		return c.WriteJSON(websocketMessage{
+			Kind:      partnerMessageWasDeleted,
+			UserID:    userID,
+			PartnerID: message.PartnerID,
+			MessageID: message.MessageID,
 		})
 	}
 }

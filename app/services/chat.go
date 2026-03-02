@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -178,6 +179,77 @@ func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID strin
 		}); err != nil {
 			return fmt.Errorf("failed to publish event %s: %w", PartnerMessagesWereReadEvent, err)
 		}
+	}
+
+	return nil
+}
+
+const (
+	UserMessageWasDeletedEvent    = "UserMessageWasDeletedEvent"
+	PartnerMessageWasDeletedEvent = "PartnerMessageWasDeletedEvent"
+)
+
+type UserMessageWasDeletedEventPayload struct {
+	UserID    string `json:"userID"`
+	MessageID string `json:"messageID"`
+}
+
+type PartnerMessageWasDeletedEventPayload struct {
+	UserID    string `json:"userID"`
+	PartnerID string `json:"partnerID"`
+	MessageID string `json:"messageID"`
+}
+
+func (me *ChatService) DeleteChatMessage(userID, messageID string) error {
+	ctx := context.Background()
+	tx, err := me.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	qtx := me.queries.WithTx(tx)
+
+	result, err := qtx.GetChatMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("failed to check chat message for user: %w", err)
+	}
+
+	if result.SenderID != userID {
+		return ErrNotFound
+	}
+
+	if err := qtx.MarkChatMessageAsDeleted(ctx, messageID); err != nil {
+		return fmt.Errorf("failed to mark chat message as deleted: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit tx: %w", err)
+	}
+
+	if err := me.pubsub.Publish(ctx,
+		UserMessageWasDeletedEvent,
+		pubsub.JsonMessageGenerator,
+		UserMessageWasDeletedEventPayload{
+			UserID:    result.SenderID,
+			MessageID: messageID,
+		},
+	); err != nil {
+		return fmt.Errorf("failed to publish %s event: %w", UserMessageWasDeletedEvent, err)
+	}
+
+	if err := me.pubsub.Publish(ctx,
+		PartnerMessageWasDeletedEvent,
+		pubsub.JsonMessageGenerator,
+		PartnerMessageWasDeletedEventPayload{
+			UserID:    result.ReceiverID,
+			PartnerID: result.SenderID,
+			MessageID: messageID,
+		},
+	); err != nil {
+		return fmt.Errorf("failed to publish %s event: %w", PartnerMessageWasDeletedEvent, err)
 	}
 
 	return nil

@@ -515,6 +515,21 @@ func (me *htmlHandler) HandleWebsocket(c *websocket.Conn) {
 			me.incommingMessageEventHandler(userID, c),
 		)
 	})
+	// FIX: sync with json handler
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.UserMessageWasDeletedEvent,
+			pubsub.JsonPayloadGenerator[services.UserMessageWasDeletedEventPayload],
+			me.userMessageWasDeletedEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.PartnerMessageWasDeletedEvent,
+			pubsub.JsonPayloadGenerator[services.PartnerMessageWasDeletedEventPayload],
+			me.partnerMessageWasDeletedEventHandler(userID, c),
+		)
+	})
 
 	me.sendUnreadMessageCounts(userID, c)
 
@@ -685,16 +700,14 @@ type newChatMessageResponseParams struct {
 func newChatMessageResponse(params newChatMessageResponseParams) HyperNode {
 	return Empty(
 		Div(KV{AttrId: "new-message-inserter-" + params.PartnerID, AttrHxSwapOob: SwapAfterEnd},
-			Div(KV{"data-partner-id": params.PartnerID},
-				components.ChatMessage(components.ChatMessageParams{
-					ID:        params.MessageID,
-					Content:   params.MessageContent,
-					SentAt:    params.MessageTimestamp,
-					FromMe:    params.MessageIsFromMe,
-					PartnerID: params.PartnerID,
-					Status:    components.StatusSent,
-				}),
-			),
+			components.ChatMessage(components.ChatMessageParams{
+				ID:        params.MessageID,
+				Content:   params.MessageContent,
+				SentAt:    params.MessageTimestamp,
+				FromMe:    params.MessageIsFromMe,
+				PartnerID: params.PartnerID,
+				Status:    components.StatusSent,
+			}),
 		),
 
 		If(!params.MessageIsFromMe,
@@ -848,6 +861,32 @@ func (me *htmlHandler) partnerMessagesWereReadEventHandler(userID string, c *web
 					),
 				),
 			)
+		})
+	}
+}
+
+func (me *htmlHandler) userMessageWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.UserMessageWasDeletedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
+			return Render(w, Div(KV{AttrId: "chat-message-" + message.MessageID, AttrHxSwapOob: SwapDelete}))
+		})
+	}
+}
+
+func (me *htmlHandler) partnerMessageWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.PartnerMessageWasDeletedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
+			return Render(w, Div(KV{AttrId: "chat-message-" + message.MessageID, AttrHxSwapOob: SwapDelete}))
 		})
 	}
 }

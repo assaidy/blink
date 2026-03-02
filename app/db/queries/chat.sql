@@ -45,6 +45,12 @@ where is_deleted = false and
 order by id desc
 limit $1;
 
+-- name: GetChatMessageByID :one
+select sender_id, receiver_id
+from chat_messages
+where is_deleted = false and id = $1
+for update;
+
 -- name: MarkMessagesAsRead :many
 update chat_messages 
 set is_read = true
@@ -52,6 +58,9 @@ where receiver_id = @user_id and sender_id = @partner_id and
       (@upto_message_id::varchar = '' or id <= @upto_message_id::varchar) and
       is_read = false
 returning id;
+
+-- name: MarkChatMessageAsDeleted :exec
+update chat_messages set is_deleted = true where id = $1;
 
 -- name: MarkChatAsDeleted :exec
 update chat_messages
