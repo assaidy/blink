@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/services"
-	"github.com/assaidy/hyper"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -300,11 +299,6 @@ func decodeCursor(decoded string, v any) error {
 type cursoredResponse[T any] struct {
 	Items  []T    `json:"items"`
 	Cursor string `json:"cursor,omitempty"`
-}
-
-func render(c *fiber.Ctx, component h.Node) error {
-	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
-	return component.Render(c)
 }
 
 func redirect(c *fiber.Ctx, endpoint string) error {

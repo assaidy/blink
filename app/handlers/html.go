@@ -12,8 +12,8 @@ import (
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/assaidy/blink/app/web/components"
-	h "github.com/assaidy/hyper"
-	hx "github.com/assaidy/hyper/htmx"
+	. "github.com/assaidy/hyper"
+	. "github.com/assaidy/hyper/htmx"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -54,7 +54,8 @@ func NewHtmlHandler(
 }
 
 func (me *htmlHandler) HandleRegisterPage(c *fiber.Ctx) error {
-	return render(c, components.RegisterPage())
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+	return Render(c, components.RegisterPage())
 }
 
 func (me *htmlHandler) HandleRegister(c *fiber.Ctx) error {
@@ -81,17 +82,17 @@ func (me *htmlHandler) HandleRegister(c *fiber.Ctx) error {
 			} else {
 				me.logger.Warn("expected validation error", "found", err)
 			}
-			return render(c, components.RegisterForm(params))
+			return Render(c, components.RegisterForm(params))
 		}
 
 		if errors.Is(err, services.ErrUsernameConflict) {
 			params.UsernameErr = "Username is taken"
-			return render(c, components.RegisterForm(params))
+			return Render(c, components.RegisterForm(params))
 		}
 
 		if errors.Is(err, services.ErrEmailConflict) {
 			params.EmailErr = "Email is taken"
-			return render(c, components.RegisterForm(params))
+			return Render(c, components.RegisterForm(params))
 		}
 
 		return err
@@ -101,7 +102,8 @@ func (me *htmlHandler) HandleRegister(c *fiber.Ctx) error {
 }
 
 func (me *htmlHandler) HandleLoginPage(c *fiber.Ctx) error {
-	return render(c, components.LoginPage())
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+	return Render(c, components.LoginPage())
 }
 
 func (me *htmlHandler) HandleLogin(c *fiber.Ctx) error {
@@ -118,18 +120,18 @@ func (me *htmlHandler) HandleLogin(c *fiber.Ctx) error {
 			} else {
 				me.logger.Warn("expected validation error", "found", err)
 			}
-			return render(c, components.LoginForm(params))
+			return Render(c, components.LoginForm(params))
 		}
 
 		if errors.Is(err, services.ErrNotFound) {
 			params.EmailErr = "Invalid email address"
-			return render(c, components.LoginForm(params))
+			return Render(c, components.LoginForm(params))
 		}
 
 		return err
 	}
 
-	return render(c, components.OtpForm(components.OtpFormParams{OtpID: otpID}))
+	return Render(c, components.OtpForm(components.OtpFormParams{OtpID: otpID}))
 }
 
 func (me *htmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
@@ -147,7 +149,7 @@ func (me *htmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 
 		if errors.Is(err, services.ErrInvalidOtp) {
 			params.OtpErr = "Invalid code"
-			return render(c, components.OtpForm(params))
+			return Render(c, components.OtpForm(params))
 		}
 
 		return err
@@ -177,7 +179,8 @@ func (me *htmlHandler) HandleChatPage(c *fiber.Ctx) error {
 		return err
 	}
 
-	return render(c, components.ChatPage(components.ChatPageParams{
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
+	return Render(c, components.ChatPage(components.ChatPageParams{
 		User: components.UserBlockParams{
 			Name:     profile.Name,
 			Username: profile.Username,
@@ -209,7 +212,7 @@ func (me *htmlHandler) HandleGetChatPartners(c *fiber.Ctx) error {
 		lastMessageID = partners[len(partners)-1].LastMessageID
 	}
 
-	return render(c, components.PartnersList(components.PartnersListParams{
+	return Render(c, components.PartnersList(components.PartnersListParams{
 		Partners:                     partnerBlocks,
 		LastMessageWithLastPartnerID: lastMessageID,
 	}))
@@ -247,7 +250,7 @@ func (me *htmlHandler) HandleProfileModal(c *fiber.Ctx) error {
 		}
 	}
 
-	return render(c, components.ProfileModal(params))
+	return Render(c, components.ProfileModal(params))
 }
 
 func (me *htmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
@@ -274,23 +277,23 @@ func (me *htmlHandler) HandleUpdateProfile(c *fiber.Ctx) error {
 			} else {
 				me.logger.Warn("expected validation error", "found", err)
 			}
-			return render(c, components.ProfileForm(params))
+			return Render(c, components.ProfileForm(params))
 		}
 
 		if errors.Is(err, services.ErrUsernameConflict) {
 			params.UsernameErr = "Username is taken"
-			return render(c, components.ProfileForm(params))
+			return Render(c, components.ProfileForm(params))
 		}
 
 		if errors.Is(err, services.ErrEmailConflict) {
 			params.EmailErr = "Email is taken"
-			return render(c, components.ProfileForm(params))
+			return Render(c, components.ProfileForm(params))
 		}
 
 		return err
 	}
 
-	return render(c, components.ProfileForm(params))
+	return Render(c, components.ProfileForm(params))
 }
 
 func (me *htmlHandler) HandleDeleteProfile(c *fiber.Ctx) error {
@@ -315,7 +318,7 @@ func (me *htmlHandler) HandleDeleteSession(c *fiber.Ctx) error {
 }
 
 func (me *htmlHandler) HandleSearchModal(c *fiber.Ctx) error {
-	return render(c, components.SearchModal())
+	return Render(c, components.SearchModal())
 }
 
 func (me *htmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
@@ -323,7 +326,7 @@ func (me *htmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 	cursor := c.Query("cursor")
 
 	if query == "" {
-		return render(c, components.SearchResult(components.SearchResultParams{Query: query}))
+		return Render(c, components.SearchResult(components.SearchResultParams{Query: query}))
 	}
 
 	limit := 15
@@ -341,7 +344,7 @@ func (me *htmlHandler) HandleSearchUsers(c *fiber.Ctx) error {
 		})
 	}
 
-	return render(c, components.SearchResult(components.SearchResultParams{
+	return Render(c, components.SearchResult(components.SearchResultParams{
 		Query:   query,
 		HasMore: len(profiles) == limit,
 		Items:   profileItems,
@@ -361,8 +364,8 @@ func (me *htmlHandler) HandleSelectPartnerFromSearch(c *fiber.Ctx) error {
 		return err
 	}
 
-	return render(c, h.Empty(
-		h.Div(h.KV{h.AttrId: "search-modal", hx.AttrHxSwapOob: hx.SwapDelete}),
+	return Render(c, Empty(
+		Div(KV{AttrId: "search-modal", AttrHxSwapOob: SwapDelete}),
 
 		components.ChatContainer(components.ChatContainerParams{
 			Partner: components.PartnerBlockParams{
@@ -388,7 +391,7 @@ func (me *htmlHandler) HandleSelectPartnerFromPartnersList(c *fiber.Ctx) error {
 		return err
 	}
 
-	return render(c, components.ChatContainer(components.ChatContainerParams{
+	return Render(c, components.ChatContainer(components.ChatContainerParams{
 		Partner: components.PartnerBlockParams{
 			ID:       partnerProfile.ID,
 			Name:     partnerProfile.Name,
@@ -414,12 +417,12 @@ func (me *htmlHandler) HandleChatMessages(c *fiber.Ctx) error {
 			ID:      m.ID,
 			Content: m.Content,
 			SentAt:  m.SentAt,
-			Status:  h.IfElse(m.IsRead, components.StatusRead, components.StatusSent),
+			Status:  IfElse(m.IsRead, components.StatusRead, components.StatusSent),
 			FromMe:  m.FromMe,
 		})
 	}
 
-	return render(c, components.ChatMessagesList(components.ChatMessagesListParams{
+	return Render(c, components.ChatMessagesList(components.ChatMessagesListParams{
 		PartnerID: partnerID,
 		Messages:  messageItems,
 		HasMore:   len(messages) == limit,
@@ -555,8 +558,8 @@ func (me *htmlHandler) withWebsocketWriter(c *websocket.Conn, f func(w io.WriteC
 
 func (me *htmlHandler) handleSendMessage(userID string, c *websocket.Conn, message websocketMessage) {
 	if err := me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-		return h.Render(w,
-			h.Div(h.KV{h.AttrId: "new-message-inserter-" + message.PartnerID, hx.AttrHxSwapOob: hx.SwapAfterEnd},
+		return Render(w,
+			Div(KV{AttrId: "new-message-inserter-" + message.PartnerID, AttrHxSwapOob: SwapAfterEnd},
 				components.ChatMessage(components.ChatMessageParams{
 					ClientMessageID: message.ClientMessageID,
 					PartnerID:       message.PartnerID,
@@ -583,10 +586,10 @@ func (me *htmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn)
 		}
 
 		if len(unreadCounts) > 0 {
-			return h.Render(w,
-				h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrHxSwapOob: hx.SwapInnerHtml},
-					h.MapSlice(unreadCounts, func(uc services.UnreadCount) h.Node {
-						return h.Script(h.RawText(
+			return Render(w,
+				Div(KV{AttrId: "unread-manager-anchor", AttrHxSwapOob: SwapInnerHtml},
+					MapSlice(unreadCounts, func(uc services.UnreadCount) HyperNode {
+						return Script(RawText(
 							fmt.Sprintf(`window.unreadManager.set("%s", %d);`, uc.PartnerID, uc.Count),
 						))
 					}),
@@ -616,10 +619,10 @@ func (me *htmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 				return err
 			}
 
-			return h.Render(w, h.Empty(
-				h.Div(h.KV{
-					h.AttrId:         fmt.Sprintf("pending-chat-message-%d", message.ClientMessageID),
-					hx.AttrHxSwapOob: hx.SwapDelete,
+			return Render(w, Empty(
+				Div(KV{
+					AttrId:        fmt.Sprintf("pending-chat-message-%d", message.ClientMessageID),
+					AttrHxSwapOob: SwapDelete,
 				}),
 
 				newChatMessageResponse(newChatMessageResponseParams{
@@ -655,7 +658,7 @@ func (me *htmlHandler) incommingMessageEventHandler(userID string, c *websocket.
 				return err
 			}
 
-			return h.Render(w, newChatMessageResponse(newChatMessageResponseParams{
+			return Render(w, newChatMessageResponse(newChatMessageResponseParams{
 				PartnerID:        message.PartnerID,
 				PartnerName:      profile.Name,
 				PartnerUsername:  profile.Username,
@@ -679,10 +682,10 @@ type newChatMessageResponseParams struct {
 	MessageIsFromMe  bool
 }
 
-func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
-	return h.Empty(
-		h.Div(h.KV{h.AttrId: "new-message-inserter-" + params.PartnerID, hx.AttrHxSwapOob: hx.SwapAfterEnd},
-			h.Div(h.KV{"data-partner-id": params.PartnerID},
+func newChatMessageResponse(params newChatMessageResponseParams) HyperNode {
+	return Empty(
+		Div(KV{AttrId: "new-message-inserter-" + params.PartnerID, AttrHxSwapOob: SwapAfterEnd},
+			Div(KV{"data-partner-id": params.PartnerID},
 				components.ChatMessage(components.ChatMessageParams{
 					ID:        params.MessageID,
 					Content:   params.MessageContent,
@@ -694,17 +697,17 @@ func newChatMessageResponse(params newChatMessageResponseParams) h.Node {
 			),
 		),
 
-		h.If(!params.MessageIsFromMe,
-			h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrHxSwapOob: hx.SwapInnerHtml},
-				h.Script(h.RawText(`
+		If(!params.MessageIsFromMe,
+			Div(KV{AttrId: "unread-manager-anchor", AttrHxSwapOob: SwapInnerHtml},
+				Script(RawText(`
             window.unreadManager.add("`+params.PartnerID+`", 1);
         `)),
 			),
 		),
 
-		h.Div(h.KV{h.AttrId: "partner-" + params.PartnerID, hx.AttrHxSwapOob: hx.SwapDelete}),
+		Div(KV{AttrId: "partner-" + params.PartnerID, AttrHxSwapOob: SwapDelete}),
 
-		h.Div(h.KV{h.AttrId: "partners-list", hx.AttrHxSwapOob: hx.SwapAfterBegin},
+		Div(KV{AttrId: "partners-list", AttrHxSwapOob: SwapAfterBegin},
 			components.PartnersListItem(components.PartnerBlockParams{
 				ID:       params.PartnerID,
 				Name:     params.PartnerName,
@@ -723,8 +726,8 @@ func (me *htmlHandler) userProfileWasUpdatedEventHandler(userID string, c *webso
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			return h.Render(w,
-				h.Div(h.KV{h.AttrId: "user-block", hx.AttrHxSwapOob: hx.SwapOuterHtml},
+			return Render(w,
+				Div(KV{AttrId: "user-block", AttrHxSwapOob: SwapOuterHtml},
 					components.UserBlock(components.UserBlockParams{
 						Name:     message.Name,
 						Username: message.Username,
@@ -748,8 +751,8 @@ func (me *htmlHandler) partnerProfileWasUpdatedEventHandler(userID string, c *we
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			return h.Render(w, h.Empty(
-				h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrHxSwapOob: hx.SwapOuterHtml},
+			return Render(w, Empty(
+				Div(KV{AttrId: "partner-" + message.PartnerID, AttrHxSwapOob: SwapOuterHtml},
 					components.PartnersListItem(components.PartnerBlockParams{
 						ID:       message.PartnerID,
 						Name:     message.Name,
@@ -758,7 +761,7 @@ func (me *htmlHandler) partnerProfileWasUpdatedEventHandler(userID string, c *we
 					}),
 				),
 
-				h.Div(h.KV{h.AttrId: "chat-container-header-" + message.PartnerID, hx.AttrHxSwapOob: hx.SwapOuterHtml},
+				Div(KV{AttrId: "chat-container-header-" + message.PartnerID, AttrHxSwapOob: SwapOuterHtml},
 					components.ChatContainerHeader(components.PartnerBlockParams{
 						ID:       message.PartnerID,
 						Name:     message.Name,
@@ -779,10 +782,10 @@ func (me *htmlHandler) partnerProfileWasDeletedEventHandler(userID string, c *we
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			return h.Render(w, h.Empty(
-				h.Div(h.KV{h.AttrId: "partner-" + message.PartnerID, hx.AttrHxSwapOob: hx.SwapDelete}),
+			return Render(w, Empty(
+				Div(KV{AttrId: "partner-" + message.PartnerID, AttrHxSwapOob: SwapDelete}),
 
-				h.Div(h.KV{h.AttrId: "chat-container", hx.AttrHxSwapOob: hx.SwapInnerHtml},
+				Div(KV{AttrId: "chat-container", AttrHxSwapOob: SwapInnerHtml},
 					components.ChatContainerPlaceholder(),
 				),
 			))
@@ -798,12 +801,12 @@ func (me *htmlHandler) partnerPresenceEventHandler(userID string, c *websocket.C
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			return h.Render(w, h.Empty(
-				h.Div(h.KV{h.AttrId: "profile-block-presence-indicator-" + message.PartnerID, hx.AttrHxSwapOob: hx.SwapOuterHtml},
+			return Render(w, Empty(
+				Div(KV{AttrId: "profile-block-presence-indicator-" + message.PartnerID, AttrHxSwapOob: SwapOuterHtml},
 					components.PartnerBlockPresenceIndicator(message.PartnerID, message.IsOnline),
 				),
 
-				h.Div(h.KV{h.AttrId: "chat-container-presence-indicator-" + message.PartnerID, hx.AttrHxSwapOob: hx.SwapOuterHtml},
+				Div(KV{AttrId: "chat-container-presence-indicator-" + message.PartnerID, AttrHxSwapOob: SwapOuterHtml},
 					components.ChatContainerPresenceIndicator(message.PartnerID, message.IsOnline),
 				),
 			))
@@ -819,9 +822,9 @@ func (me *htmlHandler) userMessagesWereReadEventHandler(userID string, c *websoc
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			return h.Render(w,
-				h.MapSlice(message.ReadMessageIDs, func(id string) h.Node {
-					return h.Div(h.KV{h.AttrId: "unread-message-indicator-" + id, hx.AttrHxSwapOob: hx.SwapOuterHtml},
+			return Render(w,
+				MapSlice(message.ReadMessageIDs, func(id string) HyperNode {
+					return Div(KV{AttrId: "unread-message-indicator-" + id, AttrHxSwapOob: SwapOuterHtml},
 						components.ReadMessageIndicator(),
 					)
 				}),
@@ -838,9 +841,9 @@ func (me *htmlHandler) partnerMessagesWereReadEventHandler(userID string, c *web
 		}
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
-			return h.Render(w,
-				h.Div(h.KV{h.AttrId: "unread-manager-anchor", hx.AttrHxSwapOob: hx.SwapInnerHtml},
-					h.Script(h.RawText(
+			return Render(w,
+				Div(KV{AttrId: "unread-manager-anchor", AttrHxSwapOob: SwapInnerHtml},
+					Script(RawText(
 						fmt.Sprintf(`window.unreadManager.sub("%s", %d);`, message.PartnerID, message.ReadMessageCount)),
 					),
 				),
