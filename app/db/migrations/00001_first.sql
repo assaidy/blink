@@ -55,8 +55,8 @@ create table chat_messages (
   is_deleted boolean not null default false,
 
   primary key (id),
-  foreign key (sender_id) references users (id) on delete set null,
-  foreign key (receiver_id) references users (id) on delete set null
+  foreign key (sender_id) references users (id) on delete cascade,
+  foreign key (receiver_id) references users (id) on delete cascade
 );
 
 create index on chat_messages (sender_id, receiver_id);

@@ -29,8 +29,7 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
-// TODO: Implement delete/pin chats.
-// TODO: Use rate limiting for different purposes
+// TODO: Use rate limiting
 
 type App struct {
 	logger          *slog.Logger

@@ -98,7 +98,14 @@ func (me *ChatService) DeleteChat(userID, partnerID string) error {
 		UserID:    userID,
 		PartnerID: partnerID,
 	}); err != nil {
-		return fmt.Errorf("failed to publish event %s: %w", PartnerPresenceEvent, err)
+		return fmt.Errorf("failed to publish event %s: %w", ChatWasDeletedEvent, err)
+	}
+
+	if err := me.pubsub.Publish(ctx, ChatWasDeletedEvent, pubsub.JsonMessageGenerator, ChatWasDeletedEventPayload{
+		UserID:    partnerID,
+		PartnerID: userID,
+	}); err != nil {
+		return fmt.Errorf("failed to publish event %s: %w", ChatWasDeletedEvent, err)
 	}
 
 	return nil
@@ -262,9 +269,9 @@ const (
 )
 
 type UserMessageWasUpdatedEventPayload struct {
-	UserID     string `json:"userID"`
-	MessageID  string `json:"messageID"`
-	Content string `json:"newContent"`
+	UserID    string `json:"userID"`
+	MessageID string `json:"messageID"`
+	Content   string `json:"newContent"`
 }
 
 type PartnerMessageWasUpdatedEventPayload struct {
@@ -315,9 +322,9 @@ func (me *ChatService) UpdateChatMessage(userID, messageID, newContent string) e
 		UserMessageWasUpdatedEvent,
 		pubsub.JsonMessageGenerator,
 		UserMessageWasUpdatedEventPayload{
-			UserID:     result.SenderID,
-			MessageID:  messageID,
-			Content: newContent,
+			UserID:    result.SenderID,
+			MessageID: messageID,
+			Content:   newContent,
 		},
 	); err != nil {
 		return fmt.Errorf("failed to publish %s event: %w", UserMessageWasUpdatedEvent, err)

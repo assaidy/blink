@@ -538,6 +538,13 @@ func (me *jsonHandler) HandleWebsocket(c *websocket.Conn) {
 			me.partnerMessageWasUpdatedEventHandler(userID, c),
 		)
 	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.ChatWasDeletedEvent,
+			pubsub.JsonPayloadGenerator[services.ChatWasDeletedEventPayload],
+			me.chatWasDeletedEventHandler(userID, c),
+		)
+	})
 
 	for {
 		message := websocketMessage{}
@@ -574,20 +581,6 @@ func (me *jsonHandler) partnerPresenceEventHandler(userID string, c *websocket.C
 			Kind:      partnerPresenceChanged,
 			PartnerID: message.PartnerID,
 			IsOnline:  message.IsOnline,
-		})
-	}
-}
-
-func (me *jsonHandler) chatWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
-	return func(payload any) error {
-		message := payload.(services.ChatWasDeletedEventPayload)
-		if message.UserID != userID && message.PartnerID != userID {
-			return nil
-		}
-		return c.WriteJSON(websocketMessage{
-			Kind:      chatWasDeleted,
-			UserID:    message.UserID,
-			PartnerID: message.PartnerID,
 		})
 	}
 }
@@ -749,6 +742,20 @@ func (me *jsonHandler) partnerMessageWasUpdatedEventHandler(userID string, c *we
 			UserID:    userID,
 			PartnerID: message.PartnerID,
 			MessageID: message.MessageID,
+		})
+	}
+}
+
+func (me *jsonHandler) chatWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.ChatWasDeletedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+		return c.WriteJSON(websocketMessage{
+			Kind:      chatWasDeleted,
+			UserID:    message.UserID,
+			PartnerID: message.PartnerID,
 		})
 	}
 }

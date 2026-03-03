@@ -239,7 +239,15 @@ func ChatPage(params ChatPageParams) HyperNode {
 			AttrClass:     "h-screen flex bg-bg-primary",
 			AttrHxExt:     "ws",
 			AttrWsConnect: "/ws",
+			AttrOnClick: `
+				const msgMenu = document.getElementById('message-context-menu');
+				const partnerMenu = document.getElementById('partner-context-menu');
+				if (msgMenu && !msgMenu.classList.contains('hidden')) msgMenu.classList.add('hidden');
+				if (partnerMenu && !partnerMenu.classList.contains('hidden')) partnerMenu.classList.add('hidden');
+			`,
 		},
+			partnerContextMenu(),
+			messageContextMenu(),
 			// Sidebar
 			Div(KV{AttrClass: "w-80 bg-bg-secondary border-r border-bg-tertiary flex flex-col"},
 				// Sticky top row
@@ -674,29 +682,27 @@ type PartnersListParams struct {
 
 func PartnersList(params PartnersListParams) HyperNode {
 	if len(params.Partners) == 0 {
-		return Div(KV{
-			AttrId:    "partners-list",
-			AttrClass: "space-y-1",
-		})
+		return Div(KV{AttrId: "partners-list", AttrClass: "space-y-1"})
 	}
 
 	lastID := params.Partners[len(params.Partners)-1].ID
 
-	return Div(KV{
-		AttrId:    "partners-list",
-		AttrClass: "space-y-1",
-	},
+	return Div(KV{AttrId: "partners-list", AttrClass: "space-y-1"},
 		MapSlice(params.Partners, func(partner PartnerBlockParams) HyperNode {
-			attrs := IfElse(partner.ID == lastID && params.LastMessageWithLastPartnerID != "", KV{
-				AttrHxGet:       "/partners?cursor=" + params.LastMessageWithLastPartnerID,
-				AttrHxTrigger:   "intersect once",
-				AttrHxSwap:      SwapAfterEnd,
-				AttrHxIndicator: "#partners-indicator",
-				// Disable the sidebar indicator for requests in blocks
-				AttrHxDisinherit: AttrHxIndicator,
-			}, nil)
-
-			return Div(attrs, PartnersListItem(partner))
+			return Div(
+				IfElse(partner.ID == lastID && params.LastMessageWithLastPartnerID != "",
+					KV{
+						AttrHxGet:       "/partners?cursor=" + params.LastMessageWithLastPartnerID,
+						AttrHxTrigger:   "intersect once",
+						AttrHxSwap:      SwapAfterEnd,
+						AttrHxIndicator: "#partners-indicator",
+						// Disable the sidebar indicator for requests in blocks
+						AttrHxDisinherit: AttrHxIndicator,
+					},
+					nil,
+				),
+				PartnersListItem(partner),
+			)
 		}),
 	)
 }
@@ -739,6 +745,19 @@ type PartnerBlockParams struct {
 func partnerBlock(params PartnerBlockParams) HyperNode {
 	return Div(KV{
 		AttrClass: "flex items-center gap-3 p-3 hover:bg-bg-tertiary/50 hover:rounded-lg cursor-pointer transition-colors",
+		AttrOnContextMenu: `
+			event.preventDefault();
+			const menu = document.getElementById('partner-context-menu');
+			menu.dataset.partnerID = "` + params.ID + `";
+			menu.style.left = event.clientX + 'px';
+			menu.style.top = event.clientY + 'px';
+			menu.classList.remove('hidden');
+			const menuRect = menu.getBoundingClientRect();
+			const viewportWidth = window.innerWidth;
+			const viewportHeight = window.innerHeight;
+			if (event.clientX + menuRect.width > viewportWidth) menu.style.left = (event.clientX - menuRect.width) + 'px';
+			if (event.clientY + menuRect.height > viewportHeight) menu.style.top = (event.clientY - menuRect.height) + 'px';
+		`,
 	},
 		Div(KV{AttrClass: "relative w-10 h-10 rounded-full bg-blue flex items-center justify-center text-bg-primary font-bold"},
 			getInitials(params.Name),
@@ -769,20 +788,14 @@ type ChatContainerParams struct {
 
 func ChatContainer(params ChatContainerParams) HyperNode {
 	return Div(KV{
+		AttrId:    "chat-container-" + params.Partner.ID,
 		AttrClass: "flex-1 flex flex-col bg-bg-primary h-full",
-		AttrOnClick: `
-			const menu = document.getElementById('message-context-menu');
-			if (menu && !menu.classList.contains('hidden')) {
-				menu.classList.add('hidden');
-			}
-		`,
 		AttrHxOn(EventHtmxLoad): `
 			window.currentActivePartnerId = "` + params.Partner.ID + `";
 		  document.querySelector("#partners-list [data-active]")?.removeAttribute("data-active");
 		  document.getElementById("partner-" + "` + params.Partner.ID + `")?.setAttribute("data-active", "");
 		`,
 	},
-		messageContextMenu(),
 		ChatContainerHeader(params.Partner),
 		Div(KV{
 			AttrId:    "messages-container",
@@ -995,6 +1008,14 @@ func ChatInputForm(params ChatInputFormParams) HyperNode {
 			KV{
 				AttrHxPut:  fmt.Sprintf("/chat/%s/messages/%s", params.PartnerID, params.MessageID),
 				AttrHxSwap: SwapOuterHtml,
+				AttrHxOn(EventHtmxConfigRequest): `
+					const content = event.detail.parameters.content.trim();
+					if (content == "") {
+						event.preventDefault();
+						return;
+					}
+					event.detail.parameters.content = content;
+				`,
 			},
 			KV{
 				AttrWsSend: true,
@@ -1058,7 +1079,7 @@ func messageContextMenu() HyperNode {
 				navigator.clipboard.writeText(content);
 			`,
 		},
-			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`),
+			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>`),
 			"Copy",
 		),
 		Button(KV{
@@ -1084,6 +1105,24 @@ func messageContextMenu() HyperNode {
 			AttrOnClick: `
 				const messageID = document.getElementById('message-context-menu').dataset.messageID;
 				htmx.ajax('DELETE', '/api/v1/chats/messages/'+messageID, { swap: 'none' });
+			`,
+		},
+			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`),
+			"Delete",
+		),
+	)
+}
+
+func partnerContextMenu() HyperNode {
+	return Div(KV{
+		AttrId:    "partner-context-menu",
+		AttrClass: "hidden fixed z-50 bg-bg-secondary border border-bg-tertiary rounded-lg shadow-lg py-1 min-w-[120px]",
+	},
+		Button(KV{
+			AttrClass: "w-full px-4 py-2 text-left text-sm text-fg-primary hover:bg-bg-tertiary flex items-center gap-2",
+			AttrOnClick: `
+				const partnerID = document.getElementById('partner-context-menu').dataset.partnerID;
+				htmx.ajax('DELETE', '/api/v1/chats/'+partnerID, { swap: 'none' });
 			`,
 		},
 			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`),

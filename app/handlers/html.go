@@ -576,6 +576,13 @@ func (me *htmlHandler) HandleWebsocket(c *websocket.Conn) {
 			me.partnerMessageWasUpdatedEventHandler(userID, c),
 		)
 	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.ChatWasDeletedEvent,
+			pubsub.JsonPayloadGenerator[services.ChatWasDeletedEventPayload],
+			me.chatWasDeletedEventHandler(userID, c),
+		)
+	})
 
 	me.sendUnreadMessageCounts(userID, c)
 
@@ -681,10 +688,7 @@ func (me *htmlHandler) messageWasSentEventHandler(userID string, c *websocket.Co
 			}
 
 			return Render(w, Empty(
-				Div(KV{
-					AttrId:        fmt.Sprintf("pending-chat-message-%d", message.ClientMessageID),
-					AttrHxSwapOob: SwapDelete,
-				}),
+				Div(KV{AttrId: fmt.Sprintf("pending-chat-message-%d", message.ClientMessageID), AttrHxSwapOob: SwapDelete}),
 
 				newChatMessageResponse(newChatMessageResponseParams{
 					PartnerID:        message.PartnerID,
@@ -844,7 +848,7 @@ func (me *htmlHandler) partnerProfileWasDeletedEventHandler(userID string, c *we
 			return Render(w, Empty(
 				Div(KV{AttrId: "partner-" + message.PartnerID, AttrHxSwapOob: SwapDelete}),
 
-				Div(KV{AttrId: "chat-container", AttrHxSwapOob: SwapInnerHtml},
+				Div(KV{AttrId: "chat-container-" + message.PartnerID, AttrHxSwapOob: SwapInnerHtml},
 					components.ChatContainerPlaceholder(),
 				),
 			))
@@ -962,6 +966,24 @@ func (me *htmlHandler) partnerMessageWasUpdatedEventHandler(userID string, c *we
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Div(KV{AttrHxSwapOob: SwapOob(SwapInnerHtml, fmt.Sprintf("#chat-message-%s .message-content", message.MessageID))},
 				message.NewContent,
+			))
+		})
+	}
+}
+
+func (me *htmlHandler) chatWasDeletedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.ChatWasDeletedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
+			return Render(w, Empty(
+				Div(KV{AttrId: "partner-" + message.PartnerID, AttrHxSwapOob: SwapDelete}),
+
+				Div(KV{AttrId: "chat-container-" + message.PartnerID, AttrHxSwapOob: SwapInnerHtml},
+					components.ChatContainerPlaceholder(),
+				),
 			))
 		})
 	}
