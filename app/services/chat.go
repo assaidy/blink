@@ -10,6 +10,7 @@ import (
 
 	"github.com/assaidy/blink/app/repo"
 	"github.com/assaidy/blink/app/utils/pubsub"
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -222,7 +223,7 @@ func (me *ChatService) DeleteChatMessage(userID, messageID string) error {
 	}
 
 	if err := qtx.MarkChatMessageAsDeleted(ctx, messageID); err != nil {
-		return fmt.Errorf("failed to mark chat message as deleted: %w", err)
+		return fmt.Errorf("failed to get chat message partners: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -250,6 +251,89 @@ func (me *ChatService) DeleteChatMessage(userID, messageID string) error {
 		},
 	); err != nil {
 		return fmt.Errorf("failed to publish %s event: %w", PartnerMessageWasDeletedEvent, err)
+	}
+
+	return nil
+}
+
+const (
+	UserMessageWasUpdatedEvent    = "UserMessageWasUpdatedEvent"
+	PartnerMessageWasUpdatedEvent = "PartnerMessageWasUpdatedEvent"
+)
+
+type UserMessageWasUpdatedEventPayload struct {
+	UserID     string `json:"userID"`
+	MessageID  string `json:"messageID"`
+	Content string `json:"newContent"`
+}
+
+type PartnerMessageWasUpdatedEventPayload struct {
+	UserID     string `json:"userID"`
+	PartnerID  string `json:"partnerID"`
+	MessageID  string `json:"messageID"`
+	NewContent string `json:"newContent"`
+}
+
+func (me *ChatService) UpdateChatMessage(userID, messageID, newContent string) error {
+	newContent = strings.TrimSpace(newContent)
+	if newContent == "" {
+		return fmt.Errorf("%w: %w", ErrValidation, validation.Errors{"Content": errors.New("content cannot be empty")})
+	}
+
+	ctx := context.Background()
+	tx, err := me.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	qtx := me.queries.WithTx(tx)
+
+	result, err := qtx.GetChatMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("failed to get chat message partners: %w", err)
+	}
+
+	if result.SenderID != userID {
+		return ErrNotFound
+	}
+
+	if err := qtx.UpdateChatMessageContent(ctx, repo.UpdateChatMessageContentParams{
+		ID:      messageID,
+		Content: newContent,
+	}); err != nil {
+		return fmt.Errorf("failed to update chat message content: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit tx: %w", err)
+	}
+
+	if err := me.pubsub.Publish(ctx,
+		UserMessageWasUpdatedEvent,
+		pubsub.JsonMessageGenerator,
+		UserMessageWasUpdatedEventPayload{
+			UserID:     result.SenderID,
+			MessageID:  messageID,
+			Content: newContent,
+		},
+	); err != nil {
+		return fmt.Errorf("failed to publish %s event: %w", UserMessageWasUpdatedEvent, err)
+	}
+
+	if err := me.pubsub.Publish(ctx,
+		PartnerMessageWasUpdatedEvent,
+		pubsub.JsonMessageGenerator,
+		PartnerMessageWasUpdatedEventPayload{
+			UserID:     result.ReceiverID,
+			PartnerID:  result.SenderID,
+			MessageID:  messageID,
+			NewContent: newContent,
+		},
+	); err != nil {
+		return fmt.Errorf("failed to publish %s event: %w", PartnerMessageWasUpdatedEvent, err)
 	}
 
 	return nil

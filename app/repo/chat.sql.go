@@ -355,3 +355,17 @@ func (q *Queries) MarkMessagesAsRead(ctx context.Context, arg MarkMessagesAsRead
 	}
 	return items, nil
 }
+
+const updateChatMessageContent = `-- name: UpdateChatMessageContent :exec
+update chat_messages set content = $1 where id = $2
+`
+
+type UpdateChatMessageContentParams struct {
+	Content string
+	ID      string
+}
+
+func (q *Queries) UpdateChatMessageContent(ctx context.Context, arg UpdateChatMessageContentParams) error {
+	_, err := q.db.ExecContext(ctx, updateChatMessageContent, arg.Content, arg.ID)
+	return err
+}

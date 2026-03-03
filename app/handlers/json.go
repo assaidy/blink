@@ -277,14 +277,21 @@ func (me *jsonHandler) HandleGetChatMessages(c *fiber.Ctx) error {
 
 func (me *jsonHandler) HandleMarkMessagesAsRead(c *fiber.Ctx) error {
 	if err := me.chatService.MarkMessagesAsRead(getCurrentUserID(c), c.Params("partner_id"), c.Query("upto_message_id")); err != nil {
-		return err
+		return serviceErrToApiErr(err)
 	}
 	return c.SendStatus(fiber.StatusOK)
 }
 
 func (me *jsonHandler) HandleDeleteChatMessage(c *fiber.Ctx) error {
 	if err := me.chatService.DeleteChatMessage(getCurrentUserID(c), c.Params("message_id")); err != nil {
-		return err
+		return serviceErrToApiErr(err)
+	}
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func (me *jsonHandler) HandleUpdateChatMessage(c *fiber.Ctx) error {
+	if err := me.chatService.UpdateChatMessage(getCurrentUserID(c), c.Params("message_id"), c.FormValue("content")); err != nil {
+		return serviceErrToApiErr(err)
 	}
 	return c.SendStatus(fiber.StatusOK)
 }
@@ -517,6 +524,20 @@ func (me *jsonHandler) HandleWebsocket(c *websocket.Conn) {
 			me.partnerMessageWasDeletedEventHandler(userID, c),
 		)
 	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.UserMessageWasUpdatedEvent,
+			pubsub.JsonPayloadGenerator[services.UserMessageWasUpdatedEventPayload],
+			me.userMessageWasUpdatedEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.PartnerMessageWasUpdatedEvent,
+			pubsub.JsonPayloadGenerator[services.PartnerMessageWasUpdatedEventPayload],
+			me.partnerMessageWasUpdatedEventHandler(userID, c),
+		)
+	})
 
 	for {
 		message := websocketMessage{}
@@ -696,6 +717,35 @@ func (me *jsonHandler) partnerMessageWasDeletedEventHandler(userID string, c *we
 		}
 		return c.WriteJSON(websocketMessage{
 			Kind:      partnerMessageWasDeleted,
+			UserID:    userID,
+			PartnerID: message.PartnerID,
+			MessageID: message.MessageID,
+		})
+	}
+}
+func (me *jsonHandler) userMessageWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.UserMessageWasUpdatedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+		return c.WriteJSON(websocketMessage{
+			Kind:      userMessageWasUpdated,
+			UserID:    userID,
+			MessageID: message.MessageID,
+			Content:   message.Content,
+		})
+	}
+}
+
+func (me *jsonHandler) partnerMessageWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.PartnerMessageWasUpdatedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+		return c.WriteJSON(websocketMessage{
+			Kind:      partnerMessageWasUpdated,
 			UserID:    userID,
 			PartnerID: message.PartnerID,
 			MessageID: message.MessageID,

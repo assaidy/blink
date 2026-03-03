@@ -429,6 +429,39 @@ func (me *htmlHandler) HandleChatMessages(c *fiber.Ctx) error {
 	}))
 }
 
+func (me *htmlHandler) HandleGetChatMessageInputForm(c *fiber.Ctx) error {
+	return Render(c, components.ChatInputForm(components.ChatInputFormParams{
+		PartnerID: c.Params("partner_id"),
+	}))
+}
+
+func (me *htmlHandler) HandleGetEditChatMessageInputForm(c *fiber.Ctx) error {
+	messageID := c.Params("message_id")
+	partnerID := c.Params("partner_id")
+	content := c.FormValue("content")
+
+	return Render(c, components.ChatInputForm(components.ChatInputFormParams{
+		PartnerID:  partnerID,
+		ForEdit:    true,
+		MessageID:  messageID,
+		OldContent: content,
+	}))
+}
+
+func (me *htmlHandler) HandleUpdateChatMessage(c *fiber.Ctx) error {
+	messageID := c.Params("message_id")
+	partnerID := c.Params("partner_id")
+	content := c.FormValue("content")
+
+	if err := me.chatService.UpdateChatMessage(getCurrentUserID(c), messageID, content); err != nil {
+		return serviceErrToApiErr(err)
+	}
+
+	return Render(c, components.ChatInputForm(components.ChatInputFormParams{
+		PartnerID: partnerID,
+	}))
+}
+
 func (me *htmlHandler) HandleWebsocket(c *websocket.Conn) {
 	me.mu.RLock()
 	me.websocketsSatate[c] = &websocketState{}
@@ -515,7 +548,6 @@ func (me *htmlHandler) HandleWebsocket(c *websocket.Conn) {
 			me.incommingMessageEventHandler(userID, c),
 		)
 	})
-	// FIX: sync with json handler
 	wg.Go(func() {
 		me.pubsub.Subscribe(ctx,
 			services.UserMessageWasDeletedEvent,
@@ -528,6 +560,20 @@ func (me *htmlHandler) HandleWebsocket(c *websocket.Conn) {
 			services.PartnerMessageWasDeletedEvent,
 			pubsub.JsonPayloadGenerator[services.PartnerMessageWasDeletedEventPayload],
 			me.partnerMessageWasDeletedEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.UserMessageWasUpdatedEvent,
+			pubsub.JsonPayloadGenerator[services.UserMessageWasUpdatedEventPayload],
+			me.userMessageWasUpdatedEventHandler(userID, c),
+		)
+	})
+	wg.Go(func() {
+		me.pubsub.Subscribe(ctx,
+			services.PartnerMessageWasUpdatedEvent,
+			pubsub.JsonPayloadGenerator[services.PartnerMessageWasUpdatedEventPayload],
+			me.partnerMessageWasUpdatedEventHandler(userID, c),
 		)
 	})
 
@@ -887,6 +933,36 @@ func (me *htmlHandler) partnerMessageWasDeletedEventHandler(userID string, c *we
 
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Div(KV{AttrId: "chat-message-" + message.MessageID, AttrHxSwapOob: SwapDelete}))
+		})
+	}
+}
+
+func (me *htmlHandler) userMessageWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.UserMessageWasUpdatedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
+			return Render(w, Div(KV{AttrHxSwapOob: SwapOob(SwapInnerHtml, fmt.Sprintf("#chat-message-%s .message-content", message.MessageID))},
+				message.Content,
+			))
+		})
+	}
+}
+
+func (me *htmlHandler) partnerMessageWasUpdatedEventHandler(userID string, c *websocket.Conn) pubsub.PayloadHandler {
+	return func(payload any) error {
+		message := payload.(services.PartnerMessageWasUpdatedEventPayload)
+		if message.UserID != userID {
+			return nil
+		}
+
+		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
+			return Render(w, Div(KV{AttrHxSwapOob: SwapOob(SwapInnerHtml, fmt.Sprintf("#chat-message-%s .message-content", message.MessageID))},
+				message.NewContent,
+			))
 		})
 	}
 }

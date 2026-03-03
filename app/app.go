@@ -30,9 +30,7 @@ import (
 )
 
 // TODO: Implement delete/pin chats.
-// TODO: Implement edit messages.
 // TODO: Use rate limiting for different purposes
-// TODO: Use fiber v3
 
 type App struct {
 	logger          *slog.Logger
@@ -194,6 +192,11 @@ func (me *App) registerApiRoutes() {
 			withCsrfTokenHeader,
 			jsonHandler.HandleDeleteChatMessage,
 		)
+		v1.Put("/chats/messages/:message_id",
+			withSessionTokenCookie,
+			withCsrfTokenHeader,
+			jsonHandler.HandleUpdateChatMessage,
+		)
 
 		v1.Get("/ws",
 			withSessionTokenCookie,
@@ -306,6 +309,21 @@ func (me *App) registerHTMLRoutes() {
 		withSessionTokenCookie,
 		withCsrfTokenHeader,
 		htmlHandler.HandleChatMessages,
+	)
+	me.router.Put("/chat/:partner_id/messages/:message_id",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleUpdateChatMessage,
+	)
+	me.router.Get("chat/:partner_id/message_input_form",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleGetChatMessageInputForm,
+	)
+	me.router.Get("/chat/:partner_id/edit_message_input_form/:message_id",
+		withSessionTokenCookie,
+		withCsrfTokenHeader,
+		htmlHandler.HandleGetEditChatMessageInputForm,
 	)
 
 	me.router.Get("/ws",

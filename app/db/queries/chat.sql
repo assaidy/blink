@@ -62,6 +62,9 @@ returning id;
 -- name: MarkChatMessageAsDeleted :exec
 update chat_messages set is_deleted = true where id = $1;
 
+-- name: UpdateChatMessageContent :exec
+update chat_messages set content = $1 where id = $2;
+
 -- name: MarkChatAsDeleted :exec
 update chat_messages
 set is_deleted = true

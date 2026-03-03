@@ -906,6 +906,7 @@ func ChatMessage(params ChatMessageParams) HyperNode {
 				event.preventDefault();
 				const menu = document.getElementById('message-context-menu');
 				menu.dataset.messageID = "` + params.ID + `";
+				menu.dataset.partnerID = "` + params.PartnerID + `";
 				const fromMe = ` + IfElse(params.FromMe, "true", "false") + `;
 				document.getElementById('ctx-edit').style.display = fromMe ? 'flex' : 'none';
 				document.getElementById('ctx-delete').style.display = fromMe ? 'flex' : 'none';
@@ -962,46 +963,78 @@ func sentMessageIndicator(messageID string) HyperNode {
 
 type ChatInputFormParams struct {
 	PartnerID string
+
+	ForEdit    bool
+	MessageID  string
+	OldContent string
 }
 
 func ChatInputForm(params ChatInputFormParams) HyperNode {
-	return Form(KV{
-		AttrWsSend: true,
-		AttrHxOn(EventHtmxWsConfigSend): `
-			const content = event.detail.parameters.content.trim();
-			if (content == "") {
+	textarea := Textarea(KV{
+		AttrClass:       "w-full bg-bg-tertiary text-fg-primary resize-none outline-none max-h-[120px] min-h-[44px] py-2.5 px-4 leading-6 self-center overflow-y-auto " + IfElse(params.ForEdit, "rounded-b-2xl rounded-t-none", "rounded-2xl"),
+		AttrName:        "content",
+		AttrPlaceholder: "Write a message...",
+		AttrRows:        "1",
+		AttrAutofocus:   true,
+		AttrOnInput: `
+			this.style.height = "auto";
+			this.style.height = Math.min(this.scrollHeight, 120)+"px";
+		`,
+		AttrOnKeyDown: `
+			if (event.key === "Enter" && !event.shiftKey) {
 				event.preventDefault();
-				return;
+				document.getElementById("send-btn").click();
 			}
-			event.detail.parameters.content = content;
-			event.detail.parameters.clientMessageID = window.messageIDGenerator.GetID();
 		`,
-		AttrHxOn(EventHtmxWsAfterSend): `
-			const textarea = event.detail.elt.querySelector('textarea[name="content"]');
-			textarea.value = '';
-			textarea.style.height = 'auto';
-		`,
-		AttrClass: "flex items-center gap-2 px-3 py-2",
 	},
-		Input(KV{AttrType: TypeHidden, AttrName: "kind", AttrValue: "SendMessage"}),
-		Input(KV{AttrType: TypeHidden, AttrName: "partnerID", AttrValue: params.PartnerID}),
-		Textarea(KV{
-			AttrClass:       "flex-1 bg-bg-tertiary text-fg-primary resize-none outline-none max-h-[120px] min-h-[44px] py-2.5 px-4 rounded-2xl leading-6 self-center overflow-y-auto",
-			AttrName:        "content",
-			AttrPlaceholder: "Write a message...",
-			AttrRows:        "1",
-			AttrAutofocus:   true,
-			AttrOnInput: `
-				this.style.height = "auto";
-				this.style.height = Math.min(this.scrollHeight, 120)+"px";
-			`,
-			AttrOnKeyDown: `
-				if (event.key === "Enter" && !event.shiftKey) {
-					event.preventDefault();
-					document.getElementById("send-btn").click();
-				}
-			`,
-		}),
+		IfElse(params.ForEdit, params.OldContent, ""),
+	)
+
+	return Form(KV{AttrId: "message-input-form", AttrClass: "flex items-center gap-2 px-3 py-2"},
+		IfElse(params.ForEdit,
+			KV{
+				AttrHxPut:  fmt.Sprintf("/chat/%s/messages/%s", params.PartnerID, params.MessageID),
+				AttrHxSwap: SwapOuterHtml,
+			},
+			KV{
+				AttrWsSend: true,
+				AttrHxOn(EventHtmxWsConfigSend): `
+					const content = event.detail.parameters.content.trim();
+					if (content == "") {
+						event.preventDefault();
+						return;
+					}
+					event.detail.parameters.content = content;
+					event.detail.parameters.clientMessageID = window.messageIDGenerator.GetID();
+				`,
+				AttrHxOn(EventHtmxWsAfterSend): `
+					const textarea = event.detail.elt.querySelector('textarea[name="content"]');
+					textarea.value = '';
+					textarea.style.height = 'auto';
+				`,
+			},
+		),
+		If(!params.ForEdit, Empty(
+			Input(KV{AttrType: TypeHidden, AttrName: "kind", AttrValue: "SendMessage"}),
+			Input(KV{AttrType: TypeHidden, AttrName: "partnerID", AttrValue: params.PartnerID}),
+		)),
+		IfElse(params.ForEdit,
+			Div(KV{AttrClass: "flex flex-col flex-1"},
+				Div(KV{AttrClass: "flex items-center justify-between px-3 py-1.5 bg-blue/10 rounded-t-xl rounded-b-none"},
+					P(KV{AttrClass: "text-sm text-fg-secondary"}, "Editing message"),
+					Button(KV{
+						AttrClass:    "px-3 py-1 text-sm bg-bg-tertiary hover:bg-red-500/20 hover:text-red-500 rounded transition-colors cursor-pointer",
+						AttrHxGet:    fmt.Sprintf("/chat/%s/message_input_form", params.PartnerID),
+						AttrHxTarget: "#message-input-form",
+						AttrHxSwap:   SwapOuterHtml,
+					},
+						"Cancel",
+					),
+				),
+				textarea,
+			),
+			textarea,
+		),
 		Button(KV{
 			AttrId:    "send-btn",
 			AttrType:  "submit",
@@ -1032,7 +1065,14 @@ func messageContextMenu() HyperNode {
 			AttrId:    "ctx-edit",
 			AttrClass: "w-full px-4 py-2 text-left text-sm text-fg-primary hover:bg-bg-tertiary flex items-center gap-2",
 			AttrOnClick: `
-				alert('Edit functionality coming soon!');
+				const messageID = document.getElementById('message-context-menu').dataset.messageID;
+				const partnerID = document.getElementById('message-context-menu').dataset.partnerID;
+				const content = document.getElementById("chat-message-"+messageID).querySelector('.message-content').textContent;
+				htmx.ajax('GET', '/chat/'+partnerID+'/edit_message_input_form/'+messageID, {
+					target: "#message-input-form",
+					swap:   "outerHTML",
+					values: {content},
+				});
 			`,
 		},
 			RawText(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>`),
