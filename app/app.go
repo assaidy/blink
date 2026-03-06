@@ -29,7 +29,10 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
+// TODO: Testing
 // TODO: Use rate limiting
+// TODO: API docs
+// TODO: Do more caching
 
 type App struct {
 	logger          *slog.Logger

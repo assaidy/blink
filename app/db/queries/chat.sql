@@ -77,10 +77,10 @@ declare
 begin
   loop
     delete from chat_messages
-    where ctid in (
-      select ctid
+    where id in (
+      select id
       from chat_messages
-      where (case when is_deleted = true then 1 else 0 end) = 1
+      where is_deleted
       limit 1000
     );
     get diagnostics rows_deleted = row_count;

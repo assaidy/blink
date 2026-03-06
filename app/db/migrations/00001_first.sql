@@ -60,7 +60,7 @@ create table chat_messages (
 );
 
 create index on chat_messages (sender_id, receiver_id);
-create index on chat_messages ((case when is_deleted = true then 1 else 0 end));
+create index chat_messages_is_read_idx on chat_messages (id) where is_deleted;
 
 --------------------------------------------------
 -- +goose Down
