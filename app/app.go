@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/cache"
+	"github.com/assaidy/blink/app/config"
 	"github.com/assaidy/blink/app/db"
-	"github.com/assaidy/blink/app/env"
 	"github.com/assaidy/blink/app/handlers"
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/utils/mailer"
@@ -29,7 +29,6 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
-// TODO: Testing
 // TODO: Use rate limiting
 // TODO: API docs
 // TODO: Do more caching
@@ -48,12 +47,15 @@ type App struct {
 
 func NewApp() *App {
 	logger := slog.New(log.NewWithOptions(os.Stderr, log.Options{ReportTimestamp: true}))
-	db := db.GetPool()
-	cache := cache.GetClient()
-	pubsub := pubsub.NewValkeyPubsub(cache, logger)
-	mailer := email.NewPapercutMailer()
 
-	authService := services.NewAuthService(db, mailer)
+	cfg := config.Load()
+
+	db := db.GetPostgresConnectionPool(cfg.DBUrl)
+	cache := cache.GetValkeyClient(cfg.ValkeyAddr)
+	pubsub := pubsub.NewValkeyPubsub(cache, logger)
+	mailer := email.NewPapercutMailer(cfg.PapercutHost, cfg.EmailFrom)
+
+	authService := services.NewAuthService(db, mailer, cfg.Secret)
 	profileService := services.NewProfileService(db, pubsub)
 	presenceService := services.NewPresenceService(db, cache, logger, pubsub)
 	chatService := services.NewChatService(db, presenceService, pubsub)
@@ -70,7 +72,7 @@ func NewApp() *App {
 		router: fiber.New(fiber.Config{
 			AppName:      "blink",
 			ErrorHandler: handlers.ErrorHandler(logger),
-			Prefork:      env.Environment == env.EnvDevelopment,
+			Prefork:      cfg.Environment == config.EnvDevelopment,
 		}),
 	}
 }
@@ -78,9 +80,11 @@ func NewApp() *App {
 func (me *App) Run() {
 	quitCtx, quitCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
+	cfg := config.Load()
+
 	go func() {
 		me.registerRoutes()
-		if err := me.router.Listen(fmt.Sprintf(":%s", env.Port)); err != nil {
+		if err := me.router.Listen(fmt.Sprintf(":%s", cfg.Port)); err != nil {
 			me.logger.Error("failed to start server", "error", err)
 		}
 	}()

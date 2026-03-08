@@ -3,25 +3,25 @@ package email
 import (
 	"fmt"
 
-	"github.com/assaidy/blink/app/env"
 	"gopkg.in/gomail.v2"
 )
 
 type PapercutMailer struct {
-	dialer *gomail.Dialer
+	dialer    *gomail.Dialer
+	emailFrom string
 }
 
-func NewPapercutMailer() PapercutMailer {
+func NewPapercutMailer(smtpHost, emailFrom string) PapercutMailer {
 	dialer := &gomail.Dialer{
-		Host: env.PapercutSmtHost,
+		Host: smtpHost,
 		Port: 25,
 	}
-	return PapercutMailer{dialer: dialer}
+	return PapercutMailer{dialer: dialer, emailFrom: emailFrom}
 }
 
 func (me PapercutMailer) SendEmail(to, subject, body string) error {
 	m := gomail.NewMessage()
-	m.SetHeader("From", fmt.Sprintf("Blink Chat App <%s>", env.EmailFrom))
+	m.SetHeader("From", fmt.Sprintf("Blink Chat App <%s>", me.emailFrom))
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain; charset=UTF-8", body)

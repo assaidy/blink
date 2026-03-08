@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/assaidy/blink/app/env"
 	"github.com/assaidy/blink/app/repo"
 	"github.com/assaidy/blink/app/utils/mailer"
 	"github.com/go-ozzo/ozzo-validation/is"
@@ -26,13 +25,15 @@ type AuthService struct {
 	db      *sql.DB
 	queries *repo.Queries
 	mailer  email.Mailer
+	secret  string
 }
 
-func NewAuthService(db *sql.DB, mailer email.Mailer) *AuthService {
+func NewAuthService(db *sql.DB, mailer email.Mailer, secret string) *AuthService {
 	return &AuthService{
 		db:      db,
 		queries: repo.New(db),
 		mailer:  mailer,
+		secret:  secret,
 	}
 }
 
@@ -154,7 +155,7 @@ func (me *AuthService) SendOtp(channel, identifier, purpose string) (string, err
 	if err != nil {
 		return "", fmt.Errorf("failed to generate otp: %w", err)
 	}
-	otpHash := hashOtp(otp)
+	otpHash := hashOtp(otp, me.secret)
 
 	otpID := ulid.Make().String()
 	if err := me.queries.InsertOtp(ctx, repo.InsertOtpParams{
@@ -192,15 +193,15 @@ func generateRandomOtp() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()+100_000), nil
 }
 
-func hashOtp(otp string) string {
-	mac := hmac.New(sha256.New, []byte(env.Secret))
+func hashOtp(otp string, secretKey string) string {
+	mac := hmac.New(sha256.New, []byte(secretKey))
 	mac.Write([]byte(otp))
 	sum := mac.Sum(nil)
 	return hex.EncodeToString([]byte(sum))
 }
 
-func compareOtpAndHash(otp string, hash string) bool {
-	actual := hashOtp(otp)
+func compareOtpAndHash(otp string, hash string, secretKey string) bool {
+	actual := hashOtp(otp, secretKey)
 	return hmac.Equal([]byte(actual), []byte(hash))
 }
 
@@ -246,7 +247,7 @@ func (me *AuthService) VerifyOtp(otpID, otp, platform, os string) (*LoginSession
 		return nil, fmt.Errorf("failed to get otp by id: %w", err)
 	}
 
-	if time.Since(storedOtp.ExpiresAt) >= 0 || !compareOtpAndHash(otp, storedOtp.OtpHash) {
+	if time.Since(storedOtp.ExpiresAt) >= 0 || !compareOtpAndHash(otp, storedOtp.OtpHash, me.secret) {
 		return nil, ErrInvalidOtp
 	}
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/assaidy/blink/app/config"
 	"github.com/assaidy/blink/app/db"
 	"github.com/assaidy/blink/app/repo"
 	"github.com/assaidy/workers"
@@ -13,7 +14,7 @@ import (
 )
 
 var (
-	queries = repo.New(db.GetPool())
+	queries = repo.New(db.GetPostgresConnectionPool(config.Load().DBUrl))
 )
 
 func main() {

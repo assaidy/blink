@@ -6,19 +6,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/assaidy/blink/app/env"
 	_ "github.com/lib/pq"
 )
 
 var pool *sql.DB
 
-func GetPool() *sql.DB {
+func GetPostgresConnectionPool(dbUrl string) *sql.DB {
 	if pool != nil {
 		return pool
 	}
 
 	var err error
-	if pool, err = sql.Open("postgres", env.DBUrl); err != nil {
+	if pool, err = sql.Open("postgres", dbUrl); err != nil {
 		panic(fmt.Sprintf("failed to open db connection: %v", err))
 	}
 
