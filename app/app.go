@@ -31,7 +31,6 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
-// TODO: API docs
 // TODO: Do more caching
 
 type App struct {
