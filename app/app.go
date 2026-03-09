@@ -25,15 +25,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	recovermw "github.com/gofiber/fiber/v2/middleware/recover"
+	valkey_storage "github.com/gofiber/storage/valkey"
 	"github.com/valkey-io/valkey-go"
 )
 
-// TODO: Use rate limiting
 // TODO: API docs
 // TODO: Do more caching
 
 type App struct {
+	config          *config.Config
 	logger          *slog.Logger
 	db              *sql.DB
 	cache           valkey.Client
@@ -48,19 +50,20 @@ type App struct {
 func NewApp() *App {
 	logger := slog.New(log.NewWithOptions(os.Stderr, log.Options{ReportTimestamp: true}))
 
-	cfg := config.Load()
+	conf := config.Load()
 
-	db := db.GetPostgresConnectionPool(cfg.DBUrl)
-	cache := cache.GetValkeyClient(cfg.ValkeyAddr)
+	db := db.GetPostgresConnectionPool(conf.DBUrl)
+	cache := cache.GetValkeyClient(conf.ValkeyAddr)
 	pubsub := pubsub.NewValkeyPubsub(cache, logger)
-	mailer := email.NewPapercutMailer(cfg.PapercutHost, cfg.EmailFrom)
+	mailer := email.NewPapercutMailer(conf.PapercutHost, conf.EmailFrom)
 
-	authService := services.NewAuthService(db, mailer, cfg.Secret)
+	authService := services.NewAuthService(db, mailer, conf.Secret)
 	profileService := services.NewProfileService(db, pubsub)
 	presenceService := services.NewPresenceService(db, cache, logger, pubsub)
 	chatService := services.NewChatService(db, presenceService, pubsub)
 
 	return &App{
+		config:          conf,
 		logger:          logger,
 		db:              db,
 		cache:           cache,
@@ -72,7 +75,7 @@ func NewApp() *App {
 		router: fiber.New(fiber.Config{
 			AppName:      "blink",
 			ErrorHandler: handlers.ErrorHandler(logger),
-			Prefork:      cfg.Environment == config.EnvDevelopment,
+			Prefork:      conf.Environment == config.EnvDevelopment,
 		}),
 	}
 }
@@ -104,7 +107,7 @@ func (me *App) registerRoutes() {
 	me.router.Use(handlers.WithErrorResolver(me.logger))
 
 	me.registerApiRoutes()
-	me.registerHTMLRoutes()
+	me.registerHtmlRoutes()
 }
 
 func (me *App) registerApiRoutes() {
@@ -116,19 +119,52 @@ func (me *App) registerApiRoutes() {
 		me.presenceService,
 		me.pubsub,
 	)
+
 	withSessionTokenCookie := handlers.WithSessionTokenCookie(me.authService)
 	withCsrfTokenHeader := handlers.WithCsrfTokenHeader(me.authService)
 	withCsrfTokenQuery := handlers.WithCsrfTokenQuery(me.authService)
 
+	valkeyStorage := valkey_storage.New(valkey_storage.Config{
+		InitAddress: []string{me.config.ValkeyAddr},
+	})
+	apiRateLimitKeyGenerator := func(c *fiber.Ctx) string {
+		return "api_" + c.IP()
+	}
+
+	withAuthRateLimit := limiter.New(limiter.Config{
+		Max:               5,
+		Expiration:        time.Minute,
+		LimiterMiddleware: limiter.SlidingWindow{},
+		Storage:           valkeyStorage,
+		KeyGenerator:      apiRateLimitKeyGenerator,
+	})
+	withSearchRateLimit := limiter.New(limiter.Config{
+		Max:               30,
+		Expiration:        time.Minute,
+		LimiterMiddleware: limiter.SlidingWindow{},
+		Storage:           valkeyStorage,
+		KeyGenerator:      apiRateLimitKeyGenerator,
+	})
+	withWebsocketRateLimit := limiter.New(limiter.Config{
+		Max:               60,
+		Expiration:        time.Minute,
+		LimiterMiddleware: limiter.SlidingWindow{},
+		Storage:           valkeyStorage,
+		KeyGenerator:      apiRateLimitKeyGenerator,
+	})
+
 	v1 := me.router.Group("/api/v1")
 	{
 		v1.Post("/auth/register",
+			withAuthRateLimit,
 			jsonHandler.HandleRegister,
 		)
 		v1.Post("/auth/otp/request",
+			withAuthRateLimit,
 			jsonHandler.HandleRequestOtp,
 		)
 		v1.Post("/auth/otp/verify",
+			withAuthRateLimit,
 			jsonHandler.HandleVerifyOtp,
 		)
 		v1.Post("/auth/logout",
@@ -148,6 +184,7 @@ func (me *App) registerApiRoutes() {
 		)
 
 		v1.Get("/profiles",
+			withSearchRateLimit,
 			withSessionTokenCookie,
 			withCsrfTokenHeader,
 			jsonHandler.HandleSearchProfiles,
@@ -205,6 +242,7 @@ func (me *App) registerApiRoutes() {
 		)
 
 		v1.Get("/ws",
+			withWebsocketRateLimit,
 			withSessionTokenCookie,
 			withCsrfTokenQuery,
 			handlers.WithWebsocket,
@@ -218,7 +256,7 @@ func (me *App) registerApiRoutes() {
 //go:embed web/public/*
 var staticFS embed.FS
 
-func (me *App) registerHTMLRoutes() {
+func (me *App) registerHtmlRoutes() {
 	htmlHandler := handlers.NewHtmlHandler(
 		me.logger,
 		me.pubsub,
@@ -230,6 +268,35 @@ func (me *App) registerHTMLRoutes() {
 	withSessionTokenCookie := handlers.WithSessionTokenCookie(me.authService)
 	withCsrfTokenHeader := handlers.WithCsrfTokenHeader(me.authService)
 	withCsrfTokenQuery := handlers.WithCsrfTokenQuery(me.authService)
+
+	valkeyStorage := valkey_storage.New(valkey_storage.Config{
+		InitAddress: []string{me.config.ValkeyAddr},
+	})
+	htmlRateLimitKeyGenerator := func(c *fiber.Ctx) string {
+		return "html_" + c.IP()
+	}
+
+	withAuthRateLimit := limiter.New(limiter.Config{
+		Max:               5,
+		Expiration:        time.Minute,
+		LimiterMiddleware: limiter.SlidingWindow{},
+		Storage:           valkeyStorage,
+		KeyGenerator:      htmlRateLimitKeyGenerator,
+	})
+	withSearchRateLimit := limiter.New(limiter.Config{
+		Max:               30,
+		Expiration:        time.Minute,
+		LimiterMiddleware: limiter.SlidingWindow{},
+		Storage:           valkeyStorage,
+		KeyGenerator:      htmlRateLimitKeyGenerator,
+	})
+	withWebsocketRateLimit := limiter.New(limiter.Config{
+		Max:               60,
+		Expiration:        time.Minute,
+		LimiterMiddleware: limiter.SlidingWindow{},
+		Storage:           valkeyStorage,
+		KeyGenerator:      htmlRateLimitKeyGenerator,
+	})
 
 	me.router.Use(handlers.WithRedirectUnauthorizedToLogin)
 	me.router.Use("/public",
@@ -253,12 +320,15 @@ func (me *App) registerHTMLRoutes() {
 	)
 
 	me.router.Post("/register",
+		withAuthRateLimit,
 		htmlHandler.HandleRegister,
 	)
 	me.router.Post("/login",
+		withAuthRateLimit,
 		htmlHandler.HandleLogin,
 	)
 	me.router.Post("/verify_otp",
+		withAuthRateLimit,
 		htmlHandler.HandleVerifyOtp,
 	)
 	me.router.Get("/profile_modal",
@@ -292,6 +362,7 @@ func (me *App) registerHTMLRoutes() {
 		htmlHandler.HandleSearchModal,
 	)
 	me.router.Get("/search/users",
+		withSearchRateLimit,
 		withSessionTokenCookie,
 		withCsrfTokenHeader,
 		htmlHandler.HandleSearchUsers,
@@ -333,6 +404,7 @@ func (me *App) registerHTMLRoutes() {
 	)
 
 	me.router.Get("/ws",
+		withWebsocketRateLimit,
 		withSessionTokenCookie,
 		withCsrfTokenQuery,
 		handlers.WithWebsocket,

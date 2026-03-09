@@ -147,8 +147,17 @@ func (me *htmlHandler) HandleVerifyOtp(c *fiber.Ctx) error {
 			Otp:   otp,
 		}
 
+		// ErrInvalidOtp when the otp is not correct (expired/doesn't exist)
 		if errors.Is(err, services.ErrInvalidOtp) {
 			params.OtpErr = "Invalid code"
+			return Render(c, components.OtpForm(params))
+		}
+
+		var validationErrs validation.Errors
+		if errors.As(err, &validationErrs) {
+			// the client only cares about otp error.
+			// else is implementation error.
+			params.OtpErr = validationErrs["Otp"]
 			return Render(c, components.OtpForm(params))
 		}
 
