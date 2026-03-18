@@ -1,6 +1,6 @@
 module github.com/assaidy/blink
 
-go 1.25.7
+go 1.26
 
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 

@@ -1,6 +1,9 @@
 package services
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	ErrValidation       = errors.New("validation error")
@@ -10,3 +13,9 @@ var (
 	ErrUsernameConflict = errors.New("username conflict")
 	ErrEmailConflict    = errors.New("email conflict")
 )
+
+func makeEventChannelForUser(event string) func(userID string) string {
+	return func(userID string) string {
+		return fmt.Sprintf("events:%s:%s", event, userID)
+	}
+}

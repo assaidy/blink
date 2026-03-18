@@ -8,25 +8,25 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils/pubsub"
+	"github.com/assaidy/blink/app/utils/events"
 	"github.com/valkey-io/valkey-go"
 )
 
 type PresenceService struct {
-	db      *sql.DB
-	queries *repo.Queries
-	logger  *slog.Logger
-	cache   valkey.Client
-	pubsub  pubsub.Pubsub
+	db          *sql.DB
+	queries     *repo.Queries
+	logger      *slog.Logger
+	cache       valkey.Client
+	eventSender events.Sender
 }
 
-func NewPresenceService(db *sql.DB, cache valkey.Client, logger *slog.Logger, pubsub pubsub.Pubsub) *PresenceService {
+func NewPresenceService(db *sql.DB, cache valkey.Client, logger *slog.Logger, eventSender events.Sender) *PresenceService {
 	return &PresenceService{
-		db:      db,
-		queries: repo.New(db),
-		cache:   cache,
-		logger:  logger,
-		pubsub:  pubsub,
+		db:          db,
+		queries:     repo.New(db),
+		cache:       cache,
+		logger:      logger,
+		eventSender: eventSender,
 	}
 }
 
@@ -35,10 +35,11 @@ func presenceKey(userID string) string {
 }
 
 const (
-	PartnerPresenceEvent  = "PartnerPresenceEvent"
 	presenceHeartbeatTick = 2 * time.Second
 	offlineTimeout        = 5 * time.Second
 )
+
+var PartnerPresenceEvent = makeEventChannelForUser("PartnerPresence")
 
 type PartnerPresenceEventPayload struct {
 	UserID    string `json:"userID"`
@@ -108,15 +109,15 @@ func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, 
 	}
 
 	for _, id := range partnerIDs {
-		if me.pubsub.Publish(ctx,
-			PartnerPresenceEvent,
-			pubsub.JsonMessageGenerator,
+		if err := events.SendJson(ctx,
+			me.eventSender,
+			PartnerPresenceEvent(id),
 			PartnerPresenceEventPayload{
 				UserID:    id,
 				PartnerID: userID,
 				IsOnline:  change,
 			}); err != nil {
-			me.logger.Error("failed to publish event", "error", err)
+			me.logger.Error("failed to send event", "error", err)
 		}
 	}
 }

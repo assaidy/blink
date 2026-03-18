@@ -30,11 +30,11 @@ func (me *App) registerRoutes() {
 func (me *App) registerApiRoutes() {
 	jsonHandler := handlers.NewJsonHandler(
 		me.logger,
+		me.eventSenderReceiver,
 		me.authService,
 		me.chatService,
 		me.profileService,
 		me.presenceService,
-		me.pubsub,
 	)
 
 	withSessionTokenCookie := handlers.WithSessionTokenCookie(me.authService)
@@ -176,7 +176,7 @@ var staticFS embed.FS
 func (me *App) registerHtmlRoutes() {
 	htmlHandler := handlers.NewHtmlHandler(
 		me.logger,
-		me.pubsub,
+		me.eventSenderReceiver,
 		me.authService,
 		me.chatService,
 		me.profileService,

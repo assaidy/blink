@@ -38,7 +38,7 @@ docker-up-prod:
 docker-down:
 	@docker compose down
 
-GOOSE_ENV = GOOSE_DRIVER="postgres" GOOSE_DBSTRING="$(DB_URL_LOCAL)" GOOSE_MIGRATION_DIR="./app/db/migrations/"
+GOOSE_ENV = GOOSE_DRIVER="postgres" GOOSE_DBSTRING="$(POSTGRES_URL_LOCAL)" GOOSE_MIGRATION_DIR="./app/db/migrations/"
 goose-up:
 	@$(GOOSE_ENV) goose up
 
@@ -57,7 +57,7 @@ goose-new:
 	@$(GOOSE_ENV) goose create -s $(name) sql
 
 pg:
-	@pgcli $(DB_URL_LOCAL)
+	@pgcli $(POSTGRES_URL_LOCAL)
 
 vk:
 	@valkey-cli -p $(VALKEY_PORT)

@@ -15,26 +15,24 @@ import (
 	"github.com/assaidy/blink/app/db"
 	"github.com/assaidy/blink/app/handlers"
 	"github.com/assaidy/blink/app/services"
+	"github.com/assaidy/blink/app/utils/events"
 	"github.com/assaidy/blink/app/utils/mailer"
-	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/valkey-io/valkey-go"
 )
 
-// TODO: Do more caching
-
 type App struct {
-	config          *config.Config
-	logger          *slog.Logger
-	db              *sql.DB
-	cache           valkey.Client
-	pubsub          pubsub.Pubsub
-	authService     *services.AuthService
-	profileService  *services.ProfileService
-	presenceService *services.PresenceService
-	chatService     *services.ChatService
-	router          *fiber.App
+	config              *config.Config
+	logger              *slog.Logger
+	db                  *sql.DB
+	cache               valkey.Client
+	eventSenderReceiver events.SenderReceiver
+	authService         *services.AuthService
+	profileService      *services.ProfileService
+	presenceService     *services.PresenceService
+	chatService         *services.ChatService
+	router              *fiber.App
 }
 
 func NewApp() *App {
@@ -44,24 +42,24 @@ func NewApp() *App {
 
 	db := db.GetPostgresConnectionPool(conf.PostgresUrl)
 	cache := cache.GetValkeyClient(conf.ValkeyAddr)
-	pubsub := pubsub.NewValkeyPubsub(cache, logger)
+	SenderReceiver := events.NewValkeySenderReceiver(cache, logger)
 	mailer := email.NewPapercutMailer(conf.PapercutHost, conf.EmailFrom)
 
 	authService := services.NewAuthService(db, mailer, conf.Secret)
-	profileService := services.NewProfileService(db, pubsub)
-	presenceService := services.NewPresenceService(db, cache, logger, pubsub)
-	chatService := services.NewChatService(db, presenceService, pubsub)
+	profileService := services.NewProfileService(db, SenderReceiver)
+	presenceService := services.NewPresenceService(db, cache, logger, SenderReceiver)
+	chatService := services.NewChatService(db, presenceService, SenderReceiver)
 
 	return &App{
-		config:          conf,
-		logger:          logger,
-		db:              db,
-		cache:           cache,
-		pubsub:          pubsub,
-		authService:     authService,
-		profileService:  profileService,
-		presenceService: presenceService,
-		chatService:     chatService,
+		config:              conf,
+		logger:              logger,
+		db:                  db,
+		cache:               cache,
+		eventSenderReceiver: SenderReceiver,
+		authService:         authService,
+		profileService:      profileService,
+		presenceService:     presenceService,
+		chatService:         chatService,
 		router: fiber.New(fiber.Config{
 			AppName:      "blink",
 			ErrorHandler: handlers.ErrorHandler(logger),

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils/pubsub"
+	"github.com/assaidy/blink/app/utils/events"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/oklog/ulid/v2"
 )
@@ -18,15 +18,15 @@ type ChatService struct {
 	db              *sql.DB
 	queries         *repo.Queries
 	presenceService *PresenceService
-	pubsub          pubsub.Pubsub
+	eventSender     events.Sender
 }
 
-func NewChatService(db *sql.DB, presenceService *PresenceService, pubsub pubsub.Pubsub) *ChatService {
+func NewChatService(db *sql.DB, presenceService *PresenceService, eventSender events.Sender) *ChatService {
 	return &ChatService{
 		db:              db,
 		queries:         repo.New(db),
 		presenceService: presenceService,
-		pubsub:          pubsub,
+		eventSender:     eventSender,
 	}
 }
 
@@ -68,7 +68,7 @@ func (me *ChatService) GetChatPartners(userID, lastMessageIDWithLastPartner stri
 	return result, nil
 }
 
-const ChatWasDeletedEvent = "ChatWasDeletedEvent"
+var ChatWasDeletedEvent = makeEventChannelForUser("ChatWasDeleted")
 
 type ChatWasDeletedEventPayload struct {
 	UserID    string `json:"userID"`
@@ -94,18 +94,26 @@ func (me *ChatService) DeleteChat(userID, partnerID string) error {
 		return fmt.Errorf("failed to delete chat: %w", err)
 	}
 
-	if err := me.pubsub.Publish(ctx, ChatWasDeletedEvent, pubsub.JsonMessageGenerator, ChatWasDeletedEventPayload{
-		UserID:    userID,
-		PartnerID: partnerID,
-	}); err != nil {
-		return fmt.Errorf("failed to publish event %s: %w", ChatWasDeletedEvent, err)
+	if err := events.SendJson(ctx,
+		me.eventSender,
+		ChatWasDeletedEvent(userID),
+		ChatWasDeletedEventPayload{
+			UserID:    userID,
+			PartnerID: partnerID,
+		},
+	); err != nil {
+		return fmt.Errorf("failed to send event: %w", err)
 	}
 
-	if err := me.pubsub.Publish(ctx, ChatWasDeletedEvent, pubsub.JsonMessageGenerator, ChatWasDeletedEventPayload{
-		UserID:    partnerID,
-		PartnerID: userID,
-	}); err != nil {
-		return fmt.Errorf("failed to publish event %s: %w", ChatWasDeletedEvent, err)
+	if err := events.SendJson(ctx,
+		me.eventSender,
+		ChatWasDeletedEvent(partnerID),
+		ChatWasDeletedEventPayload{
+			UserID:    partnerID,
+			PartnerID: userID,
+		},
+	); err != nil {
+		return fmt.Errorf("failed to event: %w", err)
 	}
 
 	return nil
@@ -135,9 +143,9 @@ func (me *ChatService) GetChatMessages(userID, partnerID, lastMessageID string, 
 	return messages, nil
 }
 
-const (
-	UserMessagesWereReadEvent    = "UserMessagesWereReadEvent"
-	PartnerMessagesWereReadEvent = "PartnerMessagesWereReadEvent"
+var (
+	UserMessagesWereReadEvent    = makeEventChannelForUser("UserMessagesWereRead")
+	PartnerMessagesWereReadEvent = makeEventChannelForUser("PartnerMessagesWereRead")
 )
 
 type UserMessagesWereReadEventPayload struct {
@@ -173,28 +181,36 @@ func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID strin
 	}
 
 	if count := len(markedMessageIDs); count > 0 {
-		if err := me.pubsub.Publish(ctx, UserMessagesWereReadEvent, pubsub.JsonMessageGenerator, UserMessagesWereReadEventPayload{
-			UserID:         partnerID,
-			ReadMessageIDs: markedMessageIDs,
-		}); err != nil {
-			return fmt.Errorf("failed to publish event %s: %w", UserMessagesWereReadEvent, err)
+		if err := events.SendJson(ctx,
+			me.eventSender,
+			UserMessagesWereReadEvent(partnerID),
+			UserMessagesWereReadEventPayload{
+				UserID:         partnerID,
+				ReadMessageIDs: markedMessageIDs,
+			},
+		); err != nil {
+			return fmt.Errorf("failed to event: %w", err)
 		}
 
-		if err := me.pubsub.Publish(ctx, PartnerMessagesWereReadEvent, pubsub.JsonMessageGenerator, PartnerMessagesWereReadEventPayload{
-			UserID:           userID,
-			PartnerID:        partnerID,
-			ReadMessageCount: count,
-		}); err != nil {
-			return fmt.Errorf("failed to publish event %s: %w", PartnerMessagesWereReadEvent, err)
+		if err := events.SendJson(ctx,
+			me.eventSender,
+			PartnerMessagesWereReadEvent(userID),
+			PartnerMessagesWereReadEventPayload{
+				UserID:           userID,
+				PartnerID:        partnerID,
+				ReadMessageCount: count,
+			},
+		); err != nil {
+			return fmt.Errorf("failed to send event: %w", err)
 		}
 	}
 
 	return nil
 }
 
-const (
-	UserMessageWasDeletedEvent    = "UserMessageWasDeletedEvent"
-	PartnerMessageWasDeletedEvent = "PartnerMessageWasDeletedEvent"
+var (
+	UserMessageWasDeletedEvent    = makeEventChannelForUser("UserMessageWasDeleted")
+	PartnerMessageWasDeletedEvent = makeEventChannelForUser("PartnerMessageWasDeleted")
 )
 
 type UserMessageWasDeletedEventPayload struct {
@@ -237,9 +253,9 @@ func (me *ChatService) DeleteChatMessage(userID, messageID string) error {
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
-	if err := me.pubsub.Publish(ctx,
-		UserMessageWasDeletedEvent,
-		pubsub.JsonMessageGenerator,
+	if err := events.SendJson(ctx,
+		me.eventSender,
+		UserMessageWasDeletedEvent(result.SenderID),
 		UserMessageWasDeletedEventPayload{
 			UserID:    result.SenderID,
 			MessageID: messageID,
@@ -248,9 +264,9 @@ func (me *ChatService) DeleteChatMessage(userID, messageID string) error {
 		return fmt.Errorf("failed to publish %s event: %w", UserMessageWasDeletedEvent, err)
 	}
 
-	if err := me.pubsub.Publish(ctx,
-		PartnerMessageWasDeletedEvent,
-		pubsub.JsonMessageGenerator,
+	if err := events.SendJson(ctx,
+		me.eventSender,
+		PartnerMessageWasDeletedEvent(result.ReceiverID),
 		PartnerMessageWasDeletedEventPayload{
 			UserID:    result.ReceiverID,
 			PartnerID: result.SenderID,
@@ -263,9 +279,9 @@ func (me *ChatService) DeleteChatMessage(userID, messageID string) error {
 	return nil
 }
 
-const (
-	UserMessageWasUpdatedEvent    = "UserMessageWasUpdatedEvent"
-	PartnerMessageWasUpdatedEvent = "PartnerMessageWasUpdatedEvent"
+var (
+	UserMessageWasUpdatedEvent    = makeEventChannelForUser("UserMessageWasUpdated")
+	PartnerMessageWasUpdatedEvent = makeEventChannelForUser("PartnerMessageWasUpdated")
 )
 
 type UserMessageWasUpdatedEventPayload struct {
@@ -318,9 +334,9 @@ func (me *ChatService) UpdateChatMessage(userID, messageID, newContent string) e
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
-	if err := me.pubsub.Publish(ctx,
-		UserMessageWasUpdatedEvent,
-		pubsub.JsonMessageGenerator,
+	if err := events.SendJson(ctx,
+		me.eventSender,
+		UserMessageWasUpdatedEvent(result.SenderID),
 		UserMessageWasUpdatedEventPayload{
 			UserID:    result.SenderID,
 			MessageID: messageID,
@@ -330,9 +346,9 @@ func (me *ChatService) UpdateChatMessage(userID, messageID, newContent string) e
 		return fmt.Errorf("failed to publish %s event: %w", UserMessageWasUpdatedEvent, err)
 	}
 
-	if err := me.pubsub.Publish(ctx,
-		PartnerMessageWasUpdatedEvent,
-		pubsub.JsonMessageGenerator,
+	if err := events.SendJson(ctx,
+		me.eventSender,
+		PartnerMessageWasUpdatedEvent(result.ReceiverID),
 		PartnerMessageWasUpdatedEventPayload{
 			UserID:     result.ReceiverID,
 			PartnerID:  result.SenderID,
@@ -346,7 +362,7 @@ func (me *ChatService) UpdateChatMessage(userID, messageID, newContent string) e
 	return nil
 }
 
-const MessageWasSentEvent = "MessageWasSentEvent"
+var MessageWasSentEvent = makeEventChannelForUser("MessageWasSent")
 
 type MessageWasSentEventPayload struct {
 	UserID          string    `json:"userID"`
@@ -357,7 +373,7 @@ type MessageWasSentEventPayload struct {
 	Timestamp       time.Time `json:"timestamp"`
 }
 
-const IncommingMessageEvent = "IncommingMessageEvent"
+var IncommingMessageEvent = makeEventChannelForUser("IncommingMessage")
 
 type IncommingMessageEventPayload struct {
 	UserID    string    `json:"userID"`
@@ -404,9 +420,9 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 	}
 
 	// Notify sender sessions
-	if err := me.pubsub.Publish(ctx,
-		MessageWasSentEvent,
-		pubsub.JsonMessageGenerator,
+	if err := events.SendJson(ctx,
+		me.eventSender,
+		MessageWasSentEvent(senderID),
 		MessageWasSentEventPayload{
 			UserID:          senderID,
 			PartnerID:       receiverID,
@@ -423,9 +439,9 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 	if ok, err := me.presenceService.IsUserOnline(ctx, receiverID); err != nil {
 		return fmt.Errorf("failed to check if user is online: %w", err)
 	} else if ok {
-		if err := me.pubsub.Publish(ctx,
-			IncommingMessageEvent,
-			pubsub.JsonMessageGenerator,
+		if err := events.SendJson(ctx,
+			me.eventSender,
+			IncommingMessageEvent(receiverID),
 			IncommingMessageEventPayload{
 				UserID:    receiverID,
 				PartnerID: senderID,

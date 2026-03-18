@@ -8,22 +8,22 @@ import (
 	"strings"
 
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils/pubsub"
+	"github.com/assaidy/blink/app/utils/events"
 	"github.com/go-ozzo/ozzo-validation/is"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
 type ProfileService struct {
-	db      *sql.DB
-	queries *repo.Queries
-	pubsub  pubsub.Pubsub
+	db          *sql.DB
+	queries     *repo.Queries
+	eventSender events.Sender
 }
 
-func NewProfileService(db *sql.DB, pubsub pubsub.Pubsub) *ProfileService {
+func NewProfileService(db *sql.DB, eventSender events.Sender) *ProfileService {
 	return &ProfileService{
-		db:      db,
-		queries: repo.New(db),
-		pubsub:  pubsub,
+		db:          db,
+		queries:     repo.New(db),
+		eventSender: eventSender,
 	}
 }
 
@@ -73,11 +73,12 @@ func validateProfileUpdateParams(name, username, email, bio string) error {
 	)
 }
 
-const (
-	UserProfileWasUpdatedEvent    = "UserProfileWasUpdatedEvent"
-	PartnerProfileWasUpdatedEvent = "PartnerProfileWasUpdatedEvent"
+var (
+	UserProfileWasUpdatedEvent    = makeEventChannelForUser("UserProfileWasUpdated")
+	PartnerProfileWasUpdatedEvent = makeEventChannelForUser("PartnerProfileWasUpdated")
 )
 
+// TODO: remove useID field if it is only used  for knowing the receiver
 type UserProfileWasUpdatedEventPayload struct {
 	UserID   string `json:"userID"`
 	Name     string `json:"name"`
@@ -147,16 +148,16 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
-	if err := me.pubsub.Publish(ctx,
-		UserProfileWasUpdatedEvent,
-		pubsub.JsonMessageGenerator,
+	if err := events.SendJson(ctx,
+		me.eventSender,
+		UserProfileWasUpdatedEvent(userID),
 		UserProfileWasUpdatedEventPayload{
 			UserID:   userID,
 			Name:     name,
 			Username: username,
 		},
 	); err != nil {
-		return fmt.Errorf("failed to publish event %s: %w", UserProfileWasUpdatedEvent, err)
+		return fmt.Errorf("failed to send event: %w", err)
 	}
 
 	partnerIDs, err := me.queries.GetAllChatPartnerIDs(ctx, userID)
@@ -165,9 +166,9 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 	}
 
 	for _, id := range partnerIDs {
-		if err := me.pubsub.Publish(ctx,
-			PartnerProfileWasUpdatedEvent,
-			pubsub.JsonMessageGenerator,
+		if err := events.SendJson(ctx,
+			me.eventSender,
+			PartnerProfileWasUpdatedEvent(id),
 			PartnerProfileWasUpdatedEventPayload{
 				UserID:    id,
 				PartnerID: userID,
@@ -175,14 +176,14 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 				Username:  username,
 			},
 		); err != nil {
-			return fmt.Errorf("failed to publish event %s: %w", PartnerProfileWasUpdatedEvent, err)
+			return fmt.Errorf("failed to send event: %w", err)
 		}
 	}
 
 	return nil
 }
 
-const PartnerProfileWasDeletedEvent = "PartnerProfileWasDeletedEvent"
+var PartnerProfileWasDeletedEvent = makeEventChannelForUser("PartnerProfileWasDeleted")
 
 type PartnerProfileWasDeletedEventPayload struct {
 	UserID    string `json:"userID"`
@@ -207,15 +208,15 @@ func (me *ProfileService) DeleteProfile(userID string) error {
 	}
 
 	for _, id := range partnerIDs {
-		if err := me.pubsub.Publish(ctx,
-			PartnerProfileWasDeletedEvent,
-			pubsub.JsonMessageGenerator,
+		if err := events.SendJson(ctx,
+			me.eventSender,
+			PartnerProfileWasDeletedEvent(id),
 			PartnerProfileWasDeletedEventPayload{
 				UserID:    id,
 				PartnerID: userID,
 			},
 		); err != nil {
-			return fmt.Errorf("failed to publish event %s: %w", PartnerProfileWasDeletedEvent, err)
+			return fmt.Errorf("failed to send event: %w", err)
 		}
 	}
 

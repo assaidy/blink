@@ -1,5 +1,7 @@
 package pubsub
 
+// TODO: remove this. it was replaced by utils/events
+
 import (
 	"context"
 	"encoding/json"
