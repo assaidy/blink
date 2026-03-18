@@ -42,7 +42,7 @@ func NewApp() *App {
 
 	conf := config.Load()
 
-	db := db.GetPostgresConnectionPool(conf.DBUrl)
+	db := db.GetPostgresConnectionPool(conf.PostgresUrl)
 	cache := cache.GetValkeyClient(conf.ValkeyAddr)
 	pubsub := pubsub.NewValkeyPubsub(cache, logger)
 	mailer := email.NewPapercutMailer(conf.PapercutHost, conf.EmailFrom)

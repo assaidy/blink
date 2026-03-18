@@ -15,7 +15,7 @@ import (
 
 var (
 	conf    = config.Load()
-	queries = repo.New(db.GetPostgresConnectionPool(conf.DBUrl))
+	queries = repo.New(db.GetPostgresConnectionPool(conf.PostgresUrl))
 )
 
 func main() {

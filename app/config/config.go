@@ -11,7 +11,7 @@ import (
 type Config struct {
 	Port         string
 	Secret       string
-	DBUrl        string
+	PostgresUrl  string
 	ValkeyAddr   string
 	EmailFrom    string
 	PapercutHost string
@@ -33,11 +33,11 @@ func Load() *Config {
 		config.EmailFrom = getEnvOrPanic("EMAIL_FROM")
 
 		if config.Environment == EnvProduction {
-			config.DBUrl = getEnvOrPanic("DB_URL")
+			config.PostgresUrl = getEnvOrPanic("POSTGRES_URL")
 			config.ValkeyAddr = getEnvOrPanic("VALKEY_ADDR")
 			config.PapercutHost = getEnvOrPanic("PAPERCUT_SMTP_HOST")
 		} else {
-			config.DBUrl = getEnvOrPanic("DB_URL_LOCAL")
+			config.PostgresUrl = getEnvOrPanic("POSTGRES_URL_LOCAL")
 			config.ValkeyAddr = getEnvOrPanic("VALKEY_ADDR_LOCAL")
 			config.PapercutHost = getEnvOrPanic("PAPERCUT_SMTP_HOST_LOCAL")
 		}
