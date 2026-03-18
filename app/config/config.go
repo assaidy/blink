@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -23,23 +24,26 @@ const (
 )
 
 func Load() *Config {
-	var config Config
-	config.Environment = getEnvOrDefault("ENVIRONMENT", EnvDevelopment)
-	config.Port = getEnvOrPanic("PORT")
-	config.Secret = getEnvOrPanic("SECRET")
-	config.EmailFrom = getEnvOrPanic("EMAIL_FROM")
+	return sync.OnceValue(func() *Config {
+		var config Config
 
-	if config.Environment == EnvProduction {
-		config.DBUrl = getEnvOrPanic("DB_URL")
-		config.ValkeyAddr = getEnvOrPanic("VALKEY_ADDR")
-		config.PapercutHost = getEnvOrPanic("PAPERCUT_SMTP_HOST")
-	} else {
-		config.DBUrl = getEnvOrPanic("DB_URL_LOCAL")
-		config.ValkeyAddr = getEnvOrPanic("VALKEY_ADDR_LOCAL")
-		config.PapercutHost = getEnvOrPanic("PAPERCUT_SMTP_HOST_LOCAL")
-	}
+		config.Environment = getEnvOrDefault("ENVIRONMENT", EnvDevelopment)
+		config.Port = getEnvOrPanic("PORT")
+		config.Secret = getEnvOrPanic("SECRET")
+		config.EmailFrom = getEnvOrPanic("EMAIL_FROM")
 
-	return &config
+		if config.Environment == EnvProduction {
+			config.DBUrl = getEnvOrPanic("DB_URL")
+			config.ValkeyAddr = getEnvOrPanic("VALKEY_ADDR")
+			config.PapercutHost = getEnvOrPanic("PAPERCUT_SMTP_HOST")
+		} else {
+			config.DBUrl = getEnvOrPanic("DB_URL_LOCAL")
+			config.ValkeyAddr = getEnvOrPanic("VALKEY_ADDR_LOCAL")
+			config.PapercutHost = getEnvOrPanic("PAPERCUT_SMTP_HOST_LOCAL")
+		}
+
+		return &config
+	})()
 }
 
 func getEnvOrDefault(key, defaultValue string) string {
