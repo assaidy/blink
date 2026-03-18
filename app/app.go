@@ -73,11 +73,9 @@ func NewApp() *App {
 func (me *App) Run() {
 	quitCtx, quitCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	cfg := config.Load()
-
 	go func() {
 		me.registerRoutes()
-		if err := me.router.Listen(fmt.Sprintf(":%s", cfg.Port)); err != nil {
+		if err := me.router.Listen(fmt.Sprintf(":%s", me.config.Port)); err != nil {
 			me.logger.Error("failed to start server", "error", err)
 		}
 	}()
