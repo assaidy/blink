@@ -15,7 +15,7 @@ import (
 
 type jsonHandler struct {
 	logger          *slog.Logger
-	eventReceiver   events.SenderReceiver
+	receiver        events.EventBus
 	authService     *services.AuthService
 	chatService     *services.ChatService
 	profileService  *services.ProfileService
@@ -24,7 +24,7 @@ type jsonHandler struct {
 
 func NewJsonHandler(
 	logger *slog.Logger,
-	eventReceiver events.SenderReceiver,
+	receiver events.EventBus,
 	authService *services.AuthService,
 	chatService *services.ChatService,
 	profileService *services.ProfileService,
@@ -32,7 +32,7 @@ func NewJsonHandler(
 ) *jsonHandler {
 	return &jsonHandler{
 		logger:          logger,
-		eventReceiver:   eventReceiver,
+		receiver:        receiver,
 		authService:     authService,
 		chatService:     chatService,
 		profileService:  profileService,
@@ -452,45 +452,21 @@ func (me *jsonHandler) HandleWebsocket(c *websocket.Conn) {
 
 	wg.Go(func() { me.presenceService.StartHeartbeat(ctx, userID, sessionID) })
 
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.PartnerPresenceEvent(userID), me.partnerPresenceEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.UserProfileWasUpdatedEvent(userID), me.userProfileWasUpdatedEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.PartnerProfileWasUpdatedEvent(userID), me.partnerProfileWasUpdatedEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.PartnerProfileWasDeletedEvent(userID), me.partnerProfileWasDeletedEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.MessageWasSentEvent(userID), me.messageWasSentEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.UserMessagesWereReadEvent(userID), me.userMessagesWereReadEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.PartnerMessagesWereReadEvent(userID), me.partnerMessagesWereReadEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.IncommingMessageEvent(userID), me.incommingMessageEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.UserMessageWasDeletedEvent(userID), me.userMessageWasDeletedEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.PartnerMessageWasDeletedEvent(userID), me.partnerMessageWasDeletedEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.UserMessageWasUpdatedEvent(userID), me.userMessageWasUpdatedEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.PartnerMessageWasUpdatedEvent(userID), me.partnerMessageWasUpdatedEventHandler(c))
-	})
-	wg.Go(func() {
-		events.ReceiveJson(ctx, me.eventReceiver, services.ChatWasDeletedEvent(userID), me.chatWasDeletedEventHandler(c))
-	})
+	events.ReceiveMany(&wg,
+		events.ReceiveJson(ctx, me.receiver, services.PartnerPresenceEvent(userID), me.partnerPresenceEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.UserProfileWasUpdatedEvent(userID), me.userProfileWasUpdatedEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.PartnerProfileWasUpdatedEvent(userID), me.partnerProfileWasUpdatedEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.PartnerProfileWasDeletedEvent(userID), me.partnerProfileWasDeletedEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.MessageWasSentEvent(userID), me.messageWasSentEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.UserMessagesWereReadEvent(userID), me.userMessagesWereReadEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.PartnerMessagesWereReadEvent(userID), me.partnerMessagesWereReadEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.IncommingMessageEvent(userID), me.incommingMessageEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.UserMessageWasDeletedEvent(userID), me.userMessageWasDeletedEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.PartnerMessageWasDeletedEvent(userID), me.partnerMessageWasDeletedEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.UserMessageWasUpdatedEvent(userID), me.userMessageWasUpdatedEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.PartnerMessageWasUpdatedEvent(userID), me.partnerMessageWasUpdatedEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.ChatWasDeletedEvent(userID), me.chatWasDeletedEventHandler(c)),
+	)
 
 	for {
 		message := websocketMessage{}

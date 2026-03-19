@@ -23,16 +23,16 @@ import (
 )
 
 type App struct {
-	config              *config.Config
-	logger              *slog.Logger
-	db                  *sql.DB
-	cache               valkey.Client
-	eventSenderReceiver events.SenderReceiver
-	authService         *services.AuthService
-	profileService      *services.ProfileService
-	presenceService     *services.PresenceService
-	chatService         *services.ChatService
-	router              *fiber.App
+	config          *config.Config
+	logger          *slog.Logger
+	db              *sql.DB
+	cache           valkey.Client
+	eventBus        events.EventBus
+	authService     *services.AuthService
+	profileService  *services.ProfileService
+	presenceService *services.PresenceService
+	chatService     *services.ChatService
+	router          *fiber.App
 }
 
 func NewApp() *App {
@@ -42,7 +42,7 @@ func NewApp() *App {
 
 	db := db.GetPostgresConnectionPool(conf.PostgresUrl)
 	cache := cache.GetValkeyClient(conf.ValkeyAddr)
-	SenderReceiver := events.NewValkeySenderReceiver(cache, logger)
+	SenderReceiver := events.NewValkeyEventBus(cache, logger)
 	mailer := email.NewPapercutMailer(conf.PapercutHost, conf.EmailFrom)
 
 	authService := services.NewAuthService(db, mailer, conf.Secret)
@@ -51,15 +51,15 @@ func NewApp() *App {
 	chatService := services.NewChatService(db, presenceService, SenderReceiver)
 
 	return &App{
-		config:              conf,
-		logger:              logger,
-		db:                  db,
-		cache:               cache,
-		eventSenderReceiver: SenderReceiver,
-		authService:         authService,
-		profileService:      profileService,
-		presenceService:     presenceService,
-		chatService:         chatService,
+		config:          conf,
+		logger:          logger,
+		db:              db,
+		cache:           cache,
+		eventBus:        SenderReceiver,
+		authService:     authService,
+		profileService:  profileService,
+		presenceService: presenceService,
+		chatService:     chatService,
 		router: fiber.New(fiber.Config{
 			AppName:      "blink",
 			ErrorHandler: handlers.ErrorHandler(logger),

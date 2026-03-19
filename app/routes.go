@@ -30,7 +30,7 @@ func (me *App) registerRoutes() {
 func (me *App) registerApiRoutes() {
 	jsonHandler := handlers.NewJsonHandler(
 		me.logger,
-		me.eventSenderReceiver,
+		me.eventBus,
 		me.authService,
 		me.chatService,
 		me.profileService,
@@ -176,7 +176,7 @@ var staticFS embed.FS
 func (me *App) registerHtmlRoutes() {
 	htmlHandler := handlers.NewHtmlHandler(
 		me.logger,
-		me.eventSenderReceiver,
+		me.eventBus,
 		me.authService,
 		me.chatService,
 		me.profileService,
