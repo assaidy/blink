@@ -509,7 +509,7 @@ func (me *htmlHandler) HandleWebsocket(c *websocket.Conn) {
 		events.ReceiveJson(ctx, me.receiver, services.MessageWasSentEvent(userID), me.messageWasSentEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.UserMessagesWereReadEvent(userID), me.userMessagesWereReadEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.PartnerMessagesWereReadEvent(userID), me.partnerMessagesWereReadEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.IncommingMessageEvent(userID), me.incommingMessageEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.IncomingMessageEvent(userID), me.incomingMessageEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.UserMessageWasDeletedEvent(userID), me.userMessageWasDeletedEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.PartnerMessageWasDeletedEvent(userID), me.partnerMessageWasDeletedEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.UserMessageWasUpdatedEvent(userID), me.userMessageWasUpdatedEventHandler(c)),
@@ -633,8 +633,8 @@ func (me *htmlHandler) messageWasSentEventHandler(c *websocket.Conn) events.Json
 	}
 }
 
-func (me *htmlHandler) incommingMessageEventHandler(c *websocket.Conn) events.JsonHandler[services.IncommingMessageEventPayload] {
-	return func(ctx context.Context, message services.IncommingMessageEventPayload) error {
+func (me *htmlHandler) incomingMessageEventHandler(c *websocket.Conn) events.JsonHandler[services.IncomingMessageEventPayload] {
+	return func(ctx context.Context, message services.IncomingMessageEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			profile, err := me.profileService.GetProfile(message.PartnerID)
 			if err != nil {

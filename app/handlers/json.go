@@ -460,7 +460,7 @@ func (me *jsonHandler) HandleWebsocket(c *websocket.Conn) {
 		events.ReceiveJson(ctx, me.receiver, services.MessageWasSentEvent(userID), me.messageWasSentEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.UserMessagesWereReadEvent(userID), me.userMessagesWereReadEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.PartnerMessagesWereReadEvent(userID), me.partnerMessagesWereReadEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.IncommingMessageEvent(userID), me.incommingMessageEventHandler(c)),
+		events.ReceiveJson(ctx, me.receiver, services.IncomingMessageEvent(userID), me.incomingMessageEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.UserMessageWasDeletedEvent(userID), me.userMessageWasDeletedEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.PartnerMessageWasDeletedEvent(userID), me.partnerMessageWasDeletedEventHandler(c)),
 		events.ReceiveJson(ctx, me.receiver, services.UserMessageWasUpdatedEvent(userID), me.userMessageWasUpdatedEventHandler(c)),
@@ -494,135 +494,132 @@ func (me *jsonHandler) handleSendMessage(userID string, message websocketMessage
 }
 
 func (me *jsonHandler) partnerPresenceEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerPresenceEventPayload] {
-	return func(ctx context.Context, message services.PartnerPresenceEventPayload) error {
+	return func(ctx context.Context, payload services.PartnerPresenceEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:      partnerPresenceChanged,
-			PartnerID: message.PartnerID,
-			IsOnline:  message.IsOnline,
+			PartnerID: payload.PartnerID,
+			IsOnline:  payload.IsOnline,
 		})
 	}
 }
 
 func (me *jsonHandler) userMessagesWereReadEventHandler(c *websocket.Conn) events.JsonHandler[services.UserMessagesWereReadEventPayload] {
-	return func(ctx context.Context, message services.UserMessagesWereReadEventPayload) error {
+	return func(ctx context.Context, payload services.UserMessagesWereReadEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:           userMessagesWereRead,
-			UserID:         message.UserID,
-			ReadMessageIDs: message.ReadMessageIDs,
+			ReadMessageIDs: payload.ReadMessageIDs,
 		})
 	}
 }
 
 func (me *jsonHandler) partnerMessagesWereReadEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerMessagesWereReadEventPayload] {
-	return func(ctx context.Context, message services.PartnerMessagesWereReadEventPayload) error {
+	return func(ctx context.Context, payload services.PartnerMessagesWereReadEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:              partnerMessagesWereRead,
-			PartnerID:         message.PartnerID,
-			ReadMessagesCount: message.ReadMessageCount,
+			PartnerID:         payload.PartnerID,
+			ReadMessagesCount: payload.ReadMessageCount,
 		})
 	}
 }
 
 func (me *jsonHandler) userProfileWasUpdatedEventHandler(c *websocket.Conn) events.JsonHandler[services.UserProfileWasUpdatedEventPayload] {
-	return func(ctx context.Context, message services.UserProfileWasUpdatedEventPayload) error {
+	return func(ctx context.Context, payload services.UserProfileWasUpdatedEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:     userProfileWasUpdated,
-			Name:     message.Name,
-			Username: message.Username,
+			Name:     payload.Name,
+			Username: payload.Username,
 		})
 	}
 }
 
 func (me *jsonHandler) partnerProfileWasUpdatedEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerProfileWasUpdatedEventPayload] {
-	return func(ctx context.Context, message services.PartnerProfileWasUpdatedEventPayload) error {
+	return func(ctx context.Context, payload services.PartnerProfileWasUpdatedEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:      partnerProfileWasUpdated,
-			PartnerID: message.PartnerID,
-			Name:      message.Name,
-			Username:  message.Username,
+			PartnerID: payload.PartnerID,
+			Name:      payload.Name,
+			Username:  payload.Username,
 		})
 	}
 }
 
 func (me *jsonHandler) partnerProfileWasDeletedEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerProfileWasDeletedEventPayload] {
-	return func(ctx context.Context, message services.PartnerProfileWasDeletedEventPayload) error {
+	return func(ctx context.Context, payload services.PartnerProfileWasDeletedEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:      partnerProfileWasDeleted,
-			PartnerID: message.PartnerID,
+			PartnerID: payload.PartnerID,
 		})
 	}
 }
 
 func (me *jsonHandler) messageWasSentEventHandler(c *websocket.Conn) events.JsonHandler[services.MessageWasSentEventPayload] {
-	return func(ctx context.Context, message services.MessageWasSentEventPayload) error {
+	return func(ctx context.Context, payload services.MessageWasSentEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:            messageWasSent,
-			PartnerID:       message.PartnerID,
-			MessageID:       message.MessageID,
-			ClientMessageID: message.ClientMessageID,
-			Content:         message.Content,
-			Timestamp:       message.Timestamp,
+			PartnerID:       payload.PartnerID,
+			MessageID:       payload.MessageID,
+			ClientMessageID: payload.ClientMessageID,
+			Content:         payload.Content,
+			Timestamp:       payload.Timestamp,
 		})
 	}
 }
 
-func (me *jsonHandler) incommingMessageEventHandler(c *websocket.Conn) events.JsonHandler[services.IncommingMessageEventPayload] {
-	return func(ctx context.Context, message services.IncommingMessageEventPayload) error {
+func (me *jsonHandler) incomingMessageEventHandler(c *websocket.Conn) events.JsonHandler[services.IncomingMessageEventPayload] {
+	return func(ctx context.Context, payload services.IncomingMessageEventPayload) error {
 		return c.WriteJSON(websocketMessage{
-			Kind:      incommingMessage,
-			PartnerID: message.PartnerID,
-			MessageID: message.MessageID,
-			Content:   message.Content,
-			Timestamp: message.Timestamp,
+			Kind:      incomingMessage,
+			PartnerID: payload.PartnerID,
+			MessageID: payload.MessageID,
+			Content:   payload.Content,
+			Timestamp: payload.Timestamp,
 		})
 	}
 }
 
 func (me *jsonHandler) userMessageWasDeletedEventHandler(c *websocket.Conn) events.JsonHandler[services.UserMessageWasDeletedEventPayload] {
-	return func(ctx context.Context, message services.UserMessageWasDeletedEventPayload) error {
+	return func(ctx context.Context, payload services.UserMessageWasDeletedEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:      userMessageWasDeleted,
-			UserID:    message.UserID,
-			MessageID: message.MessageID,
+			MessageID: payload.MessageID,
 		})
 	}
 }
 
 func (me *jsonHandler) partnerMessageWasDeletedEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerMessageWasDeletedEventPayload] {
-	return func(ctx context.Context, message services.PartnerMessageWasDeletedEventPayload) error {
+	return func(ctx context.Context, payload services.PartnerMessageWasDeletedEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:      partnerMessageWasDeleted,
-			PartnerID: message.PartnerID,
-			MessageID: message.MessageID,
+			PartnerID: payload.PartnerID,
+			MessageID: payload.MessageID,
 		})
 	}
 }
 func (me *jsonHandler) userMessageWasUpdatedEventHandler(c *websocket.Conn) events.JsonHandler[services.UserMessageWasUpdatedEventPayload] {
-	return func(ctx context.Context, message services.UserMessageWasUpdatedEventPayload) error {
+	return func(ctx context.Context, payload services.UserMessageWasUpdatedEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:      userMessageWasUpdated,
-			MessageID: message.MessageID,
-			Content:   message.Content,
+			MessageID: payload.MessageID,
+			Content:   payload.Content,
 		})
 	}
 }
 
 func (me *jsonHandler) partnerMessageWasUpdatedEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerMessageWasUpdatedEventPayload] {
-	return func(ctx context.Context, message services.PartnerMessageWasUpdatedEventPayload) error {
+	return func(ctx context.Context, payload services.PartnerMessageWasUpdatedEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:      partnerMessageWasUpdated,
-			PartnerID: message.PartnerID,
-			MessageID: message.MessageID,
+			PartnerID: payload.PartnerID,
+			MessageID: payload.MessageID,
 		})
 	}
 }
 
 func (me *jsonHandler) chatWasDeletedEventHandler(c *websocket.Conn) events.JsonHandler[services.ChatWasDeletedEventPayload] {
-	return func(ctx context.Context, message services.ChatWasDeletedEventPayload) error {
+	return func(ctx context.Context, payload services.ChatWasDeletedEventPayload) error {
 		return c.WriteJSON(websocketMessage{
 			Kind:      chatWasDeleted,
-			UserID:    message.UserID,
-			PartnerID: message.PartnerID,
+			PartnerID: payload.PartnerID,
 		})
 	}
 }

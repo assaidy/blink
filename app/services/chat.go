@@ -71,7 +71,6 @@ func (me *ChatService) GetChatPartners(userID, lastMessageIDWithLastPartner stri
 var ChatWasDeletedEvent = makeEventChannelForUser("ChatWasDeleted")
 
 type ChatWasDeletedEventPayload struct {
-	UserID    string `json:"userID"`
 	PartnerID string `json:"partnerID"`
 }
 
@@ -98,7 +97,6 @@ func (me *ChatService) DeleteChat(userID, partnerID string) error {
 		me.eventSender,
 		ChatWasDeletedEvent(userID),
 		ChatWasDeletedEventPayload{
-			UserID:    userID,
 			PartnerID: partnerID,
 		},
 	); err != nil {
@@ -109,7 +107,6 @@ func (me *ChatService) DeleteChat(userID, partnerID string) error {
 		me.eventSender,
 		ChatWasDeletedEvent(partnerID),
 		ChatWasDeletedEventPayload{
-			UserID:    partnerID,
 			PartnerID: userID,
 		},
 	); err != nil {
@@ -149,12 +146,10 @@ var (
 )
 
 type UserMessagesWereReadEventPayload struct {
-	UserID         string   `json:"userID"`
-	ReadMessageIDs []string `json:"ReadMessageIDs"`
+	ReadMessageIDs []string `json:"readMessageIDs"`
 }
 
 type PartnerMessagesWereReadEventPayload struct {
-	UserID           string `json:"userID"`
 	PartnerID        string `json:"partnerID"`
 	ReadMessageCount int    `json:"readMessageCount"`
 }
@@ -185,7 +180,6 @@ func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID strin
 			me.eventSender,
 			UserMessagesWereReadEvent(partnerID),
 			UserMessagesWereReadEventPayload{
-				UserID:         partnerID,
 				ReadMessageIDs: markedMessageIDs,
 			},
 		); err != nil {
@@ -196,7 +190,6 @@ func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID strin
 			me.eventSender,
 			PartnerMessagesWereReadEvent(userID),
 			PartnerMessagesWereReadEventPayload{
-				UserID:           userID,
 				PartnerID:        partnerID,
 				ReadMessageCount: count,
 			},
@@ -214,12 +207,10 @@ var (
 )
 
 type UserMessageWasDeletedEventPayload struct {
-	UserID    string `json:"userID"`
 	MessageID string `json:"messageID"`
 }
 
 type PartnerMessageWasDeletedEventPayload struct {
-	UserID    string `json:"userID"`
 	PartnerID string `json:"partnerID"`
 	MessageID string `json:"messageID"`
 }
@@ -257,23 +248,21 @@ func (me *ChatService) DeleteChatMessage(userID, messageID string) error {
 		me.eventSender,
 		UserMessageWasDeletedEvent(result.SenderID),
 		UserMessageWasDeletedEventPayload{
-			UserID:    result.SenderID,
 			MessageID: messageID,
 		},
 	); err != nil {
-		return fmt.Errorf("failed to publish %s event: %w", UserMessageWasDeletedEvent, err)
+		return fmt.Errorf("failed to send event: %w", err)
 	}
 
 	if err := events.SendJson(ctx,
 		me.eventSender,
 		PartnerMessageWasDeletedEvent(result.ReceiverID),
 		PartnerMessageWasDeletedEventPayload{
-			UserID:    result.ReceiverID,
 			PartnerID: result.SenderID,
 			MessageID: messageID,
 		},
 	); err != nil {
-		return fmt.Errorf("failed to publish %s event: %w", PartnerMessageWasDeletedEvent, err)
+		return fmt.Errorf("failed to send event: %w", err)
 	}
 
 	return nil
@@ -285,13 +274,11 @@ var (
 )
 
 type UserMessageWasUpdatedEventPayload struct {
-	UserID    string `json:"userID"`
 	MessageID string `json:"messageID"`
 	Content   string `json:"newContent"`
 }
 
 type PartnerMessageWasUpdatedEventPayload struct {
-	UserID     string `json:"userID"`
 	PartnerID  string `json:"partnerID"`
 	MessageID  string `json:"messageID"`
 	NewContent string `json:"newContent"`
@@ -338,25 +325,23 @@ func (me *ChatService) UpdateChatMessage(userID, messageID, newContent string) e
 		me.eventSender,
 		UserMessageWasUpdatedEvent(result.SenderID),
 		UserMessageWasUpdatedEventPayload{
-			UserID:    result.SenderID,
 			MessageID: messageID,
 			Content:   newContent,
 		},
 	); err != nil {
-		return fmt.Errorf("failed to publish %s event: %w", UserMessageWasUpdatedEvent, err)
+		return fmt.Errorf("failed to send event: %w", err)
 	}
 
 	if err := events.SendJson(ctx,
 		me.eventSender,
 		PartnerMessageWasUpdatedEvent(result.ReceiverID),
 		PartnerMessageWasUpdatedEventPayload{
-			UserID:     result.ReceiverID,
 			PartnerID:  result.SenderID,
 			MessageID:  messageID,
 			NewContent: newContent,
 		},
 	); err != nil {
-		return fmt.Errorf("failed to publish %s event: %w", PartnerMessageWasUpdatedEvent, err)
+		return fmt.Errorf("failed to send event: %w", err)
 	}
 
 	return nil
@@ -365,7 +350,6 @@ func (me *ChatService) UpdateChatMessage(userID, messageID, newContent string) e
 var MessageWasSentEvent = makeEventChannelForUser("MessageWasSent")
 
 type MessageWasSentEventPayload struct {
-	UserID          string    `json:"userID"`
 	PartnerID       string    `json:"partnerID"`
 	MessageID       string    `json:"messageID"`
 	ClientMessageID int       `json:"clientMessageID"`
@@ -373,10 +357,9 @@ type MessageWasSentEventPayload struct {
 	Timestamp       time.Time `json:"timestamp"`
 }
 
-var IncommingMessageEvent = makeEventChannelForUser("IncommingMessage")
+var IncomingMessageEvent = makeEventChannelForUser("IncomingMessage")
 
-type IncommingMessageEventPayload struct {
-	UserID    string    `json:"userID"`
+type IncomingMessageEventPayload struct {
 	PartnerID string    `json:"partnerID"`
 	MessageID string    `json:"messageID"`
 	Content   string    `json:"content"`
@@ -424,7 +407,6 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 		me.eventSender,
 		MessageWasSentEvent(senderID),
 		MessageWasSentEventPayload{
-			UserID:          senderID,
 			PartnerID:       receiverID,
 			MessageID:       messageID,
 			Content:         content,
@@ -432,7 +414,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 			ClientMessageID: clientMessageID,
 		},
 	); err != nil {
-		return fmt.Errorf("failed to publish %s event: %w", MessageWasSentEvent, err)
+		return fmt.Errorf("failed to send event: %w", err)
 	}
 
 	// Notify receiver sessions
@@ -441,16 +423,15 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 	} else if ok {
 		if err := events.SendJson(ctx,
 			me.eventSender,
-			IncommingMessageEvent(receiverID),
-			IncommingMessageEventPayload{
-				UserID:    receiverID,
+			IncomingMessageEvent(receiverID),
+			IncomingMessageEventPayload{
 				PartnerID: senderID,
 				MessageID: messageID,
 				Content:   content,
 				Timestamp: timestamp,
 			},
 		); err != nil {
-			return fmt.Errorf("failed to publish %s event: %w", MessageWasSentEvent, err)
+			return fmt.Errorf("failed to send event: %w", err)
 		}
 	}
 

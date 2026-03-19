@@ -42,7 +42,6 @@ const (
 var PartnerPresenceEvent = makeEventChannelForUser("PartnerPresence")
 
 type PartnerPresenceEventPayload struct {
-	UserID    string `json:"userID"`
 	PartnerID string `json:"partnerID"`
 	IsOnline  bool   `json:"isOnline"`
 }
@@ -113,7 +112,6 @@ func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, 
 			me.eventSender,
 			PartnerPresenceEvent(id),
 			PartnerPresenceEventPayload{
-				UserID:    id,
 				PartnerID: userID,
 				IsOnline:  change,
 			}); err != nil {

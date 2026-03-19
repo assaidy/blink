@@ -320,7 +320,7 @@ const (
 	partnerProfileWasDeleted = "PartnerProfileWasDeleted"
 	sendMessage              = "SendMessage"
 	messageWasSent           = "MessageWasSent"
-	incommingMessage         = "IncommingMessage"
+	incomingMessage          = "IncomingMessage"
 	userMessagesWereRead     = "UserMessagesWereRead"
 	partnerMessagesWereRead  = "PartnerMessagesWereRead"
 	userMessageWasDeleted    = "UserMessageWasDeleted"

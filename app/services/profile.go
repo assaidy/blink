@@ -78,15 +78,12 @@ var (
 	PartnerProfileWasUpdatedEvent = makeEventChannelForUser("PartnerProfileWasUpdated")
 )
 
-// TODO: remove useID field if it is only used  for knowing the receiver
 type UserProfileWasUpdatedEventPayload struct {
-	UserID   string `json:"userID"`
 	Name     string `json:"name"`
 	Username string `json:"username"`
 }
 
 type PartnerProfileWasUpdatedEventPayload struct {
-	UserID    string `json:"userID"`
 	PartnerID string `json:"partnerID"`
 	Name      string `json:"name"`
 	Username  string `json:"username"`
@@ -152,7 +149,6 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 		me.eventSender,
 		UserProfileWasUpdatedEvent(userID),
 		UserProfileWasUpdatedEventPayload{
-			UserID:   userID,
 			Name:     name,
 			Username: username,
 		},
@@ -170,7 +166,6 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 			me.eventSender,
 			PartnerProfileWasUpdatedEvent(id),
 			PartnerProfileWasUpdatedEventPayload{
-				UserID:    id,
 				PartnerID: userID,
 				Name:      name,
 				Username:  username,
@@ -186,7 +181,6 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 var PartnerProfileWasDeletedEvent = makeEventChannelForUser("PartnerProfileWasDeleted")
 
 type PartnerProfileWasDeletedEventPayload struct {
-	UserID    string `json:"userID"`
 	PartnerID string `json:"partnerID"`
 }
 
@@ -212,7 +206,6 @@ func (me *ProfileService) DeleteProfile(userID string) error {
 			me.eventSender,
 			PartnerProfileWasDeletedEvent(id),
 			PartnerProfileWasDeletedEventPayload{
-				UserID:    id,
 				PartnerID: userID,
 			},
 		); err != nil {

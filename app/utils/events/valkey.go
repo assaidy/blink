@@ -28,10 +28,10 @@ func (me ValkeyEventBus) Receive(ctx context.Context, channel string, handler Ha
 		cmd := me.client.B().Subscribe().Channel(channel).Build()
 		if err := me.client.Receive(ctx, cmd, func(msg valkey.PubSubMessage) {
 			if err := handler(ctx, []byte(msg.Message)); err != nil {
-				me.logger.Error("failed to handle payload in valkey pubsub", "error", err)
+				me.logger.Error("failed to handle payload in valkey pubsub", "channel", channel, "error", err)
 			}
 		}); err != nil {
-			me.logger.Error("failed to receive messages in valkey pubsub", "error", err)
+			me.logger.Error("failed to receive messages in valkey pubsub", "channel", channel, "error", err)
 		}
 
 		stopped <- struct{}{}
