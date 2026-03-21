@@ -1,4 +1,4 @@
-package events
+package pubsub
 
 import (
 	"context"
@@ -7,21 +7,21 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
-type ValkeyEventBus struct {
+type ValkeyPubsub struct {
 	client valkey.Client
 	logger *slog.Logger
 }
 
-func NewValkeyEventBus(client valkey.Client, logger *slog.Logger) ValkeyEventBus {
-	return ValkeyEventBus{client: client, logger: logger}
+func NewValkeyPubsub(client valkey.Client, logger *slog.Logger) ValkeyPubsub {
+	return ValkeyPubsub{client: client, logger: logger}
 }
 
-func (me ValkeyEventBus) Send(ctx context.Context, channel string, payload []byte) error {
+func (me ValkeyPubsub) Publish(ctx context.Context, channel string, payload []byte) error {
 	cmd := me.client.B().Publish().Channel(channel).Message(string(payload)).Build()
 	return me.client.Do(ctx, cmd).Error()
 }
 
-func (me ValkeyEventBus) Receive(ctx context.Context, channel string, handler Handler) WaitUntilStop {
+func (me ValkeyPubsub) Subscribe(ctx context.Context, channel string, handler Handler) WaitChannel {
 	stopped := make(chan struct{}, 1)
 
 	go func() {

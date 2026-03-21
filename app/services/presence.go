@@ -8,25 +8,25 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils/events"
+	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/valkey-io/valkey-go"
 )
 
 type PresenceService struct {
-	db          *sql.DB
-	queries     *repo.Queries
-	logger      *slog.Logger
-	cache       valkey.Client
-	eventSender events.Sender
+	db        *sql.DB
+	queries   *repo.Queries
+	logger    *slog.Logger
+	cache     valkey.Client
+	publisher pubsub.Publisher
 }
 
-func NewPresenceService(db *sql.DB, cache valkey.Client, logger *slog.Logger, eventSender events.Sender) *PresenceService {
+func NewPresenceService(db *sql.DB, cache valkey.Client, logger *slog.Logger, pub pubsub.Publisher) *PresenceService {
 	return &PresenceService{
-		db:          db,
-		queries:     repo.New(db),
-		cache:       cache,
-		logger:      logger,
-		eventSender: eventSender,
+		db:        db,
+		queries:   repo.New(db),
+		cache:     cache,
+		logger:    logger,
+		publisher: pub,
 	}
 }
 
@@ -108,8 +108,8 @@ func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, 
 	}
 
 	for _, id := range partnerIDs {
-		if err := events.SendJson(ctx,
-			me.eventSender,
+		if err := pubsub.PublishJson(ctx,
+			me.publisher,
 			PartnerPresenceEvent(id),
 			PartnerPresenceEventPayload{
 				PartnerID: userID,

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/assaidy/blink/app/services"
-	"github.com/assaidy/blink/app/utils/events"
+	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/assaidy/blink/app/web/components"
 	. "github.com/assaidy/hyper"
 	. "github.com/assaidy/hyper/htmx"
@@ -21,7 +21,7 @@ import (
 
 type htmlHandler struct {
 	logger           *slog.Logger
-	receiver         events.Receiver
+	subscriber       pubsub.Subscriber
 	authService      *services.AuthService
 	chatService      *services.ChatService
 	profileService   *services.ProfileService
@@ -36,7 +36,7 @@ type websocketState struct {
 
 func NewHtmlHandler(
 	logger *slog.Logger,
-	receiver events.Receiver,
+	sub pubsub.Subscriber,
 	authService *services.AuthService,
 	chatService *services.ChatService,
 	profileService *services.ProfileService,
@@ -44,7 +44,7 @@ func NewHtmlHandler(
 ) *htmlHandler {
 	return &htmlHandler{
 		logger:           logger,
-		receiver:         receiver,
+		subscriber:       sub,
 		authService:      authService,
 		chatService:      chatService,
 		profileService:   profileService,
@@ -501,20 +501,20 @@ func (me *htmlHandler) HandleWebsocket(c *websocket.Conn) {
 
 	wg.Go(func() { me.presenceService.StartHeartbeat(ctx, userID, sessionID) })
 
-	events.ReceiveMany(&wg,
-		events.ReceiveJson(ctx, me.receiver, services.PartnerPresenceEvent(userID), me.partnerPresenceEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.UserProfileWasUpdatedEvent(userID), me.userProfileWasUpdatedEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.PartnerProfileWasUpdatedEvent(userID), me.partnerProfileWasUpdatedEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.PartnerProfileWasDeletedEvent(userID), me.partnerProfileWasDeletedEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.MessageWasSentEvent(userID), me.messageWasSentEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.UserMessagesWereReadEvent(userID), me.userMessagesWereReadEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.PartnerMessagesWereReadEvent(userID), me.partnerMessagesWereReadEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.IncomingMessageEvent(userID), me.incomingMessageEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.UserMessageWasDeletedEvent(userID), me.userMessageWasDeletedEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.PartnerMessageWasDeletedEvent(userID), me.partnerMessageWasDeletedEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.UserMessageWasUpdatedEvent(userID), me.userMessageWasUpdatedEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.PartnerMessageWasUpdatedEvent(userID), me.partnerMessageWasUpdatedEventHandler(c)),
-		events.ReceiveJson(ctx, me.receiver, services.ChatWasDeletedEvent(userID), me.chatWasDeletedEventHandler(c)),
+	pubsub.SubscribeAll(&wg,
+		pubsub.SubscribeJson(ctx, me.subscriber, services.PartnerPresenceEvent(userID), me.partnerPresenceEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.UserProfileWasUpdatedEvent(userID), me.userProfileWasUpdatedEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.PartnerProfileWasUpdatedEvent(userID), me.partnerProfileWasUpdatedEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.PartnerProfileWasDeletedEvent(userID), me.partnerProfileWasDeletedEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.MessageWasSentEvent(userID), me.messageWasSentEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.UserMessagesWereReadEvent(userID), me.userMessagesWereReadEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.PartnerMessagesWereReadEvent(userID), me.partnerMessagesWereReadEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.IncomingMessageEvent(userID), me.incomingMessageEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.UserMessageWasDeletedEvent(userID), me.userMessageWasDeletedEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.PartnerMessageWasDeletedEvent(userID), me.partnerMessageWasDeletedEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.UserMessageWasUpdatedEvent(userID), me.userMessageWasUpdatedEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.PartnerMessageWasUpdatedEvent(userID), me.partnerMessageWasUpdatedEventHandler(c)),
+		pubsub.SubscribeJson(ctx, me.subscriber, services.ChatWasDeletedEvent(userID), me.chatWasDeletedEventHandler(c)),
 	)
 
 	me.sendUnreadMessageCounts(userID, c)
@@ -602,7 +602,7 @@ func (me *htmlHandler) sendUnreadMessageCounts(userID string, c *websocket.Conn)
 	})
 }
 
-func (me *htmlHandler) messageWasSentEventHandler(c *websocket.Conn) events.JsonHandler[services.MessageWasSentEventPayload] {
+func (me *htmlHandler) messageWasSentEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.MessageWasSentEventPayload] {
 	return func(ctx context.Context, payload services.MessageWasSentEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			profile, err := me.profileService.GetProfile(payload.PartnerID)
@@ -633,7 +633,7 @@ func (me *htmlHandler) messageWasSentEventHandler(c *websocket.Conn) events.Json
 	}
 }
 
-func (me *htmlHandler) incomingMessageEventHandler(c *websocket.Conn) events.JsonHandler[services.IncomingMessageEventPayload] {
+func (me *htmlHandler) incomingMessageEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.IncomingMessageEventPayload] {
 	return func(ctx context.Context, message services.IncomingMessageEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			profile, err := me.profileService.GetProfile(message.PartnerID)
@@ -704,7 +704,7 @@ func newChatMessageResponse(params newChatMessageResponseParams) HyperNode {
 	)
 }
 
-func (me *htmlHandler) userProfileWasUpdatedEventHandler(c *websocket.Conn) events.JsonHandler[services.UserProfileWasUpdatedEventPayload] {
+func (me *htmlHandler) userProfileWasUpdatedEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.UserProfileWasUpdatedEventPayload] {
 	return func(ctx context.Context, payload services.UserProfileWasUpdatedEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w,
@@ -719,7 +719,7 @@ func (me *htmlHandler) userProfileWasUpdatedEventHandler(c *websocket.Conn) even
 	}
 }
 
-func (me *htmlHandler) partnerProfileWasUpdatedEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerProfileWasUpdatedEventPayload] {
+func (me *htmlHandler) partnerProfileWasUpdatedEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.PartnerProfileWasUpdatedEventPayload] {
 	return func(ctx context.Context, payload services.PartnerProfileWasUpdatedEventPayload) error {
 		isOnline, err := me.presenceService.IsUserOnline(context.Background(), payload.PartnerID)
 		if err != nil {
@@ -750,7 +750,7 @@ func (me *htmlHandler) partnerProfileWasUpdatedEventHandler(c *websocket.Conn) e
 	}
 }
 
-func (me *htmlHandler) partnerProfileWasDeletedEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerProfileWasDeletedEventPayload] {
+func (me *htmlHandler) partnerProfileWasDeletedEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.PartnerProfileWasDeletedEventPayload] {
 	return func(ctx context.Context, payload services.PartnerProfileWasDeletedEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Empty(
@@ -764,7 +764,7 @@ func (me *htmlHandler) partnerProfileWasDeletedEventHandler(c *websocket.Conn) e
 	}
 }
 
-func (me *htmlHandler) partnerPresenceEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerPresenceEventPayload] {
+func (me *htmlHandler) partnerPresenceEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.PartnerPresenceEventPayload] {
 	return func(ctx context.Context, payload services.PartnerPresenceEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Empty(
@@ -780,7 +780,7 @@ func (me *htmlHandler) partnerPresenceEventHandler(c *websocket.Conn) events.Jso
 	}
 }
 
-func (me *htmlHandler) userMessagesWereReadEventHandler(c *websocket.Conn) events.JsonHandler[services.UserMessagesWereReadEventPayload] {
+func (me *htmlHandler) userMessagesWereReadEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.UserMessagesWereReadEventPayload] {
 	return func(ctx context.Context, payload services.UserMessagesWereReadEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w,
@@ -794,7 +794,7 @@ func (me *htmlHandler) userMessagesWereReadEventHandler(c *websocket.Conn) event
 	}
 }
 
-func (me *htmlHandler) partnerMessagesWereReadEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerMessagesWereReadEventPayload] {
+func (me *htmlHandler) partnerMessagesWereReadEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.PartnerMessagesWereReadEventPayload] {
 	return func(ctx context.Context, message services.PartnerMessagesWereReadEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w,
@@ -808,7 +808,7 @@ func (me *htmlHandler) partnerMessagesWereReadEventHandler(c *websocket.Conn) ev
 	}
 }
 
-func (me *htmlHandler) userMessageWasDeletedEventHandler(c *websocket.Conn) events.JsonHandler[services.UserMessageWasDeletedEventPayload] {
+func (me *htmlHandler) userMessageWasDeletedEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.UserMessageWasDeletedEventPayload] {
 	return func(ctx context.Context, message services.UserMessageWasDeletedEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Div(KV{AttrId: "chat-message-" + message.MessageID, AttrHxSwapOob: SwapDelete}))
@@ -816,7 +816,7 @@ func (me *htmlHandler) userMessageWasDeletedEventHandler(c *websocket.Conn) even
 	}
 }
 
-func (me *htmlHandler) partnerMessageWasDeletedEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerMessageWasDeletedEventPayload] {
+func (me *htmlHandler) partnerMessageWasDeletedEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.PartnerMessageWasDeletedEventPayload] {
 	return func(ctx context.Context, message services.PartnerMessageWasDeletedEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Div(KV{AttrId: "chat-message-" + message.MessageID, AttrHxSwapOob: SwapDelete}))
@@ -824,7 +824,7 @@ func (me *htmlHandler) partnerMessageWasDeletedEventHandler(c *websocket.Conn) e
 	}
 }
 
-func (me *htmlHandler) userMessageWasUpdatedEventHandler(c *websocket.Conn) events.JsonHandler[services.UserMessageWasUpdatedEventPayload] {
+func (me *htmlHandler) userMessageWasUpdatedEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.UserMessageWasUpdatedEventPayload] {
 	return func(ctx context.Context, message services.UserMessageWasUpdatedEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Div(KV{AttrHxSwapOob: SwapOob(SwapInnerHtml, fmt.Sprintf("#chat-message-%s .message-content", message.MessageID))},
@@ -834,7 +834,7 @@ func (me *htmlHandler) userMessageWasUpdatedEventHandler(c *websocket.Conn) even
 	}
 }
 
-func (me *htmlHandler) partnerMessageWasUpdatedEventHandler(c *websocket.Conn) events.JsonHandler[services.PartnerMessageWasUpdatedEventPayload] {
+func (me *htmlHandler) partnerMessageWasUpdatedEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.PartnerMessageWasUpdatedEventPayload] {
 	return func(ctx context.Context, message services.PartnerMessageWasUpdatedEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Div(KV{AttrHxSwapOob: SwapOob(SwapInnerHtml, fmt.Sprintf("#chat-message-%s .message-content", message.MessageID))},
@@ -844,7 +844,7 @@ func (me *htmlHandler) partnerMessageWasUpdatedEventHandler(c *websocket.Conn) e
 	}
 }
 
-func (me *htmlHandler) chatWasDeletedEventHandler(c *websocket.Conn) events.JsonHandler[services.ChatWasDeletedEventPayload] {
+func (me *htmlHandler) chatWasDeletedEventHandler(c *websocket.Conn) pubsub.JsonHandler[services.ChatWasDeletedEventPayload] {
 	return func(ctx context.Context, message services.ChatWasDeletedEventPayload) error {
 		return me.withWebsocketWriter(c, func(w io.WriteCloser) error {
 			return Render(w, Empty(

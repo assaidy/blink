@@ -15,8 +15,8 @@ import (
 	"github.com/assaidy/blink/app/db"
 	"github.com/assaidy/blink/app/handlers"
 	"github.com/assaidy/blink/app/services"
-	"github.com/assaidy/blink/app/utils/events"
 	"github.com/assaidy/blink/app/utils/mailer"
+	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/valkey-io/valkey-go"
@@ -27,7 +27,7 @@ type App struct {
 	logger          *slog.Logger
 	db              *sql.DB
 	cache           valkey.Client
-	eventBus        events.EventBus
+	pubsub          pubsub.Pubsub
 	authService     *services.AuthService
 	profileService  *services.ProfileService
 	presenceService *services.PresenceService
@@ -42,7 +42,7 @@ func NewApp() *App {
 
 	db := db.GetPostgresConnectionPool(conf.PostgresUrl)
 	cache := cache.GetValkeyClient(conf.ValkeyAddr)
-	SenderReceiver := events.NewValkeyEventBus(cache, logger)
+	SenderReceiver := pubsub.NewValkeyPubsub(cache, logger)
 	mailer := email.NewPapercutMailer(conf.PapercutHost, conf.EmailFrom)
 
 	authService := services.NewAuthService(db, mailer, conf.Secret)
@@ -55,7 +55,7 @@ func NewApp() *App {
 		logger:          logger,
 		db:              db,
 		cache:           cache,
-		eventBus:        SenderReceiver,
+		pubsub:          SenderReceiver,
 		authService:     authService,
 		profileService:  profileService,
 		presenceService: presenceService,

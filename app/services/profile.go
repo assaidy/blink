@@ -8,22 +8,22 @@ import (
 	"strings"
 
 	"github.com/assaidy/blink/app/repo"
-	"github.com/assaidy/blink/app/utils/events"
+	"github.com/assaidy/blink/app/utils/pubsub"
 	"github.com/go-ozzo/ozzo-validation/is"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
 type ProfileService struct {
-	db          *sql.DB
-	queries     *repo.Queries
-	eventSender events.Sender
+	db        *sql.DB
+	queries   *repo.Queries
+	publisher pubsub.Publisher
 }
 
-func NewProfileService(db *sql.DB, eventSender events.Sender) *ProfileService {
+func NewProfileService(db *sql.DB, pub pubsub.Publisher) *ProfileService {
 	return &ProfileService{
-		db:          db,
-		queries:     repo.New(db),
-		eventSender: eventSender,
+		db:        db,
+		queries:   repo.New(db),
+		publisher: pub,
 	}
 }
 
@@ -145,8 +145,8 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
-	if err := events.SendJson(ctx,
-		me.eventSender,
+	if err := pubsub.PublishJson(ctx,
+		me.publisher,
 		UserProfileWasUpdatedEvent(userID),
 		UserProfileWasUpdatedEventPayload{
 			Name:     name,
@@ -162,8 +162,8 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 	}
 
 	for _, id := range partnerIDs {
-		if err := events.SendJson(ctx,
-			me.eventSender,
+		if err := pubsub.PublishJson(ctx,
+			me.publisher,
 			PartnerProfileWasUpdatedEvent(id),
 			PartnerProfileWasUpdatedEventPayload{
 				PartnerID: userID,
@@ -202,8 +202,8 @@ func (me *ProfileService) DeleteProfile(userID string) error {
 	}
 
 	for _, id := range partnerIDs {
-		if err := events.SendJson(ctx,
-			me.eventSender,
+		if err := pubsub.PublishJson(ctx,
+			me.publisher,
 			PartnerProfileWasDeletedEvent(id),
 			PartnerProfileWasDeletedEventPayload{
 				PartnerID: userID,
