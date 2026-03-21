@@ -23,10 +23,14 @@ const (
 	EnvProduction  = "production"
 )
 
-func Load() *Config {
-	return sync.OnceValue(func() *Config {
-		var config Config
+var (
+	config *Config
+	once   sync.Once
+)
 
+func Load() *Config {
+	once.Do(func() {
+		config = &Config{}
 		config.Environment = getEnvOrDefault("ENVIRONMENT", EnvDevelopment)
 		config.Port = getEnvOrPanic("PORT")
 		config.Secret = getEnvOrPanic("SECRET")
@@ -41,9 +45,9 @@ func Load() *Config {
 			config.ValkeyAddr = getEnvOrPanic("VALKEY_ADDR_LOCAL")
 			config.PapercutHost = getEnvOrPanic("PAPERCUT_SMTP_HOST_LOCAL")
 		}
+	})
 
-		return &config
-	})()
+	return config
 }
 
 func getEnvOrDefault(key, defaultValue string) string {
