@@ -93,22 +93,22 @@ func (me *ChatService) DeleteChat(userID, partnerID string) error {
 		return fmt.Errorf("failed to delete chat: %w", err)
 	}
 
-	if err := pubsub.PublishJson(ctx,
-		me.publisher,
+	if err := pubsub.PublishWithCodec(ctx, me.publisher,
 		ChatWasDeletedEvent(userID),
 		ChatWasDeletedEventPayload{
 			PartnerID: partnerID,
 		},
+		pubsub.JsonCodec,
 	); err != nil {
 		return fmt.Errorf("failed to send event: %w", err)
 	}
 
-	if err := pubsub.PublishJson(ctx,
-		me.publisher,
+	if err := pubsub.PublishWithCodec(ctx, me.publisher,
 		ChatWasDeletedEvent(partnerID),
 		ChatWasDeletedEventPayload{
 			PartnerID: userID,
 		},
+		pubsub.JsonCodec,
 	); err != nil {
 		return fmt.Errorf("failed to event: %w", err)
 	}
@@ -176,23 +176,23 @@ func (me *ChatService) MarkMessagesAsRead(userID, partnerID, uptoMessageID strin
 	}
 
 	if count := len(markedMessageIDs); count > 0 {
-		if err := pubsub.PublishJson(ctx,
-			me.publisher,
+		if err := pubsub.PublishWithCodec(ctx, me.publisher,
 			UserMessagesWereReadEvent(partnerID),
 			UserMessagesWereReadEventPayload{
 				ReadMessageIDs: markedMessageIDs,
 			},
+			pubsub.JsonCodec,
 		); err != nil {
 			return fmt.Errorf("failed to event: %w", err)
 		}
 
-		if err := pubsub.PublishJson(ctx,
-			me.publisher,
+		if err := pubsub.PublishWithCodec(ctx, me.publisher,
 			PartnerMessagesWereReadEvent(userID),
 			PartnerMessagesWereReadEventPayload{
 				PartnerID:        partnerID,
 				ReadMessageCount: count,
 			},
+			pubsub.JsonCodec,
 		); err != nil {
 			return fmt.Errorf("failed to send event: %w", err)
 		}
@@ -244,23 +244,23 @@ func (me *ChatService) DeleteChatMessage(userID, messageID string) error {
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
-	if err := pubsub.PublishJson(ctx,
-		me.publisher,
+	if err := pubsub.PublishWithCodec(ctx, me.publisher,
 		UserMessageWasDeletedEvent(result.SenderID),
 		UserMessageWasDeletedEventPayload{
 			MessageID: messageID,
 		},
+		pubsub.JsonCodec,
 	); err != nil {
 		return fmt.Errorf("failed to send event: %w", err)
 	}
 
-	if err := pubsub.PublishJson(ctx,
-		me.publisher,
+	if err := pubsub.PublishWithCodec(ctx, me.publisher,
 		PartnerMessageWasDeletedEvent(result.ReceiverID),
 		PartnerMessageWasDeletedEventPayload{
 			PartnerID: result.SenderID,
 			MessageID: messageID,
 		},
+		pubsub.JsonCodec,
 	); err != nil {
 		return fmt.Errorf("failed to send event: %w", err)
 	}
@@ -321,25 +321,25 @@ func (me *ChatService) UpdateChatMessage(userID, messageID, newContent string) e
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
-	if err := pubsub.PublishJson(ctx,
-		me.publisher,
+	if err := pubsub.PublishWithCodec(ctx, me.publisher,
 		UserMessageWasUpdatedEvent(result.SenderID),
 		UserMessageWasUpdatedEventPayload{
 			MessageID: messageID,
 			Content:   newContent,
 		},
+		pubsub.JsonCodec,
 	); err != nil {
 		return fmt.Errorf("failed to send event: %w", err)
 	}
 
-	if err := pubsub.PublishJson(ctx,
-		me.publisher,
+	if err := pubsub.PublishWithCodec(ctx, me.publisher,
 		PartnerMessageWasUpdatedEvent(result.ReceiverID),
 		PartnerMessageWasUpdatedEventPayload{
 			PartnerID:  result.SenderID,
 			MessageID:  messageID,
 			NewContent: newContent,
 		},
+		pubsub.JsonCodec,
 	); err != nil {
 		return fmt.Errorf("failed to send event: %w", err)
 	}
@@ -403,8 +403,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 	}
 
 	// Notify sender sessions
-	if err := pubsub.PublishJson(ctx,
-		me.publisher,
+	if err := pubsub.PublishWithCodec(ctx, me.publisher,
 		MessageWasSentEvent(senderID),
 		MessageWasSentEventPayload{
 			PartnerID:       receiverID,
@@ -413,6 +412,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 			Timestamp:       timestamp,
 			ClientMessageID: clientMessageID,
 		},
+		pubsub.JsonCodec,
 	); err != nil {
 		return fmt.Errorf("failed to send event: %w", err)
 	}
@@ -421,8 +421,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 	if ok, err := me.presenceService.IsUserOnline(ctx, receiverID); err != nil {
 		return fmt.Errorf("failed to check if user is online: %w", err)
 	} else if ok {
-		if err := pubsub.PublishJson(ctx,
-			me.publisher,
+		if err := pubsub.PublishWithCodec(ctx, me.publisher,
 			IncomingMessageEvent(receiverID),
 			IncomingMessageEventPayload{
 				PartnerID: senderID,
@@ -430,6 +429,7 @@ func (me *ChatService) SendChatMessage(senderID, receiverID, content string, cli
 				Content:   content,
 				Timestamp: timestamp,
 			},
+			pubsub.JsonCodec,
 		); err != nil {
 			return fmt.Errorf("failed to send event: %w", err)
 		}

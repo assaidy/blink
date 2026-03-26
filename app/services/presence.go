@@ -108,13 +108,14 @@ func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, 
 	}
 
 	for _, id := range partnerIDs {
-		if err := pubsub.PublishJson(ctx,
-			me.publisher,
+		if err := pubsub.PublishWithCodec(ctx, me.publisher,
 			PartnerPresenceEvent(id),
 			PartnerPresenceEventPayload{
 				PartnerID: userID,
 				IsOnline:  change,
-			}); err != nil {
+			},
+			pubsub.JsonCodec,
+		); err != nil {
 			me.logger.Error("failed to send event", "error", err)
 		}
 	}

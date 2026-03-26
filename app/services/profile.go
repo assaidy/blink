@@ -145,13 +145,13 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 
-	if err := pubsub.PublishJson(ctx,
-		me.publisher,
+	if err := pubsub.PublishWithCodec(ctx, me.publisher,
 		UserProfileWasUpdatedEvent(userID),
 		UserProfileWasUpdatedEventPayload{
 			Name:     name,
 			Username: username,
 		},
+		pubsub.JsonCodec,
 	); err != nil {
 		return fmt.Errorf("failed to send event: %w", err)
 	}
@@ -162,14 +162,14 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 	}
 
 	for _, id := range partnerIDs {
-		if err := pubsub.PublishJson(ctx,
-			me.publisher,
+		if err := pubsub.PublishWithCodec(ctx, me.publisher,
 			PartnerProfileWasUpdatedEvent(id),
 			PartnerProfileWasUpdatedEventPayload{
 				PartnerID: userID,
 				Name:      name,
 				Username:  username,
 			},
+			pubsub.JsonCodec,
 		); err != nil {
 			return fmt.Errorf("failed to send event: %w", err)
 		}
@@ -202,12 +202,12 @@ func (me *ProfileService) DeleteProfile(userID string) error {
 	}
 
 	for _, id := range partnerIDs {
-		if err := pubsub.PublishJson(ctx,
-			me.publisher,
+		if err := pubsub.PublishWithCodec(ctx, me.publisher,
 			PartnerProfileWasDeletedEvent(id),
 			PartnerProfileWasDeletedEventPayload{
 				PartnerID: userID,
 			},
+			pubsub.JsonCodec,
 		); err != nil {
 			return fmt.Errorf("failed to send event: %w", err)
 		}

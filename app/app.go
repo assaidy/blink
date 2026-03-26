@@ -17,6 +17,7 @@ import (
 	"github.com/assaidy/blink/app/services"
 	"github.com/assaidy/blink/app/utils/mailer"
 	"github.com/assaidy/blink/app/utils/pubsub"
+	valkey_pubsub "github.com/assaidy/blink/app/utils/pubsub/valkey"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/valkey-io/valkey-go"
@@ -41,21 +42,21 @@ func NewApp() *App {
 	conf := config.Load()
 
 	db := db.GetPostgresConnectionPool(conf.PostgresUrl)
-	cache := cache.GetValkeyClient(conf.ValkeyAddr)
-	SenderReceiver := pubsub.NewValkeyPubsub(cache, logger)
+	valkeyClient := cache.GetValkeyClient(conf.ValkeyAddr)
+	pubsub := valkey_pubsub.New(valkeyClient)
 	mailer := email.NewPapercutMailer(conf.PapercutHost, conf.EmailFrom)
 
 	authService := services.NewAuthService(db, mailer, conf.Secret)
-	profileService := services.NewProfileService(db, SenderReceiver)
-	presenceService := services.NewPresenceService(db, cache, logger, SenderReceiver)
-	chatService := services.NewChatService(db, presenceService, SenderReceiver)
+	profileService := services.NewProfileService(db, pubsub)
+	presenceService := services.NewPresenceService(db, valkeyClient, logger, pubsub)
+	chatService := services.NewChatService(db, presenceService, pubsub)
 
 	return &App{
 		config:          conf,
 		logger:          logger,
 		db:              db,
-		cache:           cache,
-		pubsub:          SenderReceiver,
+		cache:           valkeyClient,
+		pubsub:          pubsub,
 		authService:     authService,
 		profileService:  profileService,
 		presenceService: presenceService,

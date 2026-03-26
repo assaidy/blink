@@ -1,50 +1,108 @@
+// Package pubsub provides a generic publish/subscribe abstraction.
 package pubsub
+
+// TEST: test codec + implementations
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"errors"
+	"log/slog"
 	"sync"
 )
 
+// Pubsub combines Publisher and Subscriber capabilities.
 type Pubsub interface {
 	Publisher
 	Subscriber
 }
 
+// Publisher defines the interface for sending messages to a channel.
 type Publisher interface {
+	// Publish sends a payload to the specified channel.
 	Publish(ctx context.Context, channel string, payload []byte) error
 }
 
-type Handler func(ctx context.Context, payload []byte) error
-type WaitChannel <-chan struct{}
-
+// Subscriber defines the interface for receiving messages from a channel.
 type Subscriber interface {
-	Subscribe(ctx context.Context, channel string, handler Handler) WaitChannel
+	// Subscribe registers a handler for messages on the specified channel.
+	Subscribe(ctx context.Context, channel string, handler Handler) Subscription
 }
 
-func SubscribeAll(wg *sync.WaitGroup, waits ...WaitChannel) {
-	for _, wait := range waits {
-		wg.Go(func() { <-wait })
+// Handler is a function that processes a message payload.
+type Handler func(ctx context.Context, payload []byte) error
+
+// Subscription represents a subscription to a channel and provides methods
+// to manage its lifecycle.
+type Subscription interface {
+	// Errs returns a channel that delivers handler errors.
+	Errs() <-chan error
+	// Done returns a channel that's closed when the subscription ends.
+	Done() <-chan struct{}
+	// Close terminates the subscription.
+	Close() error
+}
+
+var ErrSubscriptionClosed = errors.New("subscription closed")
+
+// BasicSubscription is a basic implementation for [Subscription]
+type BasicSubscription struct {
+	ErrsChan chan error
+	DoneChan chan struct{}
+	isClosed bool
+	mu       sync.Mutex
+}
+
+// NewBasicSubscription returns an instance of [BasicSubscription]
+// that implements [Subscription]
+func NewBasicSubscription() *BasicSubscription {
+	return &BasicSubscription{
+		ErrsChan: make(chan error, 10),
+		DoneChan: make(chan struct{}),
 	}
 }
 
-func PublishJson(ctx context.Context, pub Publisher, channel string, payload any) error {
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal json: %w", err)
-	}
-	return pub.Publish(ctx, channel, raw)
+func (me *BasicSubscription) Errs() <-chan error {
+	return me.ErrsChan
 }
 
-type JsonHandler[T any] func(ctx context.Context, payload T) error
+func (me *BasicSubscription) Done() <-chan struct{} {
+	return me.DoneChan
+}
 
-func SubscribeJson[T any](ctx context.Context, sub Subscriber, channel string, handler JsonHandler[T]) WaitChannel {
-	return sub.Subscribe(ctx, channel, func(ctx context.Context, payload []byte) error {
-		var p T
-		if err := json.Unmarshal(payload, &p); err != nil {
-			return fmt.Errorf("failed to unmarshal json: %w", err)
-		}
-		return handler(ctx, p)
-	})
+func (me *BasicSubscription) Close() error {
+	me.mu.Lock()
+	defer me.mu.Unlock()
+	if me.isClosed {
+		return ErrSubscriptionClosed
+	}
+	me.isClosed = true
+	close(me.DoneChan)
+	return nil
+}
+
+// WaitAll starts a wg.Go() for each subscription that waits for it to finish.
+// Errors from each subscription are passed to errorHandler.
+func WaitAll(wg *sync.WaitGroup, errorHandler func(error), subscriptions ...Subscription) {
+	for _, sub := range subscriptions {
+		wg.Go(func() {
+			defer sub.Close()
+			for {
+				select {
+				case <-sub.Done():
+					return
+				case err, ok := <-sub.Errs():
+					if !ok {
+						return
+					}
+					errorHandler(err)
+				}
+			}
+		})
+	}
+}
+
+func DefaultErrorHandler(logger *slog.Logger) func(error) {
+	return func(err error) {
+		logger.Error("subscription error", "error", err)
+	}
 }
