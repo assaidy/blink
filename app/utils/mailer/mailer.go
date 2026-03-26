@@ -1,4 +1,4 @@
-package email
+package mailer
 
 // Mailer defines the interface for sending emails.
 type Mailer interface {

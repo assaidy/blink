@@ -24,11 +24,11 @@ import (
 type AuthService struct {
 	db      *sql.DB
 	queries *repo.Queries
-	mailer  email.Mailer
+	mailer  mailer.Mailer
 	secret  string
 }
 
-func NewAuthService(db *sql.DB, mailer email.Mailer, secret string) *AuthService {
+func NewAuthService(db *sql.DB, mailer mailer.Mailer, secret string) *AuthService {
 	return &AuthService{
 		db:      db,
 		queries: repo.New(db),

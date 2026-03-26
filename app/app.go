@@ -15,7 +15,7 @@ import (
 	"github.com/assaidy/blink/app/db"
 	"github.com/assaidy/blink/app/handlers"
 	"github.com/assaidy/blink/app/services"
-	"github.com/assaidy/blink/app/utils/mailer"
+	papercut_mailer "github.com/assaidy/blink/app/utils/mailer/papercut"
 	"github.com/assaidy/blink/app/utils/pubsub"
 	valkey_pubsub "github.com/assaidy/blink/app/utils/pubsub/valkey"
 	"github.com/charmbracelet/log"
@@ -44,7 +44,7 @@ func NewApp() *App {
 	db := db.GetPostgresConnectionPool(conf.PostgresUrl)
 	valkeyClient := cache.GetValkeyClient(conf.ValkeyAddr)
 	pubsub := valkey_pubsub.New(valkeyClient)
-	mailer := email.NewPapercutMailer(conf.PapercutHost, conf.EmailFrom)
+	mailer := papercut_mailer.New(conf.PapercutHost, conf.EmailFrom)
 
 	authService := services.NewAuthService(db, mailer, conf.Secret)
 	profileService := services.NewProfileService(db, pubsub)
