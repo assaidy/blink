@@ -42,8 +42,8 @@ const (
 var PartnerPresenceEvent = makeEventChannelForUser("PartnerPresence")
 
 type PartnerPresenceEventPayload struct {
-	PartnerID string `json:"partnerID"`
-	IsOnline  bool   `json:"isOnline"`
+	PartnerID string
+	IsOnline  bool
 }
 
 func (me *PresenceService) StartHeartbeat(ctx context.Context, userID, sessionID string) {
@@ -114,7 +114,7 @@ func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, 
 				PartnerID: userID,
 				IsOnline:  change,
 			},
-			pubsub.JsonCodec,
+			pubsub.CodecMessagePack,
 		); err != nil {
 			me.logger.Error("failed to send event", "error", err)
 		}

@@ -22,6 +22,7 @@ require (
 require (
 	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
 	github.com/tinylib/msgp v1.2.5 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 )
 
 require (
@@ -76,6 +77,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.52.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/wasilibs/go-pgquery v0.0.0-20250409022910-10ac41983c07 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect

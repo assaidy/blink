@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Codec defines the interface for encoding and decoding message payloads.
@@ -36,7 +37,8 @@ func SubscribeWithCodec[T any](ctx context.Context, sub Subscriber, channel stri
 type CodecHandler[T any] func(ctx context.Context, payload T) error
 
 var (
-	JsonCodec = Codec(jsonCodec{})
+	CodecJson        = Codec(jsonCodec{})
+	CodecMessagePack = Codec(messagePack{})
 )
 
 type jsonCodec struct{}
@@ -47,4 +49,14 @@ func (me jsonCodec) Encode(v any) ([]byte, error) {
 
 func (me jsonCodec) Decode(raw []byte, v any) error {
 	return json.Unmarshal(raw, v)
+}
+
+type messagePack struct{}
+
+func (me messagePack) Encode(v any) ([]byte, error) {
+	return msgpack.Marshal(v)
+}
+
+func (me messagePack) Decode(raw []byte, v any) error {
+	return msgpack.Unmarshal(raw, v)
 }

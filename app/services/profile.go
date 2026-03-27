@@ -79,14 +79,14 @@ var (
 )
 
 type UserProfileWasUpdatedEventPayload struct {
-	Name     string `json:"name"`
-	Username string `json:"username"`
+	Name     string
+	Username string
 }
 
 type PartnerProfileWasUpdatedEventPayload struct {
-	PartnerID string `json:"partnerID"`
-	Name      string `json:"name"`
-	Username  string `json:"username"`
+	PartnerID string
+	Name      string
+	Username  string
 }
 
 func (me *ProfileService) UpdateProfile(userID, name, username, email, bio string) error {
@@ -151,7 +151,7 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 			Name:     name,
 			Username: username,
 		},
-		pubsub.JsonCodec,
+		pubsub.CodecMessagePack,
 	); err != nil {
 		return fmt.Errorf("failed to send event: %w", err)
 	}
@@ -169,7 +169,7 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 				Name:      name,
 				Username:  username,
 			},
-			pubsub.JsonCodec,
+			pubsub.CodecMessagePack,
 		); err != nil {
 			return fmt.Errorf("failed to send event: %w", err)
 		}
@@ -181,7 +181,7 @@ func (me *ProfileService) UpdateProfile(userID, name, username, email, bio strin
 var PartnerProfileWasDeletedEvent = makeEventChannelForUser("PartnerProfileWasDeleted")
 
 type PartnerProfileWasDeletedEventPayload struct {
-	PartnerID string `json:"partnerID"`
+	PartnerID string
 }
 
 func (me *ProfileService) DeleteProfile(userID string) error {
@@ -207,7 +207,7 @@ func (me *ProfileService) DeleteProfile(userID string) error {
 			PartnerProfileWasDeletedEventPayload{
 				PartnerID: userID,
 			},
-			pubsub.JsonCodec,
+			pubsub.CodecMessagePack,
 		); err != nil {
 			return fmt.Errorf("failed to send event: %w", err)
 		}

@@ -453,19 +453,19 @@ func (me *jsonHandler) HandleWebsocket(c *websocket.Conn) {
 	wg.Go(func() { me.presenceService.StartHeartbeat(ctx, userID, sessionID) })
 
 	pubsub.WaitAll(&wg, pubsub.DefaultErrorHandler(me.logger),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerPresenceEvent(userID), me.partnerPresenceEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.UserProfileWasUpdatedEvent(userID), me.userProfileWasUpdatedEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerProfileWasUpdatedEvent(userID), me.partnerProfileWasUpdatedEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerProfileWasDeletedEvent(userID), me.partnerProfileWasDeletedEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.MessageWasSentEvent(userID), me.messageWasSentEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.UserMessagesWereReadEvent(userID), me.userMessagesWereReadEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerMessagesWereReadEvent(userID), me.partnerMessagesWereReadEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.IncomingMessageEvent(userID), me.incomingMessageEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.UserMessageWasDeletedEvent(userID), me.userMessageWasDeletedEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerMessageWasDeletedEvent(userID), me.partnerMessageWasDeletedEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.UserMessageWasUpdatedEvent(userID), me.userMessageWasUpdatedEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerMessageWasUpdatedEvent(userID), me.partnerMessageWasUpdatedEventHandler(c), pubsub.JsonCodec),
-		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.ChatWasDeletedEvent(userID), me.chatWasDeletedEventHandler(c), pubsub.JsonCodec),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerPresenceEvent(userID), me.partnerPresenceEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.UserProfileWasUpdatedEvent(userID), me.userProfileWasUpdatedEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerProfileWasUpdatedEvent(userID), me.partnerProfileWasUpdatedEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerProfileWasDeletedEvent(userID), me.partnerProfileWasDeletedEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.MessageWasSentEvent(userID), me.messageWasSentEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.UserMessagesWereReadEvent(userID), me.userMessagesWereReadEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerMessagesWereReadEvent(userID), me.partnerMessagesWereReadEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.IncomingMessageEvent(userID), me.incomingMessageEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.UserMessageWasDeletedEvent(userID), me.userMessageWasDeletedEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerMessageWasDeletedEvent(userID), me.partnerMessageWasDeletedEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.UserMessageWasUpdatedEvent(userID), me.userMessageWasUpdatedEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.PartnerMessageWasUpdatedEvent(userID), me.partnerMessageWasUpdatedEventHandler(c), pubsub.CodecMessagePack),
+		pubsub.SubscribeWithCodec(ctx, me.subscriber, services.ChatWasDeletedEvent(userID), me.chatWasDeletedEventHandler(c), pubsub.CodecMessagePack),
 	)
 
 	for {
