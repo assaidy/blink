@@ -47,35 +47,27 @@ type PartnerPresenceEventPayload struct {
 }
 
 func (me *PresenceService) StartHeartbeat(ctx context.Context, userID, sessionID string) {
-	ticker := time.NewTicker(presenceHeartbeatTick)
-	defer ticker.Stop()
-
 	me.notifyPartnersIfPresenceChanged(context.Background(), userID, wentOnline)
 	defer me.notifyPartnersIfPresenceChanged(context.Background(), userID, wentOffline)
 
 	key := presenceKey(userID)
+	ticker := time.NewTicker(presenceHeartbeatTick)
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
+			score := time.Now().UnixMilli()
 			if err := me.cache.Do(ctx,
-				me.cache.B().
-					Zadd().
-					Key(key).
-					ScoreMember().
-					ScoreMember(float64(time.Now().UnixMilli()), sessionID).
-					Build(),
+				me.cache.B().Zadd().Key(key).ScoreMember().ScoreMember(float64(score), sessionID).Build(),
 			).Error(); err != nil {
 				me.logger.Error("failed to heartbeat presence", "error", err)
 			}
 
 		case <-ctx.Done():
+			// You must use a different context for this call as ctx is already done.
 			if err := me.cache.Do(context.Background(),
-				me.cache.B().
-					Zrem().
-					Key(presenceKey(userID)).
-					Member(sessionID).
-					Build(),
+				me.cache.B().Zrem().Key(key).Member(sessionID).Build(),
 			).Error(); err != nil {
 				me.logger.Error("failed to remove session from presence", "error", err)
 			}
@@ -84,7 +76,7 @@ func (me *PresenceService) StartHeartbeat(ctx context.Context, userID, sessionID
 	}
 }
 
-type presenceChange = bool
+type presenceChange bool
 
 const (
 	wentOnline  presenceChange = true
@@ -112,7 +104,7 @@ func (me *PresenceService) notifyPartnersIfPresenceChanged(ctx context.Context, 
 			PartnerPresenceEvent(id),
 			PartnerPresenceEventPayload{
 				PartnerID: userID,
-				IsOnline:  change,
+				IsOnline:  bool(change),
 			},
 			pubsub.CodecMessagePack,
 		); err != nil {
@@ -126,22 +118,12 @@ func (me *PresenceService) IsUserOnline(ctx context.Context, userID string) (boo
 	cutoff := time.Now().Add(-offlineTimeout).UnixMilli()
 
 	if err := me.cache.Do(ctx,
-		me.cache.B().
-			Zremrangebyscore().
-			Key(key).
-			Min("-inf").
-			Max(fmt.Sprint(cutoff)).
-			Build(),
+		me.cache.B().Zremrangebyscore().Key(key).Min("-inf").Max(fmt.Sprint(cutoff)).Build(),
 	).Error(); err != nil {
 		return false, err
 	}
 
-	n, err := me.cache.Do(ctx,
-		me.cache.B().
-			Zcard().
-			Key(key).
-			Build(),
-	).ToInt64()
+	n, err := me.cache.Do(ctx, me.cache.B().Zcard().Key(key).Build()).ToInt64()
 	if err != nil {
 		return false, err
 	}
