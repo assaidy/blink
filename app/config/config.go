@@ -8,15 +8,14 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-// todo: separate configs
 type Config struct {
+	Environment  string
 	Port         string
 	Secret       string
 	PostgresUrl  string
 	ValkeyAddr   string
 	EmailFrom    string
 	PapercutHost string
-	Environment  string
 }
 
 const (
