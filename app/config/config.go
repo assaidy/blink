@@ -8,6 +8,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+// todo: separate configs
 type Config struct {
 	Port         string
 	Secret       string
