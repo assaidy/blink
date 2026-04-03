@@ -36,8 +36,6 @@ type App struct {
 }
 
 func NewApp() *App {
-	conf := config.Get()
-
 	db := db.Get()
 	cache := cache.Get()
 	pubsub := valkey_pubsub.New(cache)
@@ -62,7 +60,7 @@ func NewApp() *App {
 		router: fiber.New(fiber.Config{
 			AppName:      "blink",
 			ErrorHandler: handlers.ErrorHandler(logger),
-			Prefork:      conf.Environment == config.EnvDevelopment,
+			Prefork:      config.Get().Environment == config.EnvDevelopment,
 		}),
 	}
 }
