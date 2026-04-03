@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/assaidy/blink/app/config"
 	"github.com/assaidy/blink/app/handlers"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -42,7 +43,7 @@ func (me *App) registerApiRoutes() {
 	withCsrfTokenQuery := handlers.WithCsrfTokenQuery(me.authService)
 
 	valkeyStorage := valkey_storage.New(valkey_storage.Config{
-		InitAddress: []string{me.config.ValkeyAddr},
+		InitAddress: []string{config.Get().ValkeyAddr},
 	})
 	apiRateLimitKeyGenerator := func(c *fiber.Ctx) string {
 		return "api_" + c.IP()
@@ -187,7 +188,7 @@ func (me *App) registerHtmlRoutes() {
 	withCsrfTokenQuery := handlers.WithCsrfTokenQuery(me.authService)
 
 	valkeyStorage := valkey_storage.New(valkey_storage.Config{
-		InitAddress: []string{me.config.ValkeyAddr},
+		InitAddress: []string{config.Get().ValkeyAddr},
 	})
 	htmlRateLimitKeyGenerator := func(c *fiber.Ctx) string {
 		return "html_" + c.IP()

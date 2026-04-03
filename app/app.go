@@ -24,7 +24,6 @@ import (
 )
 
 type App struct {
-	config          *config.Config
 	logger          *slog.Logger
 	db              *sql.DB
 	cache           valkey.Client
@@ -37,25 +36,24 @@ type App struct {
 }
 
 func NewApp() *App {
+	conf := config.Get()
+
+	db := db.Get()
+	cache := cache.Get()
+	pubsub := valkey_pubsub.New(cache)
+	mailer := papercut_mailer.New(config.Get().PapercutHost, config.Get().EmailFrom)
+
 	logger := slog.New(log.NewWithOptions(os.Stderr, log.Options{ReportTimestamp: true}))
 
-	conf := config.Load()
-
-	db := db.GetPostgresConnectionPool(conf.PostgresUrl)
-	valkeyClient := cache.GetValkeyClient(conf.ValkeyAddr)
-	pubsub := valkey_pubsub.New(valkeyClient)
-	mailer := papercut_mailer.New(conf.PapercutHost, conf.EmailFrom)
-
-	authService := services.NewAuthService(db, mailer, conf.Secret)
+	authService := services.NewAuthService(db, mailer, config.Get().Secret)
 	profileService := services.NewProfileService(db, pubsub)
-	presenceService := services.NewPresenceService(db, valkeyClient, logger, pubsub)
+	presenceService := services.NewPresenceService(db, cache, logger, pubsub)
 	chatService := services.NewChatService(db, presenceService, pubsub)
 
 	return &App{
-		config:          conf,
 		logger:          logger,
 		db:              db,
-		cache:           valkeyClient,
+		cache:           cache,
 		pubsub:          pubsub,
 		authService:     authService,
 		profileService:  profileService,
@@ -74,7 +72,7 @@ func (me *App) Run() {
 
 	go func() {
 		me.registerRoutes()
-		if err := me.router.Listen(fmt.Sprintf(":%s", me.config.Port)); err != nil {
+		if err := me.router.Listen(fmt.Sprintf(":%s", config.Get().Port)); err != nil {
 			me.logger.Error("failed to start server", "error", err)
 		}
 	}()

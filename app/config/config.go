@@ -28,7 +28,7 @@ var (
 	once   sync.Once
 )
 
-func Load() *Config {
+func Get() *Config {
 	once.Do(func() {
 		config = &Config{}
 		config.Environment = getEnvOrDefault("ENVIRONMENT", EnvDevelopment)
