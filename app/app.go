@@ -35,7 +35,7 @@ type App struct {
 	router          *fiber.App
 }
 
-func NewApp() *App {
+func New() *App {
 	db := db.Get()
 	cache := cache.Get()
 	pubsub := valkey_pubsub.New(cache)
@@ -65,7 +65,7 @@ func NewApp() *App {
 	}
 }
 
-func (me *App) Run() {
+func (me App) Run() {
 	quitCtx, quitCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
